@@ -1,6 +1,6 @@
 // Simple fields, used for S-Frames and H-Frames
 #[repr(C)]
-pub struct BlackboxSimpleFieldDefinition {
+pub struct SimpleFieldDefinition {
     pub name: &'static str,
     pub field_name_index: i8,
     pub is_signed: u8,
@@ -10,7 +10,7 @@ pub struct BlackboxSimpleFieldDefinition {
 
 // Conditional fields, used for G-Frames
 #[repr(C)]
-pub struct BlackboxConditionalFieldDefinition {
+pub struct ConditionalFieldDefinition {
     pub name: &'static str,
     pub field_name_index: i8,
     pub is_signed: u8,
@@ -20,7 +20,7 @@ pub struct BlackboxConditionalFieldDefinition {
 }
 
 #[repr(C)]
-pub struct BlackboxMainFieldDefinition {
+pub struct MainFieldDefinition {
     pub name: &'static str,
     pub field_name_index: i8,
     pub is_signed: u8,
@@ -33,14 +33,14 @@ pub struct BlackboxMainFieldDefinition {
     pub condition: u8,
 }
 
-pub struct FlightLogField;
-impl FlightLogField {
+pub struct FieldSign;
+impl FieldSign {
     pub const UNSIGNED: u8 = 0;
     pub const SIGNED: u8 = 1;
 }
 
-pub struct FlightLogFieldPredictor;
-impl FlightLogFieldPredictor {
+pub struct FieldPredictor;
+impl FieldPredictor {
     pub const ZERO: u8 = 0;
     pub const PREVIOUS: u8 = 1;
     pub const STRAIGHT_LINE: u8 = 2;
@@ -55,8 +55,8 @@ impl FlightLogFieldPredictor {
     pub const MIN_MOTOR: u8 = 11;
 }
 
-pub struct FlightLogFieldEncoding;
-impl FlightLogFieldEncoding {
+pub struct FieldEncoding;
+impl FieldEncoding {
     pub const SIGNED_VB: u8 = 0;
     pub const UNSIGNED_VB: u8 = 1;
     pub const NEG_14BIT: u8 = 3;
@@ -67,8 +67,8 @@ impl FlightLogFieldEncoding {
     pub const TAG2_3SVARIABLE: u8 = 10;
 }
 
-pub struct FlightLogFieldCondition;
-impl FlightLogFieldCondition {
+pub struct FieldCondition;
+impl FieldCondition {
     pub const ALWAYS: u8 = 0;
 
     pub const AT_LEAST_MOTORS_1: u8 = 1;

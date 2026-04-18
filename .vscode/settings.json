@@ -13,6 +13,7 @@
         "feedforward",
         "heapless",
         "katex",
+        "nocapture",
         "RSSI",
         "rustc",
         "rustdoc",
