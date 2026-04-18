@@ -1,0 +1,28 @@
+{
+    "cSpell.words": [
+        "astextplain",
+        "autocfg",
+        "baro",
+        "Betaflight",
+        "blackbox",
+        "Budden",
+        "byteorder",
+        "Cleanflight",
+        "codegen",
+        "debuginfo",
+        "feedforward",
+        "heapless",
+        "katex",
+        "RSSI",
+        "rustc",
+        "rustdoc",
+        "scopeguard",
+        "serde",
+        "SVARIABLE",
+        "thiserror",
+        "TRICOPTER",
+        "vbat",
+        "VBATREF",
+        "velned"
+    ]
+}
