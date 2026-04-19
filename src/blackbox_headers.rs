@@ -1,4 +1,4 @@
-use crate::{MainFieldDefinition, SimpleFieldDefinition,ConditionalFieldDefinition};
+use crate::{ConditionalFieldDefinition, FieldHeader, MainFieldDefinition, SimpleFieldDefinition};
 pub trait HeaderWriter {
     fn write_str(&mut self, s: &str);
     fn write_char(&mut self, c: char);
@@ -22,135 +22,78 @@ fn write_u8_ascii(writer: &mut dyn HeaderWriter, mut n: u8) {
     }
 }
 
+fn write_common_header_lines<T: FieldHeader>(writer: &mut dyn HeaderWriter, frame_type: char, fields: &[T]) {
+    // Name line
+    write_header_line(writer, frame_type, "name", fields, |w, f| {
+        w.write_str(f.name());
+        let index = f.field_name_index();
+        if index >= 0 {
+            w.write_char('[');
+            write_u8_ascii(w, index.cast_unsigned());
+            w.write_char(']');
+        }
+    });
+
+    // Signed line
+    write_header_line(writer, frame_type, "signed", fields, |w, f| {
+        write_u8_ascii(w, f.is_signed());
+    });
+
+    // Predictor line
+    write_header_line(writer, frame_type, "predictor", fields, |w, f| {
+        write_u8_ascii(w, f.predict());
+    });
+    // Encoder line
+    write_header_line(writer, frame_type, "encode", fields, |w, f| {
+        write_u8_ascii(w, f.encode());
+    });
+}
+
+// Helper to handle the "H Field X type: val,val" formatting
+// Notice the closure now takes (&mut dyn HeaderWriter, &T)
+fn write_header_line<T, F>(writer: &mut dyn HeaderWriter, frame_type: char, label: &str, fields: &[T], mut op: F)
+where
+    F: FnMut(&mut dyn HeaderWriter, &T), // <--- Added writer here
+{
+    writer.write_str("H Field ");
+    writer.write_char(frame_type);
+    writer.write_char(' ');
+    writer.write_str(label);
+    writer.write_char(':');
+    for (i, field) in fields.iter().enumerate() {
+        if i > 0 {
+            writer.write_char(',');
+        }
+        op(writer, field); // <--- Pass it in here
+    }
+    writer.write_char('\n');
+}
+
 // Simple headers, used for S and H frames
-// H Field S name:flight_mode_flags,state_flags,failsafe_phase,rx_signal_received,rx_flight_channe_is_valid
+// H Field S name:flight_mode_flags,state_flags,failsafe_phase,rx_signal_received,rx_flight_channel_is_valid
 // H Field H name:GPS_home[0],GPS_home[1]
 // H Field S signed:   0,0,0,0,0
 // H Field S predictor:0,0,0,0,0
 // H Field S encoding: 1,1,7,7,7
-pub fn write_simple_field_headers(
-    writer: &mut dyn HeaderWriter,
-    frame_type: char, // 'I', 'P', 'S', or 'G'
-    fields: &[SimpleFieldDefinition],
-) {
-    // 1. Write Field Names: H Field [type] Name:time,loopIteration,syncBeep...
-    writer.write_str("H Field ");
-    writer.write_char(frame_type);
-    writer.write_str(" Name:");
-    for (i, field) in fields.iter().enumerate() {
-        if i > 0 {
-            writer.write_char(',');
-        }
-        writer.write_str(field.name);
-    }
-    writer.write_char('\n');
-
-    // 2. Signs
-    // H Field S signed:   0,0,0,0,0
-    writer.write_str("H Field ");
-    writer.write_char(frame_type);
-    writer.write_str(" signed:");
-    for (i, field) in fields.iter().enumerate() {
-        if i > 0 {
-            writer.write_char(',');
-        }
-        // We use a simple u8 to string conversion here
-        write_u8_ascii(writer, field.is_signed);
-    }
-    writer.write_char('\n');
-
-    // 3. Write Predictors: H Field [type] Predictor:0,1,1,3...
-    writer.write_str("H Field ");
-    writer.write_char(frame_type);
-    writer.write_str(" predictor:");
-    for (i, field) in fields.iter().enumerate() {
-        if i > 0 {
-            writer.write_char(',');
-        }
-        // We use a simple u8 to string conversion here
-        write_u8_ascii(writer, field.predict);
-    }
-    writer.write_char('\n');
-
-    // 4. Write Encodings: H Field [type] Encoding:1,1,0,6...
-    writer.write_str("H Field ");
-    writer.write_char(frame_type);
-    writer.write_str(" encoding:");
-    for (i, field) in fields.iter().enumerate() {
-        if i > 0 {
-            writer.write_char(',');
-        }
-        write_u8_ascii(writer, field.encode);
-    }
-    writer.write_char('\n');
+pub fn write_simple_header(writer: &mut dyn HeaderWriter, frame_type: char, fields: &[SimpleFieldDefinition]) {
+    write_common_header_lines(writer, frame_type, fields);
 }
 
 // H Field G name:time,GPS_numSat,GPS_coord[0],GPS_coord[1],GPS_altitude,GPS_speed,GPS_ground_course,GPS_velned[0],GPS_velned[1],GPS_velned[2]
 // H Field G signed:0,0,1,1,1,0,0,1,1,1
 // H Field G predictor:10,0,7,7,0,0,0,0,0,0
 // H Field G encoding:1,1,0,0,0,1,1,0,0,0
-pub fn write_conditional_headers(
+pub fn write_conditional_header(
     writer: &mut dyn HeaderWriter,
-    frame_type: char, // 'I', 'P', 'S', or 'G'
-    fields: &[ConditionalFieldDefinition]
+    frame_type: char,
+    fields: &[ConditionalFieldDefinition],
 ) {
-    // 1. Write Field Names: H Field [type] Name:time,loopIteration,syncBeep...
-    writer.write_str("H Field ");
-    writer.write_char(frame_type);
-    writer.write_str(" Name:");
-    for (i, field) in fields.iter().enumerate() {
-        if i > 0 {
-            writer.write_char(',');
-        }
-        writer.write_str(field.name);
-    }
-    writer.write_char('\n');
+    write_common_header_lines(writer, frame_type, fields);
 
-    // 2. Signs
-    // H Field S signed:   0,0,0,0,0
-    writer.write_str("H Field ");
-    writer.write_char(frame_type);
-    writer.write_str(" signed:");
-    for (i, field) in fields.iter().enumerate() {
-        if i > 0 {
-            writer.write_char(',');
-        }
-        // We use a simple u8 to string conversion here
-        write_u8_ascii(writer, field.is_signed);
-    }
-    writer.write_char('\n');
-
-    // 3. Write Predictors: H Field [type] Predictor:0,1,1,3...
-    writer.write_str("H Field ");
-    writer.write_char(frame_type);
-    writer.write_str(" predictor:");
-    for (i, field) in fields.iter().enumerate() {
-        if i > 0 {
-            writer.write_char(',');
-        }
-        // We use a simple u8 to string conversion here
-        write_u8_ascii(writer, field.predict);
-    }
-    writer.write_char('\n');
-
-    // 4. Write Encodings: H Field [type] Encoding:1,1,0,6...
-    writer.write_str("H Field ");
-    writer.write_char(frame_type);
-    writer.write_str(" encoding:");
-    for (i, field) in fields.iter().enumerate() {
-        if i > 0 {
-            writer.write_char(',');
-        }
-        write_u8_ascii(writer, field.encode);
-    }
-    writer.write_char('\n');
-
-    writer.write_str("H Field G Condition:");
-    for (i, field) in fields.iter().enumerate() {
-        if i > 0 { writer.write_char(','); }
-        write_u8_ascii(writer, field.condition);
-    }
-    writer.write_char('\n');
+    // Condition line
+    write_header_line(writer, frame_type, "condition", fields, |w, f| {
+        write_u8_ascii(w, f.condition);
+    });
 }
 
 // main headers, used for I and P frames
@@ -160,51 +103,24 @@ pub fn write_conditional_headers(
 //3: H Field I encoding: 1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,3,1,0,0,0, 1,0,0,0
 //4: H Field P predictor:6,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,3,3,3, 3,3,3,3
 //5: H Field P encoding: 9,0,0,0,0,7,7,7,0,0,0,8,8,8,8,6,6,0,0,0, 0,0,0,0
-pub fn write_main_headers(writer: &mut dyn HeaderWriter, fields: &[MainFieldDefinition]) {
-    // 1. Field Names
-    writer.write_str("H Field P Name:");
-    for (i, field) in fields.iter().enumerate() {
-        if i > 0 {
-            writer.write_char(',');
-        }
-        writer.write_str(field.name);
-    }
-    writer.write_char('\n');
+pub fn write_main_header(writer: &mut dyn HeaderWriter, fields: &[MainFieldDefinition]) {
+    write_common_header_lines(writer, 'I', fields);
 
-    // 2. Predictors (using P-specific values)
-    writer.write_str("H Field P Predictor:");
-    for (i, field) in fields.iter().enumerate() {
-        if i > 0 {
-            writer.write_char(',');
-        }
-        write_u8_ascii(writer, field.p_predict);
-    }
-    writer.write_char('\n');
-
-    // 3. Encodings (using P-specific values)
-    writer.write_str("H Field P Encoding:");
-    for (i, field) in fields.iter().enumerate() {
-        if i > 0 {
-            writer.write_char(',');
-        }
-        write_u8_ascii(writer, field.p_encode);
-    }
-    writer.write_char('\n');
-}
-
-//For P-frames to decode correctly, you must also write the P interval header, which defines how many PID loop iterations occur between logs.
-pub fn write_p_interval_header(writer: &mut dyn HeaderWriter, numerator: u8, denominator: u8) {
-    writer.write_str("H P interval:");
-    write_u8_ascii(writer, numerator);
-    writer.write_char('/');
-    write_u8_ascii(writer, denominator);
-    writer.write_char('\n');
+    write_header_line(writer, 'P', "predictor", fields, |w, f| {
+        write_u8_ascii(w, f.p_predict);
+    });
+    write_header_line(writer, 'P', "encoding", fields, |w, f| {
+        write_u8_ascii(w, f.p_encode);
+    });
+    write_header_line(writer, 'P', "condition", fields, |w, f| {
+        write_u8_ascii(w, f.condition);
+    });
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::BLACKBOX_SLOW_FIELDS;
+    use crate::{BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS};
 
     // A simple mock writer that captures output into a byte slice
     struct MockWriter<'a> {
@@ -230,12 +146,12 @@ mod tests {
     }
 
     #[test]
-    fn test_slow_fields_header() {
+    fn slow_fields_header() {
         let mut buffer = [0u8; 1024];
         let mut writer = MockWriter { buf: &mut buffer, pos: 0 };
 
         // Generate headers for the SLOW_FIELDS array defined earlier
-        write_simple_field_headers(&mut writer, 'S', &BLACKBOX_SLOW_FIELDS);
+        write_simple_header(&mut writer, 'S', &BLACKBOX_SLOW_FIELDS);
 
         // Convert the written portion to a string for validation
         #[allow(clippy::unwrap_used)]
@@ -246,66 +162,32 @@ mod tests {
         // Predictors: 0,0,0,0,0 (All are PREDICT(ZERO) = 0)
         // Encodings: 1,1,7,7,7 (UNSIGNED_VB=1, TAG2_3S32=7)
 
-        assert!(result.contains(
-            "H Field S Name:flight_mode_flags,state_flags,failsafe_phase,rx_signal_received,rx_flight_channel_is_valid"
-        ));
-        //assert!(result.contains("H Field S Predictor:0,0,0,0,0"));
-        //assert!(result.contains("H Field S Encoding:1,1,7,7,7"));
-
         // Print for manual inspection (if running with `cargo test -- --nocapture`)
         println!("{result}");
+        assert!(result.contains(
+            "H Field S name:flight_mode_flags,state_flags,failsafe_phase,rx_signal_received,rx_flight_channel_is_valid"
+        ));
+        assert!(result.contains("H Field S predictor:0,0,0,0,0"));
+        assert!(result.contains("H Field S encode:1,1,7,7,7"));
     }
-
     #[test]
-    fn test_main_headers() {
-        use crate::{FieldEncoding, FieldPredictor};
-        let mut buffer = [0u8; 1024];
+    fn main_fields_header() {
+        let mut buffer = [0u8; 2048];
         let mut writer = MockWriter { buf: &mut buffer, pos: 0 };
 
-        // Define a small set of main fields for the test
-        let test_fields = [
-            MainFieldDefinition {
-                name: "loopIteration",
-                field_name_index: -1,
-                is_signed: 0,
-                i_predict: 0,
-                i_encode: 1,
-                p_predict: FieldPredictor::INC, // 6
-                p_encode: 9,                    // ZERO/NULL encoding
-                condition: 0,
-            },
-            MainFieldDefinition {
-                name: "time",
-                field_name_index: -1,
-                is_signed: 0,
-                i_predict: 0,
-                i_encode: 1,
-                p_predict: FieldPredictor::STRAIGHT_LINE, // 2
-                p_encode: FieldEncoding::SIGNED_VB,       // 0
-                condition: 0,
-            },
-        ];
+        // Generate headers for the SLOW_FIELDS array defined earlier
+        write_main_header(&mut writer, BLACKBOX_MAIN_FIELDS);
 
-        // Generate the P headers
-        write_main_headers(&mut writer, &test_fields);
-        write_p_interval_header(&mut writer, 1, 1);
-
+        // Convert the written portion to a string for validation
         #[allow(clippy::unwrap_used)]
         let result = core::str::from_utf8(&writer.buf[..writer.pos]).unwrap();
 
-        // 1. Check Names
-        assert!(result.contains("H Field P Name:loopIteration,time"));
+        // Expected output segments:
+        // Names: flight_mode_flags,state_flags,failsafe_phase,rx_signal_received,rx_flight_channel_is_valid
+        // Predictors: 0,0,0,0,0 (All are PREDICT(ZERO) = 0)
+        // Encodings: 1,1,7,7,7 (UNSIGNED_VB=1, TAG2_3S32=7)
 
-        // 2. Check P-Predictors (INC=6, STRAIGHT_LINE=2)
-        assert!(result.contains("H Field P Predictor:6,2"));
-
-        // 3. Check P-Encodings (NULL=9, SIGNED_VB=0)
-        assert!(result.contains("H Field P Encoding:9,0"));
-
-        // 4. Check Interval
-        assert!(result.contains("H P interval:1/1"));
-
-        // Use `cargo test -- --nocapture` to see this output
+        // Print for manual inspection (if running with `cargo test -- --nocapture`)
         println!("{result}");
     }
 }

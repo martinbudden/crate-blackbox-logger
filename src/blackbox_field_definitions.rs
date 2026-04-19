@@ -1,3 +1,11 @@
+pub trait FieldHeader {
+    fn name(&self) -> &'static str;
+    fn field_name_index(&self) -> i8;
+    fn is_signed(&self) -> u8;
+    fn predict(&self) -> u8;
+    fn encode(&self) -> u8;
+}
+
 // Simple fields, used for S-Frames and H-Frames
 #[repr(C)]
 pub struct SimpleFieldDefinition {
@@ -6,6 +14,24 @@ pub struct SimpleFieldDefinition {
     pub is_signed: u8,
     pub predict: u8,
     pub encode: u8,
+}
+
+impl FieldHeader for SimpleFieldDefinition {
+    fn name(&self) -> &'static str {
+        self.name
+    }
+    fn field_name_index(&self) -> i8 {
+        self.field_name_index
+    }
+    fn is_signed(&self) -> u8 {
+        self.is_signed
+    }
+    fn predict(&self) -> u8 {
+        self.predict
+    }
+    fn encode(&self) -> u8 {
+        self.encode
+    }
 }
 
 // Conditional fields, used for G-Frames
@@ -17,6 +43,24 @@ pub struct ConditionalFieldDefinition {
     pub predict: u8,
     pub encode: u8,
     pub condition: u8,
+}
+
+impl FieldHeader for ConditionalFieldDefinition {
+    fn name(&self) -> &'static str {
+        self.name
+    }
+    fn field_name_index(&self) -> i8 {
+        self.field_name_index
+    }
+    fn is_signed(&self) -> u8 {
+        self.is_signed
+    }
+    fn predict(&self) -> u8 {
+        self.predict
+    }
+    fn encode(&self) -> u8 {
+        self.encode
+    }
 }
 
 #[repr(C)]
@@ -31,6 +75,24 @@ pub struct MainFieldDefinition {
     pub p_predict: u8,
     pub p_encode: u8,
     pub condition: u8,
+}
+
+impl FieldHeader for MainFieldDefinition {
+    fn name(&self) -> &'static str {
+        self.name
+    }
+    fn field_name_index(&self) -> i8 {
+        self.field_name_index
+    }
+    fn is_signed(&self) -> u8 {
+        self.is_signed
+    }
+    fn predict(&self) -> u8 {
+        self.i_predict
+    }
+    fn encode(&self) -> u8 {
+        self.i_encode
+    }
 }
 
 pub struct FieldSign;
@@ -125,3 +187,31 @@ impl FieldCondition {
     pub const LAST: u8 = Self::NEVER;
 }
 
+pub struct LogFieldSelect;
+impl LogFieldSelect {
+    pub const DEBUG: u32 = 0x0001;
+    pub const PID: u32 = 0x0002;
+    pub const PID_DTERM_ROLL: u32 = 0x0004;
+    pub const PID_DTERM_PITCH: u32 = 0x0008;
+    pub const PID_DTERM_YAW: u32 = 0x0010;
+    pub const PID_STERM_ROLL: u32 = 0x0020;
+    pub const PID_STERM_PITCH: u32 = 0x0040;
+    pub const PID_STERM_YAW: u32 = 0x0080;
+    pub const PID_KTERM: u32 = 0x0100;
+    pub const SETPOINT: u32 = 0x0200;
+    pub const RC_COMMANDS: u32 = 0x0400;
+    pub const RSSI: u32 = 0x0800;
+    pub const GYRO: u32 = 0x1000;
+    pub const GYRO_UNFILTERED: u32 = 0x2000;
+    pub const ACCELEROMETER: u32 = 0x4000;
+    pub const ATTITUDE: u32 = 0x8000;
+    pub const MAGNETOMETER: u32 = 0x10000;
+    pub const MOTOR: u32 = 0x20000;
+    pub const MOTOR_RPM: u32 = 0x40000;
+    pub const SERVO: u32 = 0x80000;
+    pub const BATTERY_VOLTAGE: u32 = 0x10_0000;
+    pub const BATTERY_CURRENT: u32 = 0x20_0000;
+    pub const BAROMETER: u32 = 0x40_0000;
+    pub const RANGEFINDER: u32 = 0x80_0000;
+    pub const GPS: u32 = 0x100_0000;
+}

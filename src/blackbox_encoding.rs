@@ -29,6 +29,13 @@ impl SliceWriter<'_> {
         self.write_byte(value as u8);
     }
 
+    // begin_frame and end_frame to support future Huffman compression of frame.
+    pub fn begin_frame(&mut self, value: u8) {
+        self.write_byte(value);
+    }
+
+    pub fn end_frame(&mut self) {}
+
     pub fn write_unsigned_vb(&mut self, mut value: u32) {
         while value >= 128 {
             // Set high bit (continuation) and take 7 bits
@@ -46,6 +53,12 @@ impl SliceWriter<'_> {
         // ZigZag encode: maps -1 to 1, 1 to 2, -2 to 3, 2 to 4...
         let zigzag = ((value << 1) ^ (value >> 31)).cast_unsigned();
         self.write_unsigned_vb(zigzag);
+    }
+
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn write_s16(&mut self, value: i16) {
+        self.write_byte((value & 0xFF).cast_unsigned() as u8);
+        self.write_byte(((value >> 8) & 0xFF).cast_unsigned() as u8);
     }
 
     /// Encodes a group of up to 8 fields using TAG8_8SVB.
