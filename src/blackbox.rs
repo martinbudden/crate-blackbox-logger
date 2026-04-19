@@ -1,8 +1,10 @@
+use crate::BlackboxCallbacks;
 use crate::{FieldCondition, LogFieldSelect, SliceWriter};
 #[cfg(test)]
 use crate::{FieldEncoding, FieldPredictor, MainFieldDefinition};
 use crate::{GpsState, MainState, SlowState};
 use receivers::BitSet64;
+use serde::{Deserialize, Serialize};
 
 macro_rules! assert_i_field_encoding {
     ($name:expr, $expected_predict:expr, $expected_encode:expr) => {
@@ -26,9 +28,71 @@ macro_rules! assert_p_field_encoding {
     };
 }
 
+pub struct BlackboxDevice {}
+impl BlackboxDevice {
+    pub const NONE: u8 = 0;
+    pub const FLASH: u8 = 1;
+    pub const SDCARD: u8 = 2;
+    pub const SERIAL: u8 = 3;
+}
+
+pub struct BlackboxMode {}
+impl BlackboxMode {
+    pub const NORMAL: u8 = 0;
+    pub const MOTOR_TEST: u8 = 1;
+    pub const ALWAYS_ON: u8 = 2;
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
+pub struct BlackboxConfig {
+    pub sample_rate: u8,
+    pub device: u8,
+    pub mode: u8,
+    pub gps_use_3d_speed: bool,
+    pub fields_disabled_mask: u32,
+}
+
+impl Default for BlackboxConfig {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl BlackboxConfig {
+    fn new() -> Self {
+        Self {
+            sample_rate: 0,
+            device: BlackboxDevice::NONE,
+            mode: BlackboxMode::NORMAL,
+            gps_use_3d_speed: false,
+            fields_disabled_mask: 0,
+        }
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BlackboxStart {
+    pub debug_mode: u16,
+    pub motor_count: u8,
+    pub servo_count: u8,
+}
+
+impl Default for BlackboxStart {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl BlackboxStart {
+    fn new() -> Self {
+        Self { debug_mode: 0, motor_count: 4, servo_count: 0 }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct Blackbox {
     iteration: u32,
+    loop_index: u32,
+
     motor_count: usize,
     servo_count: usize,
     debug_mode: u32,
@@ -49,24 +113,31 @@ pub struct Blackbox {
 
     slow_state: SlowState,
     gps_state: GpsState,
+    home_longitude_degrees_1e7: i32, // home longitude in degrees * 1e+7
+    home_latitude_degrees_1e7: i32,  // home latitude in degrees * 1e+7
+    home_altitude_cm: i32,           // home altitude in cm
 
     main_states: [MainState; 3],
-    state_current_idx: usize,
-    state_previous_idx: usize,
-    state_pre_previous_idx: usize,
+    state_index_current: usize,
+    state_index_previous: usize,
+    state_index_pre_previous: usize,
+    config: BlackboxConfig,
     buf: [u8; 1024],
+    /// Callbacks. Probably better done with Generics, but this is simpler for now.
+    callbacks: BlackboxCallbacks,
 }
 
 impl Default for Blackbox {
     fn default() -> Self {
-        Self::new()
+        Self::new(BlackboxCallbacks::default())
     }
 }
 
 impl Blackbox {
-    pub fn new() -> Self {
+    pub fn new(callbacks: BlackboxCallbacks) -> Self {
         Self {
             iteration: 0,
+            loop_index: 0,
             motor_count: 4,
             servo_count: 0,
             debug_mode: 0,
@@ -84,22 +155,189 @@ impl Blackbox {
             vbat_reference: 0,
             slow_state: SlowState::default(),
             gps_state: GpsState::default(),
+            home_longitude_degrees_1e7: 0,
+            home_latitude_degrees_1e7: 0,
+            home_altitude_cm: 0,
             main_states: <[MainState; 3]>::default(),
-            state_current_idx: 0,
-            state_previous_idx: 1,
-            state_pre_previous_idx: 2,
+            state_index_current: 0,
+            state_index_previous: 1,
+            state_index_pre_previous: 2,
+            config: BlackboxConfig::default(),
             buf: [0u8; 1024],
+            callbacks,
         }
     }
 }
-/// Build condition cache, called from start().
+
 impl Blackbox {
+    pub fn init(&mut self, config: BlackboxConfig) {
+        //_serial_device.init();
+
+        self.config = config;
+
+        self.log_select_enabled = LogFieldSelect::PID
+        | LogFieldSelect::PID_KTERM
+        | LogFieldSelect::PID_DTERM_ROLL
+        | LogFieldSelect::PID_DTERM_PITCH
+        //| LogFieldSelect::PID_STERM_ROLL
+        //| LogFieldSelect::PID_STERM_PITCH
+        //| LogFieldSelect::PID_STERM_YAW
+        | LogFieldSelect::SETPOINT
+        | LogFieldSelect::RC_COMMANDS
+        | LogFieldSelect::GYRO
+        | LogFieldSelect::GYRO_UNFILTERED
+        | LogFieldSelect::ACCELEROMETER
+        //| LogFieldSelect::ATTITUDE
+        | LogFieldSelect::MOTOR
+        | LogFieldSelect::MOTOR_RPM;
+
+        self.reset_iteration_timers();
+
+        // an I-frame is written every 32ms
+        // blackboxUpdate() is run in synchronization with the PID loop
+        // _target_pid_looptime_us is 1000 for 1kHz loop, 500 for 2kHz loop etc, _target_pid_looptime_us is rounded for short looptimes
+        //self.i_interval = 32 * 1000 / self.target_pid_looptime_us;
+
+        self.p_interval = 1 << config.sample_rate;
+        if self.p_interval > self.i_interval {
+            self.p_interval = 0; // log only i_frames if logging frequency is too low
+        }
+
+        // S-frame is written every 256*32 = 8192ms, approx every 8 seconds
+        self.s_interval = self.i_interval * 256;
+
+        /*if config.device == BlackboxDevice::NONE {
+            self.set_state(STATE_DISABLED);
+        } else if (config.mode == BlackboxMode::ALWAYS_ON) {
+            self.start();
+        } else {
+            self.set_state(STATE_STOPPED);
+        }*/
+    }
+    pub fn start(&self, _start_params: BlackboxStart) {}
+    pub fn finish(&self) {}
+
+    /// Build condition cache, called from start().
     pub fn build_field_condition_cache(&mut self) {
         self.condition_cache.reset_all();
         for condition in FieldCondition::FIRST..FieldCondition::LAST {
             if self.test_field_condition_uncached(condition) {
                 _ = self.condition_cache.set(condition);
             }
+        }
+    }
+
+    pub fn reset_iteration_timers(&mut self) {
+        self.iteration = 0;
+        self.loop_index = 0;
+        self.i_frame_index = 0;
+        self.p_frame_index = 0;
+        self.s_frame_index = 0;
+    }
+    /// Called once every FC loop in order to keep track of how many FC loop iterations have passed.
+    pub fn advance_iteration_timers(&mut self) {
+        self.s_frame_index += 1;
+        self.iteration += 1;
+        self.loop_index += 1;
+
+        if self.loop_index >= self.i_interval {
+            self.loop_index = 0; // value of zero means i_frame will be written on next update
+            self.i_frame_index += 1;
+            self.p_frame_index = 0;
+        } else {
+            self.p_frame_index += 1;
+            if self.p_frame_index >= self.p_interval {
+                self.p_frame_index = 0; // value of zero means p_frame will be written on next update, if i_frame not written
+            }
+        }
+    }
+
+    /// Called when the flight controller signals it has new data.
+    pub fn log_iteration(&mut self, current_time_us: u32) {
+        // Write a keyframe every i_interval frames so we can resynchronise upon missing frames
+        if self.should_log_i_frame() {
+            // ie _loop_index == 0
+            // Don't log a slow frame if the slow data didn't change (i_frames are already large enough without adding
+            // an additional item to write at the same time). Unless we're *only* logging i_frames, then we have no choice.
+            if self.is_only_logging_i_frames() {
+                self.log_s_frame_if_needed();
+            }
+
+            (self.callbacks.load_main_state)(&mut self.main_states[self.state_index_current], current_time_us);
+            self.log_i_frame();
+        } else {
+            self.log_event_arming_beep_if_needed();
+            self.log_event_flight_mode_if_needed(); // Check for FlightMode status change event
+
+            if self.should_log_p_frame() {
+                // ie p_frame_index == 0 && p_interval != 0
+                // We assume that slow frames are only interesting in that they aid the interpretation of the main data stream.
+                // So only log slow frames during loop iterations where we log a main frame.
+                self.log_s_frame_if_needed();
+
+                (self.callbacks.load_main_state)(&mut self.main_states[self.state_index_current], current_time_us);
+                self.log_p_frame();
+            }
+            #[cfg(feature = "gps")]
+            if Self::field_enabled(self.log_select_enabled, LogFieldSelect::GPS) {
+                let mut gps_state_new = GpsState::new();
+                (self.callbacks.load_gps_state)(&mut gps_state_new);
+
+                let gps_state_changed = gps_state_new.satellite_count != self.gps_state.satellite_count
+                    || gps_state_new.latitude_degrees_1e7 != self.gps_state.latitude_degrees_1e7
+                    || gps_state_new.longitude_degrees_1e7 != self.gps_state.longitude_degrees_1e7;
+
+                self.gps_state = gps_state_new;
+
+                if self.should_log_h_frame() {
+                    self.home_latitude_degrees_1e7 = self.gps_state.home_latitude_degrees_1e7;
+                    self.home_longitude_degrees_1e7 = self.gps_state.home_longitude_degrees_1e7;
+                    self.home_altitude_cm = self.gps_state.home_altitude_cm;
+                    self.log_h_frame();
+                    self.log_g_frame(current_time_us);
+                } else if gps_state_changed {
+                    //We could check for velocity changes as well but I doubt it changes independent of position
+                    self.log_g_frame(current_time_us);
+                }
+            }
+        }
+    }
+
+    pub fn should_log_i_frame(&self) -> bool {
+        self.loop_index == 0
+    }
+    pub fn should_log_h_frame(&self) -> bool {
+        true
+    }
+    pub fn should_log_p_frame(&self) -> bool {
+        self.p_frame_index == 0 && self.p_interval != 0
+    }
+    pub fn is_only_logging_i_frames(&self) -> bool {
+        self.p_interval == 0
+    }
+
+    pub fn log_event_arming_beep_if_needed(&self) {}
+    pub fn log_event_flight_mode_if_needed(&self) {} // Check for FlightMode status change event
+
+    /// If the data in the slow frame has changed, log a slow frame.
+    ///
+    /// The frame is also logged if it has been more than s_interval logging iterations
+    /// since the field was last logged.
+    pub fn log_s_frame_if_needed(&mut self) {
+        // Write the slow frame periodically so it can be recovered if we ever lose sync
+        if self.s_frame_index >= self.s_interval {
+            (self.callbacks.load_slow_state)(&mut self.slow_state);
+            self.log_s_frame();
+            return;
+        }
+
+        // Only write a slow frame if it was different from the previous state
+        let mut new_slow_state = SlowState::new();
+        (self.callbacks.load_slow_state)(&mut new_slow_state);
+        if new_slow_state != self.slow_state {
+            // Use the new state as our new history
+            self.slow_state = new_slow_state;
+            self.log_s_frame();
         }
     }
 }
@@ -197,7 +435,7 @@ impl Blackbox {
     }
 }
 
-/// Write the contents of slow_state to the log as an S frame.
+/// Write the contents of slow_state to the log as an s_frame.
 impl Blackbox {
     pub fn log_s_frame(&mut self) {
         self.s_frame_index = 0;
@@ -253,6 +491,40 @@ impl Blackbox {
 
         encoder.end_frame();
     }
+    pub fn log_g_frame(&mut self, current_time_us: u32) {
+        let mut encoder = SliceWriter { buffer: &mut self.buf, pos: 0 };
+        encoder.begin_frame(b'G');
+
+        // If we're logging every frame, then a GPS frame always appears just after a frame with the
+        // current_time timestamp in the log, so the reader can just use that timestamp for the GPS frame.
+        // If we're not logging every frame, we need to store the time of this GPS frame.
+        if self.condition_cache.test(FieldCondition::NOT_LOGGING_EVERY_FRAME) {
+            // Predict the time of the last frame in the main log
+            encoder.write_unsigned_vb(current_time_us - self.main_states[self.state_index_current].time_us);
+        }
+
+        encoder.write_unsigned_vb(u32::from(self.gps_state.satellite_count));
+        encoder.write_signed_vb(self.gps_state.latitude_degrees_1e7 - self.home_latitude_degrees_1e7);
+        encoder.write_signed_vb(self.gps_state.longitude_degrees_1e7 - self.home_longitude_degrees_1e7);
+        // log altitude in increments of 0.1m
+        encoder.write_signed_vb(self.gps_state.altitude_cm / 10);
+
+        #[allow(clippy::cast_sign_loss)]
+        if self.config.gps_use_3d_speed {
+            encoder.write_unsigned_vb(self.gps_state.speed3d_cmps as u32);
+        } else {
+            encoder.write_unsigned_vb(self.gps_state.ground_speed_cmps as u32);
+        }
+
+        #[allow(clippy::cast_sign_loss)]
+        encoder.write_unsigned_vb(self.gps_state.ground_course_deci_degrees as u32);
+
+        encoder.write_signed_vb_16(self.gps_state.velocity_north_cmps);
+        encoder.write_signed_vb_16(self.gps_state.velocity_east_cmps);
+        encoder.write_signed_vb_16(self.gps_state.velocity_down_cmps);
+
+        encoder.end_frame();
+    }
 }
 
 impl Blackbox {
@@ -265,7 +537,7 @@ impl Blackbox {
             assert_i_field_encoding!("loopIteration", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
             encoder.write_unsigned_vb(self.iteration);
 
-            let current = &self.main_states[self.state_current_idx];
+            let current = &self.main_states[self.state_index_current];
 
             encoder.write_unsigned_vb(current.time_us);
 
@@ -405,12 +677,12 @@ impl Blackbox {
             encoder.end_frame();
         }
         // Rotate the state indices
-        let new_current = self.state_pre_previous_idx;
-        self.state_pre_previous_idx = self.state_previous_idx;
-        self.state_previous_idx = self.state_current_idx;
-        self.state_current_idx = new_current;
+        let new_current = self.state_index_pre_previous;
+        self.state_index_pre_previous = self.state_index_previous;
+        self.state_index_previous = self.state_index_current;
+        self.state_index_current = new_current;
         // This is an i_frame, so there is no other pre_previous state, so we copy the previous state into the pre_previous state
-        self.main_states[self.state_pre_previous_idx] = self.main_states[self.state_previous_idx];
+        self.main_states[self.state_index_pre_previous] = self.main_states[self.state_index_previous];
     }
 }
 
@@ -425,9 +697,9 @@ impl Blackbox {
             let mut encoder = SliceWriter { buffer: &mut self.buf, pos: 0 };
             encoder.begin_frame(b'P');
 
-            let current = &self.main_states[self.state_current_idx];
-            let previous = &self.main_states[self.state_previous_idx];
-            let pre_previous = &self.main_states[self.state_pre_previous_idx];
+            let current = &self.main_states[self.state_index_current];
+            let previous = &self.main_states[self.state_index_previous];
+            let pre_previous = &self.main_states[self.state_index_pre_previous];
 
             //No need to store iteration count since its delta is always 1
 
@@ -618,10 +890,10 @@ impl Blackbox {
 
             self.logged_any_frames = true;
             // Rotate the state indices
-            let new_current = self.state_pre_previous_idx;
-            self.state_pre_previous_idx = self.state_previous_idx;
-            self.state_previous_idx = self.state_current_idx;
-            self.state_current_idx = new_current;
+            let new_current = self.state_index_pre_previous;
+            self.state_index_pre_previous = self.state_index_previous;
+            self.state_index_previous = self.state_index_current;
+            self.state_index_current = new_current;
         }
     }
 }
@@ -634,41 +906,47 @@ mod tests {
     #[allow(unused)]
     use super::*;
 
-    #[allow(unused)]
     fn is_normal<T: Sized + Send + Sync + Unpin>() {}
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
+    fn is_config<
+        T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq + Serialize + for<'a> Deserialize<'a>,
+    >() {
+    }
 
     #[test]
     fn normal_types() {
-        is_full::<Blackbox>();
+        is_normal::<Blackbox>();
+        is_normal::<BlackboxCallbacks>();
+        is_full::<BlackboxStart>();
+        is_config::<BlackboxConfig>();
     }
     #[test]
     fn new() {
-        let blackbox = Blackbox::new();
+        let blackbox = Blackbox::default();
         assert_eq!(0, blackbox.iteration);
     }
     #[test]
     fn i_encodings() {
         assert_i_field_encoding!("loopIteration", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
-        let mut blackbox = Blackbox::new();
-        assert_eq!(0, blackbox.state_current_idx);
-        assert_eq!(1, blackbox.state_previous_idx);
-        assert_eq!(2, blackbox.state_pre_previous_idx);
+        let mut blackbox = Blackbox::default();
+        assert_eq!(0, blackbox.state_index_current);
+        assert_eq!(1, blackbox.state_index_previous);
+        assert_eq!(2, blackbox.state_index_pre_previous);
         blackbox.log_i_frame();
-        assert_eq!(2, blackbox.state_current_idx);
-        assert_eq!(0, blackbox.state_previous_idx);
-        assert_eq!(1, blackbox.state_pre_previous_idx);
+        assert_eq!(2, blackbox.state_index_current);
+        assert_eq!(0, blackbox.state_index_previous);
+        assert_eq!(1, blackbox.state_index_pre_previous);
     }
     #[test]
     fn p_encodings() {
         assert_p_field_encoding!("loopIteration", FieldPredictor::INC, FieldEncoding::ZERO);
-        let mut blackbox = Blackbox::new();
-        assert_eq!(0, blackbox.state_current_idx);
-        assert_eq!(1, blackbox.state_previous_idx);
-        assert_eq!(2, blackbox.state_pre_previous_idx);
+        let mut blackbox = Blackbox::default();
+        assert_eq!(0, blackbox.state_index_current);
+        assert_eq!(1, blackbox.state_index_previous);
+        assert_eq!(2, blackbox.state_index_pre_previous);
         blackbox.log_p_frame();
-        assert_eq!(2, blackbox.state_current_idx);
-        assert_eq!(0, blackbox.state_previous_idx);
-        assert_eq!(1, blackbox.state_pre_previous_idx);
+        assert_eq!(2, blackbox.state_index_current);
+        assert_eq!(0, blackbox.state_index_previous);
+        assert_eq!(1, blackbox.state_index_pre_previous);
     }
 }

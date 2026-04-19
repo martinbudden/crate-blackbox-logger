@@ -18,8 +18,9 @@ mod blackbox_field_arrays;
 mod blackbox_field_definitions;
 mod blackbox_headers;
 mod blackbox_states;
+mod callbacks;
 
-pub use blackbox::Blackbox;
+pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStart};
 pub use blackbox_encoding::{BlackboxBuffer, SliceWriter};
 pub use blackbox_field_arrays::{
     BLACKBOX_GPS_G_FIELDS, BLACKBOX_GPS_H_FIELDS, BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS,
@@ -30,3 +31,4 @@ pub use blackbox_field_definitions::{
 };
 pub use blackbox_headers::{write_conditional_header, write_main_header, write_simple_header};
 pub use blackbox_states::{GpsState, MainState, SlowState};
+pub use callbacks::BlackboxCallbacks;

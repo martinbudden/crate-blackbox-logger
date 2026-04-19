@@ -165,7 +165,7 @@ impl ConditionalFieldDefinition {
 }
 
 pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
-    // loopIteration doesn't appear in P frames since it always increments
+    // loopIteration doesn't appear in p_frames since it always increments
     MainFieldDefinition {
         name: "loopIteration",
         field_name_index: -1,
@@ -176,7 +176,7 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         p_encode: FieldEncoding::ZERO,
         condition: FieldCondition::ALWAYS,
     },
-    // Time advances pretty steadily so the P-frame prediction is a straight line
+    // Time advances pretty steadily so the p_frame prediction is a straight line
     MainFieldDefinition {
         name: "time",
         field_name_index: -1,
@@ -217,7 +217,7 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         p_encode: FieldEncoding::SIGNED_VB,
         condition: FieldCondition::PID,
     },
-    // I terms get special packed encoding in P frames:
+    // iterms get special packed encoding in p_frames:
     MainFieldDefinition {
         name: "axisI",
         field_name_index: 0,

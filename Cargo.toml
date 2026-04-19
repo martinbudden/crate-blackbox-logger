@@ -17,14 +17,15 @@ categories = [
 ]
 
 [features]
-#default = ["barometer","servos","dshot_telemetry","rangefinder","magnetometer","eight_motors"]
-default = ["barometer","dshot_telemetry","eight_motors"]
+#default = ["barometer","servos","dshot_telemetry","rangefinder","magnetometer","eight_motors", "gps"]
+default = ["barometer","dshot_telemetry","eight_motors", "gps"]
 barometer=[]
 eight_motors = []
 servos = []
 dshot_telemetry = []
 rangefinder = []
 magnetometer = []
+gps = []
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
@@ -39,6 +40,7 @@ receivers = {  path = "../receivers" }
 
 [dev-dependencies]
 approx = { version = "0.5.1", default-features = false }
+pollster = "0.4.0"
 
 # see https://doc.rust-lang.org/cargo/reference/profiles.html
 [profile.dev]
