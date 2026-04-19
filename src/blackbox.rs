@@ -1,6 +1,30 @@
 use crate::{FieldCondition, LogFieldSelect, SliceWriter};
-use crate::{GpsState, MainState, SlowState, MainFieldDefinition,FieldEncoding};
+#[cfg(test)]
+use crate::{FieldEncoding, FieldPredictor, MainFieldDefinition};
+use crate::{GpsState, MainState, SlowState};
 use receivers::BitSet64;
+
+macro_rules! assert_i_field_encoding {
+    ($name:expr, $expected_predict:expr, $expected_encode:expr) => {
+        #[cfg(test)]
+        {
+            let field = MainFieldDefinition::find_by_name($name).expect(concat!("Field not found: ", $name));
+            assert_eq!(field.i_predict, $expected_predict, "I PREDICT mismatch for field: \"{}\"", $name);
+            assert_eq!(field.i_encode, $expected_encode, "I ENCODE mismatch for field: \"{}\"", $name);
+        }
+    };
+}
+
+macro_rules! assert_p_field_encoding {
+    ($name:expr, $expected_predict:expr, $expected_encode:expr) => {
+        #[cfg(test)]
+        {
+            let field = MainFieldDefinition::find_by_name($name).expect(concat!("Field not found: ", $name));
+            assert_eq!(field.p_predict, $expected_predict, "P PREDICT mismatch for field: \"{}\"", $name);
+            assert_eq!(field.p_encode, $expected_encode, "P ENCODE mismatch for field: \"{}\"", $name);
+        }
+    };
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Blackbox {
@@ -8,24 +32,28 @@ pub struct Blackbox {
     motor_count: usize,
     servo_count: usize,
     debug_mode: u32,
-    motor_output_low: i16,
-    min_throttle:i16,
+    motor_output_min: i16,
+    min_throttle: i16,
+    vbat_reference: u16,
+    logged_any_frames: bool,
+
     i_frame_index: u32,
     i_interval: u32,
     p_frame_index: u32,
     p_interval: u32,
     s_frame_index: u32,
     s_interval: u32,
-    logged_any_frames: bool,
+
     condition_cache: BitSet64,
     log_select_enabled: u32,
-    vbat_reference: u16,
+
     slow_state: SlowState,
     gps_state: GpsState,
+
     main_states: [MainState; 3],
-    state_current:usize,
-    state_previous:usize,
-    state_pre_previous:usize,
+    state_current_idx: usize,
+    state_previous_idx: usize,
+    state_pre_previous_idx: usize,
     buf: [u8; 1024],
 }
 
@@ -42,8 +70,8 @@ impl Blackbox {
             motor_count: 4,
             servo_count: 0,
             debug_mode: 0,
-            motor_output_low: 750,
-            min_throttle: 100,
+            motor_output_min: 750,
+            min_throttle: 700,
             i_frame_index: 0,
             i_interval: 0,
             p_frame_index: 0,
@@ -57,9 +85,9 @@ impl Blackbox {
             slow_state: SlowState::default(),
             gps_state: GpsState::default(),
             main_states: <[MainState; 3]>::default(),
-    state_current:0,
-    state_previous:1,
-    state_pre_previous:2,
+            state_current_idx: 0,
+            state_previous_idx: 1,
+            state_pre_previous_idx: 2,
             buf: [0u8; 1024],
         }
     }
@@ -227,28 +255,6 @@ impl Blackbox {
     }
 }
 
-macro_rules! assert_field_i_encoding {
-    ($name:expr, $expected_encoding:expr) => {
-        #[cfg(test)]
-        {
-            let field = MainFieldDefinition::find_by_name($name)
-                .expect(concat!("Field not found: ", $name));
-            assert_eq!(field.i_encode, $expected_encoding, "i_encode mismatch for field: {}", $name);
-        }
-    };
-}   
-
-macro_rules! assert_field_p_encoding {
-    ($name:expr, $expected_encoding:expr) => {
-        #[cfg(test)]
-        {
-            let field = MainFieldDefinition::find_by_name($name)
-                .expect(concat!("Field not found: ", $name));
-            assert_eq!(field.p_encode, $expected_encoding, "p_encode mismatch for field: {}", $name);
-        }
-    };
-}   
-
 impl Blackbox {
     #[allow(clippy::too_many_lines)]
     pub fn log_i_frame(&mut self) {
@@ -256,17 +262,20 @@ impl Blackbox {
             let mut encoder = SliceWriter { buffer: &mut self.buf, pos: 0 };
             encoder.begin_frame(b'I');
 
-            assert_field_i_encoding!("loopIteration", FieldEncoding::UNSIGNED_VB);
+            assert_i_field_encoding!("loopIteration", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
             encoder.write_unsigned_vb(self.iteration);
 
-            let current = &self.main_states[self.state_current];
+            let current = &self.main_states[self.state_current_idx];
 
             encoder.write_unsigned_vb(current.time_us);
 
             if self.condition_cache.test(FieldCondition::PID) {
+                assert_i_field_encoding!("axisP", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
                 encoder.write_signed_vb_array(&current.pid_p);
+                assert_i_field_encoding!("axisI", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
                 encoder.write_signed_vb_array(&current.pid_i);
 
+                assert_i_field_encoding!("axisD", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
                 if self.condition_cache.test(FieldCondition::PID_D_ROLL) {
                     encoder.write_signed_vb(current.pid_d[0]);
                 }
@@ -277,10 +286,12 @@ impl Blackbox {
                     encoder.write_signed_vb(current.pid_d[2]);
                 }
 
+                assert_i_field_encoding!("axisF", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
                 if self.condition_cache.test(FieldCondition::PID_K) {
                     encoder.write_signed_vb_array(&current.pid_k);
                 }
 
+                assert_i_field_encoding!("axisS", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
                 if self.condition_cache.test(FieldCondition::PID_S_ROLL) {
                     encoder.write_signed_vb(current.pid_s[0]);
                 }
@@ -291,26 +302,25 @@ impl Blackbox {
                     encoder.write_signed_vb(current.pid_s[2]);
                 }
 
+                assert_i_field_encoding!("rc_command", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
                 if self.condition_cache.test(FieldCondition::RC_COMMANDS) {
                     // Write roll, pitch and yaw first, these are signed values in the range [-500,500]
-                    let rc_commands = [
-                        current.rc_commands[0],
-                        current.rc_commands[1],
-                        current.rc_commands[2],
-                    ];
+                    let rc_commands = [current.rc_commands[0], current.rc_commands[1], current.rc_commands[2]];
                     encoder.write_signed_vb_16_array(&rc_commands);
 
-                    // Write the throttle separately from the rest of the RC data as it's unsigned.
-                    // Throttle lies in range [PWM_RANGE_MIN,PWM_RANGE_MAX], ie [1000,2000]
+                    // Write the throttle separately from the rest of the RC data as it's UNSIGNED.
+                    // Throttle lies in range [PWM_RANGE_MIN, PWM_RANGE_MAX], ie [1000, 2000]
                     #[allow(clippy::cast_sign_loss)]
-                    encoder.write_unsigned_vb((current.rc_commands[MainState::THROTTLE]- self.min_throttle)as u32);
+                    encoder.write_unsigned_vb((current.rc_commands[MainState::THROTTLE] - self.min_throttle) as u32);
                 }
 
+                assert_i_field_encoding!("setpoint", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
                 if self.condition_cache.test(FieldCondition::SETPOINT) {
                     // Write setpoint roll, pitch, yaw, and throttle
                     encoder.write_signed_vb_16_array(&current.setpoints);
                 }
 
+                assert_i_field_encoding!("vbat_latest", FieldPredictor::VBATREF, FieldEncoding::NEG_14BIT);
                 if self.condition_cache.test(FieldCondition::BATTERY_VOLTAGE) {
                     //Our voltage is expected to decrease over the course of the flight, so store our difference from
                     //the reference:
@@ -318,6 +328,7 @@ impl Blackbox {
                     encoder.write_unsigned_vb(u32::from(self.vbat_reference - current.battery_voltage) & 0x3FFF);
                 }
 
+                assert_i_field_encoding!("amperage_latest", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
                 if self.condition_cache.test(FieldCondition::BATTERY_CURRENT) {
                     // 12bit value directly from ADC
                     encoder.write_unsigned_vb_16(current.amperage);
@@ -342,29 +353,35 @@ impl Blackbox {
                     encoder.write_unsigned_vb_16(current.rssi);
                 }
 
+                assert_i_field_encoding!("gyro_adc", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
                 if self.condition_cache.test(FieldCondition::GYRO) {
                     encoder.write_signed_vb_16_array(&current.gyro);
                 }
 
+                assert_i_field_encoding!("gyroUnfilt", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
                 if self.condition_cache.test(FieldCondition::GYRO_UNFILTERED) {
                     encoder.write_signed_vb_16_array(&current.gyro_unfiltered);
                 }
 
+                assert_i_field_encoding!("accSmooth", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
                 if self.condition_cache.test(FieldCondition::ACC) {
                     encoder.write_signed_vb_16_array(&current.acc);
                 }
 
+                assert_i_field_encoding!("imuQuaternion", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
                 if self.condition_cache.test(FieldCondition::ATTITUDE) {
                     encoder.write_signed_vb_16_array(&current.orientation);
                 }
 
+                assert_i_field_encoding!("debug", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
                 if self.condition_cache.test(FieldCondition::DEBUG) {
                     encoder.write_signed_vb_16_array(&current.debug);
                 }
 
+                assert_i_field_encoding!("motor", FieldPredictor::MIN_MOTOR, FieldEncoding::UNSIGNED_VB);
                 if Self::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
                     //Motors can be below minimum output when disarmed, but that doesn't happen much
-                    encoder.write_signed_vb_16(current.motor[0] - self.motor_output_low);
+                    encoder.write_signed_vb_16(current.motor[0] - self.motor_output_min);
 
                     //Motors tend to be similar to each other so use the first motor's value as a predicted of the others
                     for ii in 1..self.motor_count {
@@ -388,12 +405,12 @@ impl Blackbox {
             encoder.end_frame();
         }
         // Rotate the state indices
-        let new_current = self.state_pre_previous;
-        self.state_pre_previous = self.state_previous;
-        self.state_previous= self.state_current;
-        self.state_current = new_current;
+        let new_current = self.state_pre_previous_idx;
+        self.state_pre_previous_idx = self.state_previous_idx;
+        self.state_previous_idx = self.state_current_idx;
+        self.state_current_idx = new_current;
         // This is an i_frame, so there is no other pre_previous state, so we copy the previous state into the pre_previous state
-        self.main_states[self.state_pre_previous] = self.main_states[self.state_previous];
+        self.main_states[self.state_pre_previous_idx] = self.main_states[self.state_previous_idx];
     }
 }
 
@@ -408,33 +425,38 @@ impl Blackbox {
             let mut encoder = SliceWriter { buffer: &mut self.buf, pos: 0 };
             encoder.begin_frame(b'P');
 
-            let current = &self.main_states[self.state_current];
-            let previous = &self.main_states[self.state_previous];
-            let pre_previous = &self.main_states[self.state_pre_previous];
+            let current = &self.main_states[self.state_current_idx];
+            let previous = &self.main_states[self.state_previous_idx];
+            let pre_previous = &self.main_states[self.state_pre_previous_idx];
 
             //No need to store iteration count since its delta is always 1
 
             // Since the difference between the difference between successive times will be nearly zero (due to consistent
             // loop time spacing), use second-order differences.
-            assert_field_p_encoding!("loopIteration", FieldEncoding::ZERO);
+            assert_p_field_encoding!("loopIteration", FieldPredictor::INC, FieldEncoding::ZERO);
             encoder.write_unsigned_vb(current.time_us - 2 * previous.time_us + pre_previous.time_us);
 
             // if self.condition_cache.test(FieldCondition::GYRO_UNFILTERED) {
+            assert_p_field_encoding!("axisP", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
+            assert_p_field_encoding!("axisI", FieldPredictor::PREVIOUS, FieldEncoding::TAG2_3S32);
+            assert_p_field_encoding!("axisD", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
+            assert_p_field_encoding!("axisF", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
+            assert_p_field_encoding!("axisS", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
             if self.condition_cache.test(FieldCondition::PID) {
-                    let deltas = [
-                        current.pid_p[0] - previous.pid_p[0],
-                        current.pid_p[1] - previous.pid_p[1],
-                        current.pid_p[2] - previous.pid_p[2],
-                    ];
-                    encoder.write_signed_vb_array(&deltas);
+                let deltas = [
+                    current.pid_p[0] - previous.pid_p[0],
+                    current.pid_p[1] - previous.pid_p[1],
+                    current.pid_p[2] - previous.pid_p[2],
+                ];
+                encoder.write_signed_vb_array(&deltas);
 
                 // The PID I field changes very slowly, most of the time +-2, so use an encoding
                 // that can pack all three fields into one byte in that situation.
-                    let deltas = [
-                        current.pid_i[0] - previous.pid_i[0],
-                        current.pid_i[1] - previous.pid_i[1],
-                        current.pid_i[2] - previous.pid_i[2],
-                    ];
+                let deltas = [
+                    current.pid_i[0] - previous.pid_i[0],
+                    current.pid_i[1] - previous.pid_i[1],
+                    current.pid_i[2] - previous.pid_i[2],
+                ];
                 encoder.write_tag2_3s32(deltas);
 
                 // The PID D term is frequently set to zero for yaw, which makes the result from the calculation
@@ -470,6 +492,7 @@ impl Blackbox {
             }
 
             // RC tends to stay the same or fairly small for many frames at a time, so use an encoding that
+            assert_p_field_encoding!("rc_command", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_4S16);
             if self.condition_cache.test(FieldCondition::RC_COMMANDS) {
                 let deltas = [
                     current.rc_commands[0] - previous.rc_commands[0],
@@ -479,7 +502,7 @@ impl Blackbox {
                 ];
                 encoder.write_tag8_4s16(deltas);
             }
-            assert_field_p_encoding!("setpoint", FieldEncoding::TAG8_4S16);
+            assert_p_field_encoding!("setpoint", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_4S16);
             if self.condition_cache.test(FieldCondition::SETPOINT) {
                 let deltas = [
                     current.setpoints[0] - previous.setpoints[0],
@@ -528,36 +551,41 @@ impl Blackbox {
                 deltas[optional_field_count] = i32::from(current.rssi - previous.rssi);
             }
 
+            assert_p_field_encoding!("vbat_latest", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
+            assert_p_field_encoding!("amperage_latest", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
             encoder.write_tag8_8svb(&deltas);
 
             // Since gyros, accelerometers and motors are noisy, base their predictions on the average of the history:
+            assert_p_field_encoding!("gyro_adc", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
             if self.condition_cache.test(FieldCondition::GYRO) {
                 for ii in 0..MainState::XYZ_AXIS_COUNT {
                     let predicted = i16::midpoint(previous.gyro[ii], pre_previous.gyro[ii]);
                     encoder.write_signed_vb_16(current.gyro[ii] - predicted);
                 }
             }
+            assert_p_field_encoding!("gyroUnfilt", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
             if self.condition_cache.test(FieldCondition::GYRO_UNFILTERED) {
                 for ii in 0..MainState::XYZ_AXIS_COUNT {
-                    let predicted =
-                        i16::midpoint(previous.gyro_unfiltered[ii], pre_previous.gyro_unfiltered[ii]);
+                    let predicted = i16::midpoint(previous.gyro_unfiltered[ii], pre_previous.gyro_unfiltered[ii]);
                     encoder.write_signed_vb_16(current.gyro_unfiltered[ii] - predicted);
                 }
             }
+            assert_p_field_encoding!("accSmooth", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
             if self.condition_cache.test(FieldCondition::ACC) {
                 for ii in 0..MainState::XYZ_AXIS_COUNT {
                     let predicted = i16::midpoint(previous.acc[ii], pre_previous.acc[ii]);
                     encoder.write_signed_vb_16(current.acc[ii] - predicted);
                 }
             }
+            assert_p_field_encoding!("imuQuaternion", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
             if self.condition_cache.test(FieldCondition::ATTITUDE) {
                 for ii in 0..MainState::XYZ_AXIS_COUNT {
-                    let predicted =
-                        i16::midpoint(previous.orientation[ii], pre_previous.orientation[ii]);
+                    let predicted = i16::midpoint(previous.orientation[ii], pre_previous.orientation[ii]);
                     encoder.write_signed_vb_16(current.orientation[ii] - predicted);
                 }
             }
 
+            assert_p_field_encoding!("debug", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
             if self.condition_cache.test(FieldCondition::DEBUG) {
                 for ii in 0..MainState::DEBUG_VALUE_COUNT {
                     let predicted = i16::midpoint(previous.debug[ii], pre_previous.debug[ii]);
@@ -565,6 +593,7 @@ impl Blackbox {
                 }
             }
 
+            assert_p_field_encoding!("motor", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
             if Self::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
                 for ii in 0..self.motor_count {
                     let predicted = i16::midpoint(previous.motor[ii], pre_previous.motor[ii]);
@@ -586,12 +615,13 @@ impl Blackbox {
                 }
             }
             encoder.end_frame();
+
             self.logged_any_frames = true;
-        // Rotate the state indices
-        let new_current = self.state_pre_previous;
-        self.state_pre_previous = self.state_previous;
-        self.state_previous= self.state_current;
-        self.state_current = new_current;
+            // Rotate the state indices
+            let new_current = self.state_pre_previous_idx;
+            self.state_pre_previous_idx = self.state_previous_idx;
+            self.state_previous_idx = self.state_current_idx;
+            self.state_current_idx = new_current;
         }
     }
 }
@@ -619,14 +649,26 @@ mod tests {
     }
     #[test]
     fn i_encodings() {
-        assert_field_i_encoding!("loopIteration", FieldEncoding::UNSIGNED_VB);
+        assert_i_field_encoding!("loopIteration", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
         let mut blackbox = Blackbox::new();
+        assert_eq!(0, blackbox.state_current_idx);
+        assert_eq!(1, blackbox.state_previous_idx);
+        assert_eq!(2, blackbox.state_pre_previous_idx);
         blackbox.log_i_frame();
+        assert_eq!(2, blackbox.state_current_idx);
+        assert_eq!(0, blackbox.state_previous_idx);
+        assert_eq!(1, blackbox.state_pre_previous_idx);
     }
     #[test]
     fn p_encodings() {
-        assert_field_p_encoding!("loopIteration", FieldEncoding::ZERO);
+        assert_p_field_encoding!("loopIteration", FieldPredictor::INC, FieldEncoding::ZERO);
         let mut blackbox = Blackbox::new();
+        assert_eq!(0, blackbox.state_current_idx);
+        assert_eq!(1, blackbox.state_previous_idx);
+        assert_eq!(2, blackbox.state_pre_previous_idx);
         blackbox.log_p_frame();
+        assert_eq!(2, blackbox.state_current_idx);
+        assert_eq!(0, blackbox.state_previous_idx);
+        assert_eq!(1, blackbox.state_pre_previous_idx);
     }
 }

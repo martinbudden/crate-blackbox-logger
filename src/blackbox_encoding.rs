@@ -51,6 +51,19 @@ impl SliceWriter<'_> {
         self.write_unsigned_vb(u32::from(value));
     }
 
+    pub fn write_unsigned_vb_array(&mut self, values: &[u32]) {
+        for &value in values {
+            // We cast to i32 to reuse our existing Signed VB logic
+            self.write_unsigned_vb(value);
+        }
+    }
+
+    pub fn write_unsigned_vb_16_array(&mut self, values: &[u16]) {
+        for &value in values {
+            // We cast to i32 to reuse our existing Signed VB logic
+            self.write_unsigned_vb_16(value);
+        }
+    }
     /// ZigZag encode: maps -1 to 1, 1 to 2, -2 to 3, 2 to 4...
     #[inline]
     pub const fn zigzag_encode(value: i32) -> u32 {
@@ -216,7 +229,6 @@ impl SliceWriter<'_> {
             _ => {} // 0 is no-op
         }
     }
-
 }
 
 /*
