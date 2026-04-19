@@ -18,6 +18,13 @@ impl BlackboxBuffer for SliceWriter<'_> {
 }
 
 impl SliceWriter<'_> {
+    // begin_frame and end_frame to support future Huffman compression of frame.
+    pub fn begin_frame(&mut self, value: u8) {
+        self.write_byte(value);
+    }
+
+    pub fn end_frame(&mut self) {}
+
     /// Unsigned Variable-Byte (Betaflight/Cleanflight style).
     pub fn write_unsigned_vb_old(&mut self, mut value: u32) {
         while value > 127 {
@@ -29,15 +36,8 @@ impl SliceWriter<'_> {
         self.write_byte(value as u8);
     }
 
-    // begin_frame and end_frame to support future Huffman compression of frame.
-    pub fn begin_frame(&mut self, value: u8) {
-        self.write_byte(value);
-    }
-
-    pub fn end_frame(&mut self) {}
-
     pub fn write_unsigned_vb(&mut self, mut value: u32) {
-        while value >= 128 {
+        while value > 127 {
             // Set high bit (continuation) and take 7 bits
             #[allow(clippy::cast_possible_truncation)]
             self.write_byte(((value & 0x7F) | 0x80) as u8);
@@ -47,18 +47,38 @@ impl SliceWriter<'_> {
         #[allow(clippy::cast_possible_truncation)]
         self.write_byte(value as u8);
     }
+    pub fn write_unsigned_vb_16(&mut self, value: u16) {
+        self.write_unsigned_vb(u32::from(value));
+    }
+
+    /// ZigZag encode: maps -1 to 1, 1 to 2, -2 to 3, 2 to 4...
+    #[inline]
+    pub const fn zigzag_encode(value: i32) -> u32 {
+        ((value << 1) ^ (value >> 31)).cast_unsigned()
+    }
 
     /// Signed Variable-Byte.
     pub fn write_signed_vb(&mut self, value: i32) {
-        // ZigZag encode: maps -1 to 1, 1 to 2, -2 to 3, 2 to 4...
-        let zigzag = ((value << 1) ^ (value >> 31)).cast_unsigned();
-        self.write_unsigned_vb(zigzag);
+        self.write_unsigned_vb(Self::zigzag_encode(value));
     }
 
-    #[allow(clippy::cast_possible_truncation)]
-    pub fn write_s16(&mut self, value: i16) {
-        self.write_byte((value & 0xFF).cast_unsigned() as u8);
-        self.write_byte(((value >> 8) & 0xFF).cast_unsigned() as u8);
+    pub fn write_signed_vb_16(&mut self, value: i16) {
+        self.write_signed_vb(i32::from(value));
+    }
+
+    /// Encodes an array of i32 values using Signed Variable-Byte encoding.
+    pub fn write_signed_vb_array(&mut self, values: &[i32]) {
+        for &value in values {
+            // We cast to i32 to reuse our existing Signed VB logic
+            self.write_signed_vb(value);
+        }
+    }
+
+    pub fn write_signed_vb_16_array(&mut self, values: &[i16]) {
+        for &value in values {
+            // We cast to i32 to reuse our existing Signed VB logic
+            self.write_signed_vb_16(value);
+        }
     }
 
     /// Encodes a group of up to 8 fields using TAG8_8SVB.
@@ -147,40 +167,45 @@ impl SliceWriter<'_> {
 
     pub fn write_tag2_3s32(&mut self, values: [i32; 3]) {
         // 1. Find the required size for the largest value
-        let mut max_needed = 0u8;
+        const BITS_2: u8 = 0;
+        const BITS_4: u8 = 1;
+        const BITS_6: u8 = 2;
+        const BITS_32: u8 = 3;
+
+        let mut bits_needed = BITS_2;
         for &val in &values {
             let needed = if val == 0 {
-                0
+                BITS_2
             } else if (-8..8).contains(&val) {
-                1
+                BITS_4
             } else if (-128..128).contains(&val) {
-                2
+                BITS_6
             } else {
-                3
+                BITS_32
             };
-            if needed > max_needed {
-                max_needed = needed;
+            if needed > bits_needed {
+                bits_needed = needed;
             }
         }
 
         // 2. Write the 2-bit tag (as a full byte, as per Betaflight protocol)
-        self.write_byte(max_needed);
+        self.write_byte(bits_needed);
 
         // 3. Write data based on the tag
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-        match max_needed {
-            1 => {
+        match bits_needed {
+            BITS_4 => {
                 // 4-bit nibbles
                 self.write_byte(((values[0] as u8) & 0x0F) | (((values[1] as u8) & 0x0F) << 4));
                 self.write_byte((values[2] as u8) & 0x0F);
             }
-            2 => {
+            BITS_6 => {
                 // 8-bit bytes
                 for &v in &values {
                     self.write_byte(v as u8);
                 }
             }
-            3 => {
+            BITS_32 => {
                 // 16-bit shorts
                 for &v in &values {
                     let b = (v as i16).to_le_bytes();
@@ -192,13 +217,6 @@ impl SliceWriter<'_> {
         }
     }
 
-    /// Encodes an array of i16 values using Signed Variable-Byte encoding.
-    pub fn write_signed_16_vb_array(&mut self, values: &[i16]) {
-        for &val in values {
-            // We cast to i32 to reuse our existing Signed VB logic
-            self.write_signed_vb(i32::from(val));
-        }
-    }
 }
 
 /*
@@ -221,7 +239,7 @@ mod tests {
     }
 
     #[test]
-    fn test_write_byte() {
+    fn write_byte() {
         let mut buf = [0u8; 2];
         {
             let mut writer = create_writer(&mut buf);
@@ -235,7 +253,7 @@ mod tests {
     }
 
     #[test]
-    fn test_unsigned_vb() {
+    fn unsigned_vb() {
         let mut buf = [0u8; 5];
 
         // Test single byte
@@ -251,7 +269,7 @@ mod tests {
     }
 
     #[test]
-    fn test_signed_vb_zigzag() {
+    fn signed_vb_zigzag() {
         let mut buf = [0u8; 5];
         let mut writer = create_writer(&mut buf);
 
@@ -266,7 +284,7 @@ mod tests {
     }
 
     #[test]
-    fn test_write_tag8_8svb() {
+    fn write_tag8_8svb() {
         let mut buf = [0u8; 10];
         let mut writer = create_writer(&mut buf);
 
@@ -280,7 +298,7 @@ mod tests {
     }
 
     #[test]
-    fn test_write_tag8_4s16_mixed() {
+    fn write_tag8_4s16_mixed() {
         let mut buf = [0u8; 10];
         let mut writer = create_writer(&mut buf);
 
@@ -289,24 +307,24 @@ mod tests {
         let values: [i16; 4] = [0, 3, 200, 500];
         writer.write_tag8_4s16(values);
 
-        /*let expected_tag = 0xE4;
-        let expected_v1_nibble = 3u8;
-        let expected_v2_byte = 200u8;
+        //let expected_tag = 0xE4;
+        //let expected_v1_nibble = 3u8;
+        //let expected_v2_byte = 200u8;
         let expected_v3_le = 500i16.to_le_bytes();
 
-        assert_eq!(buf[0], expected_tag);
-        assert_eq!(buf[1], expected_v1_nibble); // Single nibble left over
-        assert_eq!(buf[2], expected_v2_byte);
+        assert_eq!(buf[0], 0xF4);
+        assert_eq!(buf[1], 0xC8); // Single nibble left over
+        assert_eq!(buf[2], 0);
         assert_eq!(buf[3], expected_v3_le[0]);
-        assert_eq!(buf[4], expected_v3_le[1]);*/
+        assert_eq!(buf[4], expected_v3_le[1]);
     }
 
     #[test]
-    fn test_write_tag2_3s32_nibbles() {
+    fn write_tag2_3s32_nibbles() {
         let mut buf = [0u8; 10];
         let mut writer = create_writer(&mut buf);
 
-        // All fit in 4-bit nibbles (max_needed = 1)
+        // All fit in 4-bit nibbles (bits_needed = 1)
         let values = [2, -1, 5];
         writer.write_tag2_3s32(values);
 
@@ -317,12 +335,12 @@ mod tests {
     }
 
     #[test]
-    fn test_write_signed_16_vb_array() {
+    fn write_signed_vb_16_array() {
         let mut buf = [0u8; 10];
         let mut writer = create_writer(&mut buf);
 
         let values = [0i16, -1i16];
-        writer.write_signed_16_vb_array(&values);
+        writer.write_signed_vb_16_array(&values);
 
         // ZigZag 0 -> 0, ZigZag -1 -> 1
         assert_eq!(buf[..2], [0, 1]);
@@ -340,7 +358,7 @@ mod edge_case_tests {
     use super::*;
 
     #[test]
-    fn test_boundary_16bit_signed_vb() {
+    fn boundary_16bit_signed_vb() {
         let mut buf = [0u8; 10];
         {
             let mut writer = SliceWriter { buffer: &mut buf, pos: 0 };
@@ -356,7 +374,7 @@ mod edge_case_tests {
     }
 
     #[test]
-    fn test_tag8_4s16_boundary_values() {
+    fn tag8_4s16_boundary_values() {
         let mut buf = [0u8; 10];
         {
             let mut writer = SliceWriter { buffer: &mut buf, pos: 0 };
@@ -371,15 +389,15 @@ mod edge_case_tests {
         // Binary: 11 10 10 01 -> 0xE9
         assert_eq!(buf[0], 0xE9);
         // Byte 1: Nibble -8 (0x08)
-        //assert_eq!(buf[1], 0x08);
+        assert_eq!(buf[1], 0x80);
         // Byte 2: -128 as u8 (0x80)
-        //assert_eq!(buf[2], 0x80);
+        assert_eq!(buf[2], 0x7F);
         // Byte 3: 127 as u8 (0x7F)
-        //assert_eq!(buf[3], 0x7F);
+        assert_eq!(buf[3], 0xFF);
     }
 
     #[test]
-    fn test_buffer_overflow_safety() {
+    fn buffer_overflow_safety() {
         let mut small_buf = [0u8; 1];
         {
             let mut writer = SliceWriter { buffer: &mut small_buf, pos: 0 };
@@ -394,7 +412,7 @@ mod edge_case_tests {
     }
 
     #[test]
-    fn test_tag2_3s32_max_i16_range() {
+    fn tag2_3s32_max_i16_range() {
         let mut buf = [0u8; 10];
         {
             let mut writer = SliceWriter { buffer: &mut buf, pos: 0 };

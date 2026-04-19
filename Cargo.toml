@@ -17,7 +17,8 @@ categories = [
 ]
 
 [features]
-default = []
+#default = ["barometer","servos","dshot_telemetry","rangefinder","magnetometer","eight_motors"]
+default = ["barometer","dshot_telemetry","eight_motors"]
 barometer=[]
 eight_motors = []
 servos = []

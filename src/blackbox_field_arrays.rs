@@ -41,6 +41,13 @@ pub static BLACKBOX_SLOW_FIELDS: [SimpleFieldDefinition; SLOW_FIELD_COUNT] = [
     },
 ];
 
+impl SimpleFieldDefinition {
+    pub fn find_by_name(name: &str) -> Option<&'static Self> {
+        BLACKBOX_SLOW_FIELDS.iter().find(|field| field.name == name)
+    }
+}   
+
+
 // GPS home frame
 pub const GPS_H_FIELD_COUNT: usize = 3;
 pub static BLACKBOX_GPS_H_FIELDS: [SimpleFieldDefinition; GPS_H_FIELD_COUNT] = [
@@ -151,6 +158,12 @@ pub static BLACKBOX_GPS_G_FIELDS: [ConditionalFieldDefinition; GPS_G_FIELD_COUNT
         condition: FieldCondition::ALWAYS,
     },
 ];
+
+impl ConditionalFieldDefinition {
+    pub fn find_by_name(name: &str) -> Option<&'static Self> {
+        BLACKBOX_GPS_G_FIELDS.iter().find(|field| field.name == name)
+    }
+}   
 
 pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
     // loopIteration doesn't appear in P frames since it always increments
@@ -725,3 +738,11 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         condition: FieldCondition::AT_LEAST_MOTORS_1,
     },
 ];
+
+impl MainFieldDefinition {
+    pub fn find_by_name(name: &str) -> Option<&'static Self> {
+        BLACKBOX_MAIN_FIELDS.iter().find(|field| field.name == name)
+    }
+}   
+
+

@@ -71,36 +71,39 @@ impl GpsState {
     }
 }
 
+/// MainState is 152 bytes when all features enabled, so storing 3 copies for predictive purposes is not over onerous.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MainState {
     pub time_us: u32,
     pub baro_altitude: i32,
-    pub surface_raw: i32,
-    pub amperage_latest: i32,
-    pub vbat_latest: i16,
-    pub rssi: i16,
-    pub axis_pid_p: [i16; Self::RPY_AXIS_COUNT],
-    pub axis_pid_i: [i16; Self::RPY_AXIS_COUNT],
-    pub axis_pid_d: [i16; Self::RPY_AXIS_COUNT],
-    pub axis_pid_s: [i16; Self::RPY_AXIS_COUNT],
-    pub axis_pid_k: [i16; Self::RPY_AXIS_COUNT],
+    #[cfg(feature = "rangefinder")]
+    pub range_raw: i32,
+    pub amperage: u16,
+    pub battery_voltage: u16,
+    pub rssi: u16,
+    pub pid_p: [i32; Self::RPY_AXIS_COUNT],
+    pub pid_i: [i32; Self::RPY_AXIS_COUNT],
+    pub pid_d: [i32; Self::RPY_AXIS_COUNT],
+    pub pid_s: [i32; Self::RPY_AXIS_COUNT],
+    pub pid_k: [i32; Self::RPY_AXIS_COUNT],
     pub rc_commands: [i16; 4],
     pub setpoints: [i16; 4],
-    pub gyro_adc: [i16; Self::XYZ_AXIS_COUNT],
+    pub gyro: [i16; Self::XYZ_AXIS_COUNT],
     pub gyro_unfiltered: [i16; Self::XYZ_AXIS_COUNT],
-    pub acc_adc: [i16; Self::XYZ_AXIS_COUNT],
+    pub acc: [i16; Self::XYZ_AXIS_COUNT],
+    #[cfg(feature = "magnetometer")]
+    pub mag: [i16; Self::XYZ_AXIS_COUNT],
     pub orientation: [i16; Self::XYZ_AXIS_COUNT], // only x,y,z from orientation quaternion are stored; w is always positive
-    pub motors: [i16; Self::MAX_SUPPORTED_MOTOR_COUNT],
-    pub erpms: [i16; Self::MAX_SUPPORTED_MOTOR_COUNT],
+    pub motor: [i16; Self::MAX_SUPPORTED_MOTOR_COUNT],
+    pub erpm: [i16; Self::MAX_SUPPORTED_MOTOR_COUNT],
     pub debug: [i16; Self::DEBUG_VALUE_COUNT],
-
     #[cfg(feature = "servos")]
     pub servos: [i16; Self::MAX_SUPPORTED_SERVO_COUNT],
 }
 
 impl MainState {
-    const RPY_AXIS_COUNT: usize = 3;
-    const XYZ_AXIS_COUNT: usize = 3;
+    pub const RPY_AXIS_COUNT: usize = 3;
+    pub const XYZ_AXIS_COUNT: usize = 3;
     pub const MAX_SUPPORTED_MOTOR_COUNT: usize = 8;
     pub const MAX_SUPPORTED_SERVO_COUNT: usize = 8;
     pub const DEBUG_VALUE_COUNT: usize = 4;
@@ -118,25 +121,27 @@ impl MainState {
         Self {
             time_us: 0,
             baro_altitude: 0,
-            surface_raw: 0,
-            amperage_latest: 0,
-            vbat_latest: 0,
+            #[cfg(feature = "rangefinder")]
+            range_raw: 0,
+            amperage: 0,
+            battery_voltage: 0,
             rssi: 0,
-            axis_pid_p: <[i16; Self::RPY_AXIS_COUNT]>::default(),
-            axis_pid_i: <[i16; Self::RPY_AXIS_COUNT]>::default(),
-            axis_pid_d: <[i16; Self::RPY_AXIS_COUNT]>::default(),
-            axis_pid_s: <[i16; Self::RPY_AXIS_COUNT]>::default(),
-            axis_pid_k: <[i16; Self::RPY_AXIS_COUNT]>::default(),
+            pid_p: <[i32; Self::RPY_AXIS_COUNT]>::default(),
+            pid_i: <[i32; Self::RPY_AXIS_COUNT]>::default(),
+            pid_d: <[i32; Self::RPY_AXIS_COUNT]>::default(),
+            pid_s: <[i32; Self::RPY_AXIS_COUNT]>::default(),
+            pid_k: <[i32; Self::RPY_AXIS_COUNT]>::default(),
             rc_commands: <[i16; 4]>::default(),
             setpoints: <[i16; 4]>::default(),
-            gyro_adc: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
+            gyro: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
             gyro_unfiltered: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
-            acc_adc: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
+            acc: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
+            #[cfg(feature = "magnetometer")]
+            mag: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
             orientation: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
-            motors: <[i16; Self::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
-            erpms: <[i16; Self::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
+            motor: <[i16; Self::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
+            erpm: <[i16; Self::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
             debug: <[i16; Self::DEBUG_VALUE_COUNT]>::default(),
-
             #[cfg(feature = "servos")]
             servos: <[i16; Self::MAX_SUPPORTED_SERVO_COUNT]>::default(),
         }
@@ -162,6 +167,7 @@ mod tests {
     fn new() {
         let slow_state = SlowState::new();
         assert_eq!(0, slow_state.flight_mode_flags);
+        //assert_eq!(152, core::mem::size_of::<MainState>());
 
         let main_state = MainState::new();
         assert_eq!(0, main_state.time_us);
