@@ -339,7 +339,7 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         p_encode: FieldEncoding::SIGNED_VB,
         condition: FieldCondition::PID_S_YAW,
     },
-    // rc_commands are encoded together as a group in P-frames:
+    // rc_commands are encoded together as a group in p_frames:
     MainFieldDefinition {
         name: "rc_command",
         field_name_index: 0,

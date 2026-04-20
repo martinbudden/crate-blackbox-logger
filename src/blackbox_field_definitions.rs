@@ -68,10 +68,10 @@ pub struct MainFieldDefinition {
     pub name: &'static str,
     pub field_name_index: i8,
     pub is_signed: u8,
-    // I-frame settings
+    // i_frame settings
     pub i_predict: u8,
     pub i_encode: u8,
-    // P-frame settings
+    // p_frame settings
     pub p_predict: u8,
     pub p_encode: u8,
     pub condition: u8,

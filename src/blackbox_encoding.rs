@@ -23,7 +23,7 @@ impl SliceWriter<'_> {
         self.write_byte(value);
     }
 
-    pub fn end_frame(&mut self) {}
+    pub fn end_frame(&self) -> usize { self.pos }
 
     /// Unsigned Variable-Byte (Betaflight/Cleanflight style).
     pub fn write_unsigned_vb_old(&mut self, mut value: u32) {
@@ -273,7 +273,7 @@ mod tests {
             let mut writer = create_writer(&mut buf);
             writer.write_unsigned_vb(127);
 
-            // Test multi-byte (128 = 0x80 0x01 in LE VB)
+            // Test multi byte (128 = 0x80 0x01 in LE VB)
             writer.write_unsigned_vb(128);
         }
         assert_eq!(buf[0], 127);
