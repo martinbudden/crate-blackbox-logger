@@ -25,6 +25,8 @@
         "libm",
         "looptime",
         "looptimes",
+        "maxthrottle",
+        "minthrottle",
         "nocapture",
         "Quaternionf",
         "RSSI",
@@ -40,6 +42,7 @@
         "TRICOPTER",
         "Unfilt",
         "vbat",
+        "vbatcellvoltage",
         "VBATREF",
         "velned"
     ]

@@ -1,5 +1,8 @@
+#![allow(unused)]
+
 use crate::{GpsState, MainState, SlowState};
 
+#[allow(clippy::struct_field_names)]
 #[derive(Clone, Copy, Debug)]
 pub struct BlackboxCallbacks {
     pub load_main_state: fn(&mut MainState, u32),

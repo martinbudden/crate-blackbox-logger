@@ -199,7 +199,7 @@ impl SliceWriter<'_> {
     }
 
     pub fn write_tag2_3s32(&mut self, values: [i32; 3]) {
-        // 1. Find the required size for the largest value
+        // Find the required size for the largest value.
         const BITS_2: u8 = 0;
         const BITS_4: u8 = 1;
         const BITS_6: u8 = 2;
@@ -221,10 +221,10 @@ impl SliceWriter<'_> {
             }
         }
 
-        // 2. Write the 2-bit tag (as a full byte, as per Betaflight protocol)
+        // Write the 2-bit tag (as a full byte, as per Betaflight protocol).
         self.write_byte(bits_needed);
 
-        // 3. Write data based on the tag
+        // Write data based on the tag.
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         match bits_needed {
             BITS_4 => {

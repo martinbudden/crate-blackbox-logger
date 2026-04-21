@@ -7,7 +7,6 @@
 #![warn(unused_results)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::doc_paragraphs_missing_punctuation)]
-#![allow(clippy::inline_always)]
 #![allow(clippy::return_self_not_must_use)]
 #![allow(clippy::must_use_candidate)]
 #![allow(clippy::doc_markdown)]
@@ -20,7 +19,6 @@ mod blackbox_headers;
 mod blackbox_log_frames;
 mod blackbox_states;
 mod blackbox_telemetry;
-mod callbacks;
 
 pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStart};
 pub use blackbox_encoding::{BlackboxBuffer, SliceWriter};
@@ -31,7 +29,6 @@ pub use blackbox_field_definitions::{ConditionalFieldDefinition, MainFieldDefini
 pub use blackbox_field_definitions::{
     FieldCondition, FieldEncoding, FieldHeader, FieldPredictor, FieldSign, LogFieldSelect,
 };
-pub use blackbox_headers::{write_conditional_header, write_main_header, write_simple_header};
+pub use blackbox_headers::{write_conditional_header, write_header, write_main_header, write_simple_header};
 pub use blackbox_states::{GpsState, MainState, SlowState};
 pub use blackbox_telemetry::BlackboxTelemetry;
-pub use callbacks::BlackboxCallbacks;

@@ -1,8 +1,8 @@
 use crate::BlackboxTelemetry;
 use crate::{FieldCondition, LogFieldSelect};
 use crate::{GpsState, MainState, SlowState};
-use receivers::BitSet64;
 use serde::{Deserialize, Serialize};
+use vqm::BitSet64;
 
 pub struct BlackboxDevice {}
 impl BlackboxDevice {
