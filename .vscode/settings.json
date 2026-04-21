@@ -26,6 +26,7 @@
         "looptime",
         "looptimes",
         "nocapture",
+        "Quaternionf",
         "RSSI",
         "rustc",
         "rustdoc",

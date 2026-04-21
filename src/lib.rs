@@ -17,7 +17,9 @@ mod blackbox_encoding;
 mod blackbox_field_arrays;
 mod blackbox_field_definitions;
 mod blackbox_headers;
+mod blackbox_log_frames;
 mod blackbox_states;
+mod blackbox_telemetry;
 mod callbacks;
 
 pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStart};
@@ -31,4 +33,5 @@ pub use blackbox_field_definitions::{
 };
 pub use blackbox_headers::{write_conditional_header, write_main_header, write_simple_header};
 pub use blackbox_states::{GpsState, MainState, SlowState};
+pub use blackbox_telemetry::BlackboxTelemetry;
 pub use callbacks::BlackboxCallbacks;

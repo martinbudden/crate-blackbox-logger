@@ -47,6 +47,7 @@ dependencies = [
  "receivers",
  "rustc_version",
  "serde",
+ "vqm 0.1.0 (git+https://github.com/martinbudden/crate-vector-quaternion-matrix)",
 ]
 
 [[package]]
@@ -427,7 +428,7 @@ dependencies = [
  "num-traits",
  "postcard",
  "serde",
- "vqm",
+ "vqm 0.1.0",
 ]
 
 [[package]]
@@ -668,6 +669,18 @@ checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 [[package]]
 name = "vqm"
 version = "0.1.0"
+dependencies = [
+ "approx",
+ "cfg-if",
+ "libm",
+ "num-traits",
+ "rustc_version",
+]
+
+[[package]]
+name = "vqm"
+version = "0.1.0"
+source = "git+https://github.com/martinbudden/crate-vector-quaternion-matrix#7467dc37ff5c514fda605c822de4ba671e4b26bd"
 dependencies = [
  "approx",
  "cfg-if",
