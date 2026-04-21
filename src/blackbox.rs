@@ -160,9 +160,13 @@ impl Blackbox {
         | LogFieldSelect::GYRO
         | LogFieldSelect::GYRO_UNFILTERED
         | LogFieldSelect::ACCELEROMETER
-        //| LogFieldSelect::ATTITUDE
+        | LogFieldSelect::ATTITUDE
         | LogFieldSelect::MOTOR
-        | LogFieldSelect::MOTOR_RPM;
+        | LogFieldSelect::MOTOR_RPM
+        | LogFieldSelect::BATTERY_VOLTAGE
+        | LogFieldSelect::BATTERY_CURRENT;
+
+        self.log_select_enabled &= !config.fields_disabled_mask;
 
         self.reset_iteration_timers();
 

@@ -24,6 +24,12 @@ pub struct BlackboxTelemetry {
     pub gyro_rps_unfiltered: Vector3df32,
     pub orientation: Quaternionf32,
     pub time_us: u32,
+    pub rc_commands: [i16; 4],
+    pub motor_commands: [i16; 4],
+    pub motor_rpm: [i16; 4],
+    pub debug: [i16; 8],
+    pub setpoints: [i16; 3],
+    pub pid_errors: [i16; 3],
 }
 
 impl BlackboxTelemetry {
@@ -34,6 +40,12 @@ impl BlackboxTelemetry {
             gyro_rps_unfiltered: Vector3df32::default(),
             orientation: Quaternionf32::default(),
             time_us: 0,
+            rc_commands: <[i16; 4]>::default(),
+            motor_commands: <[i16; 4]>::default(),
+            motor_rpm: <[i16; 4]>::default(),
+            debug: <[i16; 8]>::default(),
+            setpoints: <[i16; 3]>::default(),
+            pid_errors: <[i16; 3]>::default(),
         }
     }
 }
@@ -62,7 +74,7 @@ mod tests {
     }
     #[test]
     fn fast_new() {
-        assert_eq!(80, core::mem::size_of::<BlackboxTelemetry>());
+        assert_eq!(128, core::mem::size_of::<BlackboxTelemetry>());
         let telemetry_data = BlackboxTelemetry::default();
         assert_eq!(0, telemetry_data.time_us);
     }
