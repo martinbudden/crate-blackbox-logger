@@ -226,9 +226,9 @@ impl Blackbox {
         }
     }
     pub fn load_main_state(&mut self, current_time_us: u32, telemetry: BlackboxTelemetry) {
-        let current =&mut self.main_states[self.state_index_current];
+        let current = &mut self.main_states[self.state_index_current];
         current.time_us = current_time_us;
-        current.acc = (telemetry.acc*4096.0).into();
+        current.acc = (telemetry.acc * 4096.0).into();
         current.gyro = (telemetry.gyro_rps.to_degrees()).into();
         current.gyro_unfiltered = (telemetry.gyro_rps_unfiltered.to_degrees()).into();
     }
@@ -247,7 +247,7 @@ impl Blackbox {
                 //self.sd_card.write_all(&self.buf[..len]).await.ok();
             }
 
-            self.load_main_state( current_time_us, telemetry);
+            self.load_main_state(current_time_us, telemetry);
             let _len = self.log_i_frame();
             //self.sd_card.write_all(&self.buf[..len]).await.ok();
         } else {
@@ -261,7 +261,7 @@ impl Blackbox {
                 let _len = self.log_s_frame_if_needed();
                 //self.sd_card.write_all(&self.buf[..len]).await.ok();
 
-                self.load_main_state( current_time_us, telemetry);
+                self.load_main_state(current_time_us, telemetry);
                 let _len = self.log_p_frame();
                 //self.sd_card.write_all(&self.buf[..len]).await.ok();
             }

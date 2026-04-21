@@ -23,30 +23,23 @@ impl SliceWriter<'_> {
         self.write_byte(value);
     }
 
-    pub fn end_frame(&self) -> usize { self.pos }
-
-    /// Unsigned Variable-Byte (Betaflight/Cleanflight style).
-    pub fn write_unsigned_vb_old(&mut self, mut value: u32) {
-        while value > 127 {
-            #[allow(clippy::cast_possible_truncation)]
-            self.write_byte((value as u8) | 0x80);
-            value >>= 7;
-        }
-        #[allow(clippy::cast_possible_truncation)]
-        self.write_byte(value as u8);
+    pub fn end_frame(&self) -> usize {
+        self.pos
     }
 
+    /// Unsigned Variable-Byte.
     pub fn write_unsigned_vb(&mut self, mut value: u32) {
         while value > 127 {
             // Set high bit (continuation) and take 7 bits
             #[allow(clippy::cast_possible_truncation)]
-            self.write_byte(((value & 0x7F) | 0x80) as u8);
+            self.write_byte((value as u8) | 0x80);
             value >>= 7;
         }
         // Last byte has high bit 0
         #[allow(clippy::cast_possible_truncation)]
         self.write_byte(value as u8);
     }
+
     pub fn write_unsigned_vb_16(&mut self, value: u16) {
         self.write_unsigned_vb(u32::from(value));
     }
@@ -64,6 +57,7 @@ impl SliceWriter<'_> {
             self.write_unsigned_vb_16(value);
         }
     }
+
     /// ZigZag encode: maps -1 to 1, 1 to 2, -2 to 3, 2 to 4...
     #[inline]
     pub const fn zigzag_encode(value: i32) -> u32 {
@@ -96,9 +90,15 @@ impl SliceWriter<'_> {
 
     /// Encodes a group of up to 8 fields using TAG8_8SVB.
     pub fn write_tag8_8svb(&mut self, values: &[i32; 8]) {
-        let mut header: u8 = 0;
-
+        if values.is_empty() {
+            return;
+        }
+        if values.len() == 1 {
+            self.write_signed_vb(values[0]);
+            return;
+        }
         // Step 1: Build the bitmask header
+        let mut header: u8 = 0;
         for (ii, value) in values.iter().enumerate() {
             if *value != 0 {
                 header |= 1 << ii;
@@ -115,20 +115,27 @@ impl SliceWriter<'_> {
     }
 
     /// Encodes 4 values into TAG8_4S16 format.
+    /// an 8-bit selector followed by four signed fields of size 0, 4, 8 or 16 bits.
     /// Values are truncated to i16 range as per the format name (4s16).
+    /// TODO: this needs checking.
     pub fn write_tag8_4s16(&mut self, values: [i16; 4]) {
+        const BITS_0: u8 = 0;
+        const BITS_4: u8 = 1;
+        const BITS_8: u8 = 2;
+        const BITS_16: u8 = 3;
+
         let mut tag: u8 = 0;
 
         // 1. Determine the size needed for each value and build the tag
         for (ii, val) in values.iter().enumerate() {
             let size_code = if *val == 0 {
-                0x00 // 0 bits
+                BITS_0 // 0 bits
             } else if (-8..8).contains(val) {
-                0x01 // 4 bits
+                BITS_4 // 4 bits
             } else if (-128..128).contains(val) {
-                0x02 // 8 bits
+                BITS_8 // 8 bits
             } else {
-                0x03 // 16 bits
+                BITS_16 // 16 bits
             };
             tag |= size_code << (ii * 2);
         }
@@ -138,42 +145,55 @@ impl SliceWriter<'_> {
 
         // 3. Pack 4-bit values or write 8/16 bit values
         // Note: 4-bit values (nibbles) are packed into a single byte if there's a pair
-        let mut nibble_buffer: Option<u8> = None;
+        let mut buffer: Option<u8> = None;
 
-        for (ii, val) in values.iter().enumerate() {
-            let size_code = (tag >> (ii * 2)) & 0x03;
-
-            match size_code {
-                0x01 => {
+        for value in values {
+            match tag & 0x03 {
+                BITS_4 => {
                     // 4-bit nibble
                     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                    let nibble = (*val as u8) & 0x0F;
-                    if let Some(first_nibble) = nibble_buffer {
-                        // We have a pair, pack them: second nibble goes in high bits
-                        self.write_byte(first_nibble | (nibble << 4));
-                        nibble_buffer = None;
+                    if let Some(nibble) = buffer {
+                        self.write_byte(nibble | (value & 0x0F) as u8);
+                        buffer = None;
                     } else {
-                        // Wait for the next 4-bit value
-                        nibble_buffer = Some(nibble);
+                        buffer = Some((value << 4) as u8);
                     }
                 }
-                0x02 => {
+                BITS_8 => {
                     // 8-bit byte
                     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                    self.write_byte(*val as u8);
+                    if let Some(nibble) = buffer {
+                        //Write the high bits of the value first (mask to avoid sign extension)
+                        self.write_byte(nibble | ((value >> 4) & 0x0F) as u8);
+                        //Now put the leftover low bits into the top of the next buffer entry
+                        buffer = Some((value << 4) as u8);
+                    } else {
+                        self.write_byte(value as u8);
+                    }
                 }
-                0x03 => {
-                    // 16-bit short (Little Endian)
-                    let bytes = val.to_le_bytes();
-                    self.write_byte(bytes[0]);
-                    self.write_byte(bytes[1]);
+                BITS_16 => {
+                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                    if let Some(nibble) = buffer {
+                        //First write the highest 4 bits
+                        self.write_byte(nibble | ((value >> 12) & 0x0F) as u8);
+                        // Then the middle 8
+                        self.write_byte((value >> 4) as u8);
+                        // leave the smallest 4 bits still left to write
+                        buffer = Some((value << 4) as u8);
+                    } else {
+                        // 16-bit short (Little Endian)
+                        let bytes = value.to_le_bytes();
+                        self.write_byte(bytes[0]);
+                        self.write_byte(bytes[1]);
+                    }
                 }
                 _ => {} // 0-bit: do nothing
             }
+            tag >>= 2;
         }
 
         // 4. If a single nibble is left over (odd number of 4-bit fields), write it
-        if let Some(lone_nibble) = nibble_buffer {
+        if let Some(lone_nibble) = buffer {
             self.write_byte(lone_nibble);
         }
     }
@@ -322,13 +342,13 @@ mod tests {
         //let expected_tag = 0xE4;
         //let expected_v1_nibble = 3u8;
         //let expected_v2_byte = 200u8;
-        let expected_v3_le = 500i16.to_le_bytes();
+        //let expected_v3_le = 500i16.to_le_bytes();
 
-        assert_eq!(buf[0], 0xF4);
-        assert_eq!(buf[1], 0xC8); // Single nibble left over
-        assert_eq!(buf[2], 0);
-        assert_eq!(buf[3], expected_v3_le[0]);
-        assert_eq!(buf[4], expected_v3_le[1]);
+        assert_eq!(buf[0], 0b_11_11_01_00);
+        assert_eq!(buf[1], 0b_0011_0000); // Single nibble left over
+        assert_eq!(buf[2], 0b_0000_1100);
+        assert_eq!(buf[3], 0b_1000_0000);
+        assert_eq!(buf[4], 0b_0001_1111);
     }
 
     #[test]
@@ -399,13 +419,13 @@ mod edge_case_tests {
 
         // Tags: -8 is 0x01, -128 is 0x02, 127 is 0x02, 32767 is 0x03
         // Binary: 11 10 10 01 -> 0xE9
-        assert_eq!(buf[0], 0xE9);
+        assert_eq!(buf[0], 0b_11_10_10_01);
         // Byte 1: Nibble -8 (0x08)
-        assert_eq!(buf[1], 0x80);
+        assert_eq!(buf[1], 136);
         // Byte 2: -128 as u8 (0x80)
-        assert_eq!(buf[2], 0x7F);
+        assert_eq!(buf[2], 7);
         // Byte 3: 127 as u8 (0x7F)
-        assert_eq!(buf[3], 0xFF);
+        assert_eq!(buf[3], 247);
     }
 
     #[test]

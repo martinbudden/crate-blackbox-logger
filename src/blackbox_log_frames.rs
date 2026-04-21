@@ -1,5 +1,5 @@
+use crate::{Blackbox, MainState};
 use crate::{FieldCondition, LogFieldSelect, SliceWriter};
-use crate::{MainState,Blackbox};
 #[cfg(test)]
 use crate::{FieldEncoding, FieldPredictor, MainFieldDefinition};
 
