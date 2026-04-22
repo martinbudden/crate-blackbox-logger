@@ -2,37 +2,15 @@ use crate::{BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS};
 use vqm::BitSet64;
 
 use crate::{ConditionalFieldDefinition, FieldHeader, MainFieldDefinition, SimpleFieldDefinition};
-
-pub trait HeaderWriter {
-    fn write_str(&mut self, s: &str);
-    fn write_char(&mut self, c: char);
-}
-
-/// Minimal no_std u8 to ASCII helper.
-fn write_u8_ascii(writer: &mut dyn HeaderWriter, mut n: u8) {
-    if n == 0 {
-        writer.write_char('0');
-        return;
-    }
-    let mut buf = [0u8; 3];
-    let mut i = 0;
-    while n > 0 {
-        buf[i] = (n % 10) + b'0';
-        n /= 10;
-        i += 1;
-    }
-    for j in (0..i).rev() {
-        writer.write_char(buf[j] as char);
-    }
-}
+use crate::BlackboxWriter;
 
 // Helper to handle the "H Field X type: val,val" formatting
-// Notice the closure now takes (&mut dyn HeaderWriter, &T)
-fn write_header_line<'a, T, I, F>(writer: &mut dyn HeaderWriter, frame_type: char, label: &str, fields: I, mut op: F)
+// Notice the closure now takes (&mut dyn BlackboxWriter, &T)
+fn write_header_line<'a, T, I, F>(writer: &mut dyn BlackboxWriter, frame_type: char, label: &str, fields: I, mut op: F)
 where
     T: 'a,
     I: Iterator<Item = &'a T>,
-    F: FnMut(&mut dyn HeaderWriter, &T),
+    F: FnMut(&mut dyn BlackboxWriter, &T),
 {
     writer.write_str("H Field ");
     writer.write_char(frame_type);
@@ -49,7 +27,7 @@ where
     writer.write_char('\n');
 }
 
-fn write_common_header_lines<'a, T, P>(writer: &mut dyn HeaderWriter, frame_type: char, fields: &[T], mut predicate: P)
+fn write_common_header_lines<'a, T, P>(writer: &mut dyn BlackboxWriter, frame_type: char, fields: &[T], mut predicate: P)
 where
     T: FieldHeader + 'a,
     P: FnMut(&T) -> bool, // The condition closure
@@ -63,24 +41,24 @@ where
         let index = f.field_name_index();
         if index >= 0 {
             w.write_char('[');
-            write_u8_ascii(w, index.cast_unsigned());
+            w.write_u8_ascii(index.cast_unsigned());
             w.write_char(']');
         }
     });
 
     // Signed line
     write_header_line(writer, frame_type, "signed", fields.iter().filter(|&f| predicate(f)), |w, f| {
-        write_u8_ascii(w, f.is_signed());
+        w.write_u8_ascii(f.is_signed());
     });
 
     // Predictor line
     write_header_line(writer, frame_type, "predictor", fields.iter().filter(|&f| predicate(f)), |w, f| {
-        write_u8_ascii(w, f.predict());
+        w.write_u8_ascii(f.predict());
     });
 
     // Encoder line
     write_header_line(writer, frame_type, "encoding", fields.iter().filter(|&f| predicate(f)), |w, f| {
-        write_u8_ascii(w, f.encode());
+        w.write_u8_ascii(f.encode());
     });
 }
 
@@ -92,7 +70,7 @@ where
 // or
 // H Field H name:GPS_home[0],GPS_home[1]
 // ..
-pub fn write_simple_header(writer: &mut dyn HeaderWriter, frame_type: char, fields: &[SimpleFieldDefinition]) {
+pub fn write_simple_header(writer: &mut dyn BlackboxWriter, frame_type: char, fields: &[SimpleFieldDefinition]) {
     // Only include fields that are "active"
     write_common_header_lines(writer, frame_type, fields, |_f| true);
 }
@@ -103,7 +81,7 @@ pub fn write_simple_header(writer: &mut dyn HeaderWriter, frame_type: char, fiel
 // H Field G predictor:10,0,7,7,0,0,0,0,0,0
 // H Field G encoding:1,1,0,0,0,1,1,0,0,0
 pub fn write_conditional_header(
-    writer: &mut dyn HeaderWriter,
+    writer: &mut dyn BlackboxWriter,
     frame_type: char,
     fields: &[ConditionalFieldDefinition],
     conditions: BitSet64,
@@ -113,7 +91,7 @@ pub fn write_conditional_header(
 
     /*let filtered = fields.iter().filter(|&f| filter(f));
     write_header_line(writer, frame_type, "condition", filtered, |w, f| {
-        write_u8_ascii(w, f.condition);
+        w.write_u8_ascii(f.condition);
     });*/
 }
 
@@ -124,27 +102,27 @@ pub fn write_conditional_header(
 //3: H Field I encoding: 1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,3,1,0,0,0, 1,0,0,0
 //4: H Field P predictor:6,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,3,3,3, 3,3,3,3
 //5: H Field P encoding: 9,0,0,0,0,7,7,7,0,0,0,8,8,8,8,6,6,0,0,0, 0,0,0,0
-pub fn write_main_header(writer: &mut dyn HeaderWriter, fields: &[MainFieldDefinition], conditions: BitSet64) {
+pub fn write_main_header(writer: &mut dyn BlackboxWriter, fields: &[MainFieldDefinition], conditions: BitSet64) {
     let filter = |f: &MainFieldDefinition| conditions.test(f.condition);
     write_common_header_lines(writer, 'I', fields, &filter);
 
     let filtered = fields.iter().filter(|&f| filter(f));
     write_header_line(writer, 'P', "predictor", filtered, |w, f| {
-        write_u8_ascii(w, f.p_predict);
+        w.write_u8_ascii(f.p_predict);
     });
 
     let filtered = fields.iter().filter(|&f| filter(f));
     write_header_line(writer, 'P', "encoding", filtered, |w, f| {
-        write_u8_ascii(w, f.p_encode);
+        w.write_u8_ascii(f.p_encode);
     });
 
     /*let filtered = fields.iter().filter(|&f| filter(f));
     write_header_line(writer, 'P', "condition", filtered, |w, f| {
-        write_u8_ascii(w, f.condition);
+        w.write_u8_ascii(f.condition);
     });*/
 }
 
-pub fn write_header(writer: &mut dyn HeaderWriter, conditions: BitSet64) {
+pub fn write_header(writer: &mut dyn BlackboxWriter, conditions: BitSet64) {
     writer.write_str("H Product:Blackbox flight data recorder by Nicholas Sherlock\n");
     writer.write_str("H Data version:2\n");
 
@@ -181,38 +159,30 @@ mod tests {
 
     // A simple mock writer that captures output into a byte slice
     struct MockWriter<'a> {
-        buf: &'a mut [u8],
+        buffer: &'a mut [u8],
         pos: usize,
     }
 
-    impl HeaderWriter for MockWriter<'_> {
-        fn write_str(&mut self, s: &str) {
-            for b in s.as_bytes() {
-                if self.pos < self.buf.len() {
-                    self.buf[self.pos] = *b;
-                    self.pos += 1;
-                }
-            }
+    impl BlackboxWriter for MockWriter<'_> {
+    fn write_byte(&mut self, byte: u8) {
+        if self.pos < self.buffer.len() {
+            self.buffer[self.pos] = byte;
+            self.pos += 1;
         }
-        fn write_char(&mut self, c: char) {
-            if self.pos < self.buf.len() {
-                self.buf[self.pos] = c as u8;
-                self.pos += 1;
-            }
-        }
+    }
     }
 
     #[test]
     fn slow_fields_header() {
         let mut buffer = [0u8; 1024];
-        let mut writer = MockWriter { buf: &mut buffer, pos: 0 };
+        let mut writer = MockWriter { buffer: &mut buffer, pos: 0 };
 
         // Generate headers for the SLOW_FIELDS array defined earlier
         write_simple_header(&mut writer, 'S', &BLACKBOX_SLOW_FIELDS);
 
         // Convert the written portion to a string for validation
         #[allow(clippy::unwrap_used)]
-        let result = core::str::from_utf8(&writer.buf[..writer.pos]).unwrap();
+        let result = core::str::from_utf8(&writer.buffer[..writer.pos]).unwrap();
 
         // Expected output segments:
         // Names: flight_mode_flags,state_flags,failsafe_phase,rx_signal_received,rx_flight_channel_is_valid
@@ -230,7 +200,7 @@ mod tests {
     #[test]
     fn main_fields_header() {
         let mut buffer = [0u8; 2048];
-        let mut writer = MockWriter { buf: &mut buffer, pos: 0 };
+        let mut writer = MockWriter { buffer: &mut buffer, pos: 0 };
 
         // Generate headers for the SLOW_FIELDS array defined earlier
         let mut conditions = BitSet64::new();
@@ -251,7 +221,7 @@ mod tests {
 
         // Convert the written portion to a string for validation
         #[allow(clippy::unwrap_used)]
-        let result = core::str::from_utf8(&writer.buf[..writer.pos]).unwrap();
+        let result = core::str::from_utf8(&writer.buffer[..writer.pos]).unwrap();
         assert!(result.contains("H Field I name:loopIteration,time"));
 
         // Expected output segments:
@@ -266,7 +236,7 @@ mod tests {
     fn main_header() {
         use crate::blackbox::{Blackbox, BlackboxConfig};
         let mut buffer = [0u8; 2048];
-        let mut writer = MockWriter { buf: &mut buffer, pos: 0 };
+        let mut writer = MockWriter { buffer: &mut buffer, pos: 0 };
 
         // Generate headers for the SLOW_FIELDS array defined earlier
         /*let mut conditions = BitSet64::new();
@@ -291,7 +261,7 @@ mod tests {
 
         // Convert the written portion to a string for validation
         #[allow(clippy::unwrap_used)]
-        let result = core::str::from_utf8(&writer.buf[..writer.pos]).unwrap();
+        let result = core::str::from_utf8(&writer.buffer[..writer.pos]).unwrap();
         assert!(result.contains("H Field I name:loopIteration,time"));
 
         // Expected output segments:

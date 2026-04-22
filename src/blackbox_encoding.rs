@@ -1,6 +1,33 @@
 pub trait BlackboxWriter {
     fn write_byte(&mut self, byte: u8);
-    fn write_str(&mut self, s: &str);
+
+    fn write_char(&mut self, c: char) {
+        self.write_byte(c as u8);
+    }
+
+    fn write_str(&mut self, s: &str) {
+        for b in s.as_bytes() {
+            self.write_byte(*b);
+        }
+    }
+
+    /// Minimal no_std u8 to ASCII helper.
+    fn write_u8_ascii(&mut self, mut n: u8) {
+        if n == 0 {
+            self.write_char('0');
+            return;
+        }
+        let mut buf = [0u8; 3];
+        let mut i = 0;
+        while n > 0 {
+            buf[i] = (n % 10) + b'0';
+            n /= 10;
+            i += 1;
+        }
+        for j in (0..i).rev() {
+            self.write_char(buf[j] as char);
+        }
+    }
 }
 
 // Simple wrapper for a mutable slice
@@ -14,14 +41,6 @@ impl BlackboxWriter for SliceWriter<'_> {
         if self.pos < self.buffer.len() {
             self.buffer[self.pos] = byte;
             self.pos += 1;
-        }
-    }
-    fn write_str(&mut self, s: &str) {
-        for b in s.as_bytes() {
-            if self.pos < self.buffer.len() {
-                self.buffer[self.pos] = *b;
-                self.pos += 1;
-            }
         }
     }
 }
