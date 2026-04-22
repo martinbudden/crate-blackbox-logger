@@ -63,7 +63,22 @@ impl BlackboxStart {
         Self { debug_mode: 0, motor_count: 4, servo_count: 0 }
     }
 }
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BlackboxContext {
+    pub(crate) logged_any_frames: bool,
+}
 
+impl Default for BlackboxContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl BlackboxContext {
+    pub fn new() -> Self {
+        Self { logged_any_frames: false }
+    }
+}
 #[derive(Clone, Copy, Debug)]
 pub struct Blackbox {
     pub(crate) iteration: u32,
@@ -75,7 +90,11 @@ pub struct Blackbox {
     pub(crate) motor_output_min: i16,
     pub(crate) min_throttle: i16,
     pub(crate) vbat_reference: u16,
-    pub(crate) logged_any_frames: bool,
+
+    #[allow(dead_code)]
+    state: State,
+    #[allow(dead_code)]
+    ctx: BlackboxContext,
 
     i_frame_index: u32,
     i_interval: u32,
@@ -94,9 +113,9 @@ pub struct Blackbox {
     pub(crate) home_altitude_cm: i32,           // home altitude in cm
 
     pub(crate) main_states: [MainState; 3],
-    pub(crate) state_index_current: usize,
-    pub(crate) state_index_previous: usize,
-    pub(crate) state_index_pre_previous: usize,
+    pub(crate) main_state_index_current: usize,
+    pub(crate) main_state_index_previous: usize,
+    pub(crate) main_state_index_pre_previous: usize,
     pub(crate) config: BlackboxConfig,
     pub buf: [u8; 1024],
 }
@@ -123,7 +142,8 @@ impl Blackbox {
             p_interval: 0,
             s_frame_index: 0,
             s_interval: 0,
-            logged_any_frames: false,
+            state: State::default(),
+            ctx: BlackboxContext::default(),
             conditions: BitSet64::default(),
             log_select_enabled: 0,
             vbat_reference: 0,
@@ -133,9 +153,9 @@ impl Blackbox {
             home_latitude_degrees_1e7: 0,
             home_altitude_cm: 0,
             main_states: <[MainState; 3]>::default(),
-            state_index_current: 0,
-            state_index_previous: 1,
-            state_index_pre_previous: 2,
+            main_state_index_current: 0,
+            main_state_index_previous: 1,
+            main_state_index_pre_previous: 2,
             config: BlackboxConfig::default(),
             buf: [0u8; 1024],
         }
@@ -193,10 +213,6 @@ impl Blackbox {
         }*/
     }
 
-    pub fn start(&self, _start_params: BlackboxStart) {}
-
-    pub fn finish(&self) {}
-
     /// Build condition cache, called from start().
     pub fn build_field_condition_cache(&mut self) {
         self.conditions.reset_all();
@@ -233,7 +249,7 @@ impl Blackbox {
         }
     }
     pub fn load_main_state(&mut self, current_time_us: u32, telemetry: BlackboxTelemetry) {
-        let current = &mut self.main_states[self.state_index_current];
+        let current = &mut self.main_states[self.main_state_index_current];
         current.time_us = current_time_us;
         current.acc = (telemetry.acc * 4096.0).into();
         current.gyro = (telemetry.gyro_rps.to_degrees()).into();
@@ -422,6 +438,82 @@ impl Blackbox {
     }
 }
 
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+enum State {
+    #[default]
+    Disabled = 0,
+    Stopped,
+    PrepareLogFile,
+    SendHeader,
+    SendMainFieldHeader,
+    SendGpsHHeader,
+    SendGpsGHeader,
+    SendSlowHeader,
+    SendSysinfo,
+    Paused,
+    Running,
+    ShuttingDown,
+}
+
+#[allow(dead_code)]
+// Note: Not sure if this state machine is needed: it might naturally drop out of the embassy sync framework.
+impl State {
+    pub fn start(&mut self, _start_params: BlackboxStart) {
+        *self = State::PrepareLogFile;
+    }
+
+    pub fn finish(&mut self) {
+        *self = State::ShuttingDown;
+    }
+
+    /// Called each flight loop iteration to perform blackbox logging.
+    pub fn update(&mut self, ctx: &mut BlackboxContext) {
+        #[allow(clippy::match_same_arms)]
+        match core::mem::take(self) {
+            State::Disabled => {
+                // If we are disabled, we stay disabled until start() is called
+                // Explicitly setting *self = State::Disabled defends against a change in the default.
+                *self = State::Disabled;
+            }
+            State::Stopped => {
+                *self = State::Stopped;
+            }
+            State::PrepareLogFile => {
+                ctx.logged_any_frames = false;
+                *self = State::SendHeader;
+            }
+            State::SendHeader => {
+                *self = State::SendMainFieldHeader;
+            }
+            State::SendMainFieldHeader => {
+                //*self = State::SendGpsHHeader;
+                *self = State::SendSlowHeader;
+            }
+            State::SendGpsHHeader => {
+                *self = State::SendGpsGHeader;
+            }
+            State::SendGpsGHeader => {
+                *self = State::SendSlowHeader;
+            }
+            State::SendSlowHeader => {
+                *self = State::SendSysinfo;
+            }
+            State::SendSysinfo => {
+                *self = State::Running;
+            }
+            State::Paused => {
+                *self = State::Running;
+            }
+            State::Running => {
+                *self = State::Paused;
+            }
+            State::ShuttingDown => {
+                *self = State::Stopped;
+            }
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     #![allow(clippy::float_cmp)]

@@ -28,6 +28,7 @@
         "maxthrottle",
         "minthrottle",
         "nocapture",
+        "Protoflight",
         "Quaternionf",
         "RSSI",
         "rustc",

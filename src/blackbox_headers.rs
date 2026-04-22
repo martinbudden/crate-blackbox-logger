@@ -133,28 +133,36 @@ pub fn write_header(writer: &mut dyn BlackboxWriter, conditions: BitSet64) {
 
     write_main_header(writer, BLACKBOX_MAIN_FIELDS, conditions);
     write_simple_header(writer, 'S', &BLACKBOX_SLOW_FIELDS);
+
     writer.write_str("H Firmware type:Cleanflight\n");
     writer.write_str("H Firmware revision:Betaflight 3.3.1 (611bc70f8) REVOLT\n");
-    writer.write_str("H Firmware date:Mar 21 2018 03:14:05\n");
+    writer.write_str("H Firmware date:Mar 21 2018 00:00:00\n");
+
     writer.write_str("H Log start datetime:0000-01-01T00:00:00.000+00:00\n");
-    writer.write_str("H Craft name:Mark1\n");
+    writer.write_str("H Craft name:Protea\n");
+
     writer.write_str("H I interval:256\n");
     writer.write_str("H P interval:1/8\n");
-    writer.write_str("H P denom:32\n");
+    // "P denom" ignored by blackbox-log-view
+    // writer.write_str("H P denom:32\n");
+    writer.write_str("H looptime:125\n");
+    writer.write_str("H gyro_sync_denom:1\n");
+    writer.write_str("H pid_process_denom:1\n");
+
+    writer.write_str("H gyro_scale:0x3f800000\n");
+    writer.write_str("H acc_1G:4096\n");
+
+    writer.write_str("H features:541130760\n");
+    writer.write_str("H debug_mode:0\n");
+
     writer.write_str("H minthrottle:1070\n");
     writer.write_str("H maxthrottle:2000\n");
-    writer.write_str("H gyro_scale:0x3f800000\n");
     writer.write_str("H motorOutput:158,2047\n");
-    writer.write_str("H acc_1G:4096\n");
+
     writer.write_str("H vbat_scale:110\n");
     writer.write_str("H vbatcellvoltage:33,35,43\n");
     writer.write_str("H vbatref:113\n");
     writer.write_str("H currentSensor:0,235\n");
-    writer.write_str("H looptime:125\n");
-    writer.write_str("H gyro_sync_denom:1\n");
-    writer.write_str("H pid_process_denom:1\n");
-    writer.write_str("H debug_mode:0\n");
-    writer.write_str("H features:541130760\n");
 }
 
 #[cfg(test)]
@@ -278,13 +286,3 @@ mod tests {
         println!("{result}");
     }
 }
-/*
-Explanation of the test:
-MockWriter: Simulates a serial port or file stream by writing bytes into a stack-allocated array.
-core::str::from_utf8: Safely converts the buffer back to a string so we can use standard string assertions.
-Validation:
-It checks that the Names are comma-separated and match the BLACKBOX_SLOW_FIELDS definition.
-It verifies the Predictors are all 0 (mapping to FlightLogFieldPredictor::ZERO).
-It verifies the Encodings match the numeric constants we defined (e.g., TAG2_3S32 is 7).
-To run this, you would use:
-cargo test */

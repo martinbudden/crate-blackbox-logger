@@ -29,7 +29,7 @@ macro_rules! assert_p_field_encoding {
 
 impl Blackbox {
     pub fn log_s_frame(&mut self) -> usize {
-        self.logged_any_frames = true;
+        //self.logged_any_frames = true;
         self.s_frame_index = 0;
 
         let mut encoder = SliceWriter { buffer: &mut self.buf, pos: 0 };
@@ -51,7 +51,7 @@ impl Blackbox {
     }
 
     pub fn log_s_frame2(&mut self, encoder: &mut SliceWriter) -> usize {
-        self.logged_any_frames = true;
+        //self.logged_any_frames = true;
         self.s_frame_index = 0;
 
         encoder.begin_frame(b'S');
@@ -73,7 +73,7 @@ impl Blackbox {
 
     /// GPS home frame: h_frame.
     pub fn log_h_frame(&mut self) -> usize {
-        self.logged_any_frames = true;
+        //self.logged_any_frames = true;
 
         let mut encoder = SliceWriter { buffer: &mut self.buf, pos: 0 };
         encoder.begin_frame(b'H');
@@ -88,7 +88,7 @@ impl Blackbox {
 
     /// GPS frame: g_frame.
     pub fn log_g_frame(&mut self, current_time_us: u32) -> usize {
-        self.logged_any_frames = true;
+        //self.logged_any_frames = true;
 
         let mut encoder = SliceWriter { buffer: &mut self.buf, pos: 0 };
         encoder.begin_frame(b'G');
@@ -98,7 +98,7 @@ impl Blackbox {
         // If we're not logging every frame, we need to store the time of this GPS frame.
         if self.conditions.test(FieldCondition::NOT_LOGGING_EVERY_FRAME) {
             // Predict the time of the last frame in the main log
-            encoder.write_unsigned_vb(current_time_us - self.main_states[self.state_index_current].time_us);
+            encoder.write_unsigned_vb(current_time_us - self.main_states[self.main_state_index_current].time_us);
         }
 
         encoder.write_unsigned_vb(u32::from(self.gps_state.satellite_count));
@@ -127,7 +127,7 @@ impl Blackbox {
     #[allow(clippy::too_many_lines)]
     /// Intra frame: i_frame.
     pub fn log_i_frame(&mut self) -> usize {
-        self.logged_any_frames = true;
+        //self.logged_any_frames = true;
 
         let mut encoder = SliceWriter { buffer: &mut self.buf, pos: 0 };
         encoder.begin_frame(b'I');
@@ -135,7 +135,7 @@ impl Blackbox {
         assert_i_field_encoding!("loopIteration", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
         encoder.write_unsigned_vb(self.iteration);
 
-        let current = &self.main_states[self.state_index_current];
+        let current = &self.main_states[self.main_state_index_current];
 
         encoder.write_unsigned_vb(current.time_us);
 
@@ -275,12 +275,12 @@ impl Blackbox {
         let ret = encoder.end_frame();
 
         // Rotate the state indices
-        let new_current = self.state_index_pre_previous;
-        self.state_index_pre_previous = self.state_index_previous;
-        self.state_index_previous = self.state_index_current;
-        self.state_index_current = new_current;
+        let new_current = self.main_state_index_pre_previous;
+        self.main_state_index_pre_previous = self.main_state_index_previous;
+        self.main_state_index_previous = self.main_state_index_current;
+        self.main_state_index_current = new_current;
         // This is an i_frame, so there is no other pre_previous state, so we copy the previous state into the pre_previous state
-        self.main_states[self.state_index_pre_previous] = self.main_states[self.state_index_previous];
+        self.main_states[self.main_state_index_pre_previous] = self.main_states[self.main_state_index_previous];
 
         ret
     }
@@ -291,14 +291,14 @@ impl Blackbox {
     /// So this code and those definitions must be changed in tandem with each other.
     #[allow(clippy::too_many_lines)]
     pub fn log_p_frame(&mut self) -> usize {
-        self.logged_any_frames = true;
+        //self.logged_any_frames = true;
 
         let mut encoder = SliceWriter { buffer: &mut self.buf, pos: 0 };
         encoder.begin_frame(b'P');
 
-        let current = &self.main_states[self.state_index_current];
-        let previous = &self.main_states[self.state_index_previous];
-        let pre_previous = &self.main_states[self.state_index_pre_previous];
+        let current = &self.main_states[self.main_state_index_current];
+        let previous = &self.main_states[self.main_state_index_previous];
+        let pre_previous = &self.main_states[self.main_state_index_pre_previous];
 
         //No need to store iteration count since its delta is always 1
 
@@ -488,10 +488,10 @@ impl Blackbox {
         let ret = encoder.end_frame();
 
         // Rotate the state indices
-        let new_current = self.state_index_pre_previous;
-        self.state_index_pre_previous = self.state_index_previous;
-        self.state_index_previous = self.state_index_current;
-        self.state_index_current = new_current;
+        let new_current = self.main_state_index_pre_previous;
+        self.main_state_index_pre_previous = self.main_state_index_previous;
+        self.main_state_index_previous = self.main_state_index_current;
+        self.main_state_index_current = new_current;
 
         ret
     }
@@ -507,24 +507,24 @@ mod tests {
     fn i_encodings() {
         assert_i_field_encoding!("loopIteration", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
         let mut blackbox = Blackbox::default();
-        assert_eq!(0, blackbox.state_index_current);
-        assert_eq!(1, blackbox.state_index_previous);
-        assert_eq!(2, blackbox.state_index_pre_previous);
+        assert_eq!(0, blackbox.main_state_index_current);
+        assert_eq!(1, blackbox.main_state_index_previous);
+        assert_eq!(2, blackbox.main_state_index_pre_previous);
         blackbox.log_i_frame();
-        assert_eq!(2, blackbox.state_index_current);
-        assert_eq!(0, blackbox.state_index_previous);
-        assert_eq!(1, blackbox.state_index_pre_previous);
+        assert_eq!(2, blackbox.main_state_index_current);
+        assert_eq!(0, blackbox.main_state_index_previous);
+        assert_eq!(1, blackbox.main_state_index_pre_previous);
     }
     #[test]
     fn p_encodings() {
         assert_p_field_encoding!("loopIteration", FieldPredictor::INC, FieldEncoding::ZERO);
         let mut blackbox = Blackbox::default();
-        assert_eq!(0, blackbox.state_index_current);
-        assert_eq!(1, blackbox.state_index_previous);
-        assert_eq!(2, blackbox.state_index_pre_previous);
+        assert_eq!(0, blackbox.main_state_index_current);
+        assert_eq!(1, blackbox.main_state_index_previous);
+        assert_eq!(2, blackbox.main_state_index_pre_previous);
         blackbox.log_p_frame();
-        assert_eq!(2, blackbox.state_index_current);
-        assert_eq!(0, blackbox.state_index_previous);
-        assert_eq!(1, blackbox.state_index_pre_previous);
+        assert_eq!(2, blackbox.main_state_index_current);
+        assert_eq!(0, blackbox.main_state_index_previous);
+        assert_eq!(1, blackbox.main_state_index_pre_previous);
     }
 }
