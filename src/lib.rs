@@ -19,9 +19,12 @@ mod blackbox_headers;
 mod blackbox_log_frames;
 mod blackbox_states;
 mod blackbox_telemetry;
+pub mod drivers;
+
+pub use crate::drivers::sd_card;
 
 pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStart};
-pub use blackbox_encoding::{BlackboxBuffer, SliceWriter};
+pub use blackbox_encoding::{BlackboxWriter, SliceWriter};
 pub use blackbox_field_arrays::{
     BLACKBOX_GPS_G_FIELDS, BLACKBOX_GPS_H_FIELDS, BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS,
 };

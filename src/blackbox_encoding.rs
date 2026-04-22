@@ -1,5 +1,6 @@
-pub trait BlackboxBuffer {
+pub trait BlackboxWriter {
     fn write_byte(&mut self, byte: u8);
+    fn write_str(&mut self, s: &str);
 }
 
 // Simple wrapper for a mutable slice
@@ -8,11 +9,19 @@ pub struct SliceWriter<'a> {
     pub pos: usize,
 }
 
-impl BlackboxBuffer for SliceWriter<'_> {
+impl BlackboxWriter for SliceWriter<'_> {
     fn write_byte(&mut self, byte: u8) {
         if self.pos < self.buffer.len() {
             self.buffer[self.pos] = byte;
             self.pos += 1;
+        }
+    }
+    fn write_str(&mut self, s: &str) {
+        for b in s.as_bytes() {
+            if self.pos < self.buffer.len() {
+                self.buffer[self.pos] = *b;
+                self.pos += 1;
+            }
         }
     }
 }
