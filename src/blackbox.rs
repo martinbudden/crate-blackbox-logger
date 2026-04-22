@@ -35,7 +35,7 @@ impl Default for BlackboxConfig {
 }
 
 impl BlackboxConfig {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             sample_rate: 0,
             device: BlackboxDevice::NONE,
@@ -59,7 +59,7 @@ impl Default for BlackboxStart {
 }
 
 impl BlackboxStart {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self { debug_mode: 0, motor_count: 4, servo_count: 0 }
     }
 }
@@ -166,7 +166,8 @@ impl Blackbox {
         | LogFieldSelect::BATTERY_VOLTAGE
         | LogFieldSelect::BATTERY_CURRENT;
 
-        self.log_select_enabled &= !config.fields_disabled_mask;
+        self.build_field_condition_cache();
+        //self.conditions &= !BitSet64::from(config.fields_disabled_mask);
 
         self.reset_iteration_timers();
 
@@ -191,7 +192,9 @@ impl Blackbox {
             self.set_state(STATE_STOPPED);
         }*/
     }
+
     pub fn start(&self, _start_params: BlackboxStart) {}
+
     pub fn finish(&self) {}
 
     /// Build condition cache, called from start().

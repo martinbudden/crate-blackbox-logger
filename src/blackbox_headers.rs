@@ -220,7 +220,7 @@ mod tests {
         // Encodings: 1,1,7,7,7 (UNSIGNED_VB=1, TAG2_3S32=7)
 
         // Print for manual inspection (if running with `cargo test -- --nocapture`)
-        println!("{result}");
+        //println!("{result}");
         assert!(result.contains(
             "H Field S name:flight_mode_flags,state_flags,failsafe_phase,rx_signal_received,rx_flight_channel_is_valid"
         ));
@@ -260,15 +260,16 @@ mod tests {
         // Encodings: 1,1,7,7,7 (UNSIGNED_VB=1, TAG2_3S32=7)
 
         // Print for manual inspection (if running with `cargo test -- --nocapture`)
-        println!("{result}");
+        //println!("{result}");
     }
     #[test]
     fn main_header() {
+        use crate::blackbox::{BlackboxConfig,Blackbox};
         let mut buffer = [0u8; 2048];
         let mut writer = MockWriter { buf: &mut buffer, pos: 0 };
 
         // Generate headers for the SLOW_FIELDS array defined earlier
-        let mut conditions = BitSet64::new();
+        /*let mut conditions = BitSet64::new();
         _ = conditions.set(FieldCondition::ALWAYS);
         _ = conditions.set(FieldCondition::AT_LEAST_MOTORS_1);
         _ = conditions.set(FieldCondition::AT_LEAST_MOTORS_2);
@@ -282,7 +283,11 @@ mod tests {
         _ = conditions.set(FieldCondition::RC_COMMANDS);
         _ = conditions.set(FieldCondition::BATTERY_CURRENT);
         _ = conditions.set(FieldCondition::BATTERY_VOLTAGE);
-        write_header(&mut writer, conditions);
+        write_header(&mut writer, conditions);*/
+        let mut blackbox = Blackbox::new();
+        let config = BlackboxConfig::new();
+        blackbox.init(config);
+        write_header(&mut writer, blackbox.conditions);
 
         // Convert the written portion to a string for validation
         #[allow(clippy::unwrap_used)]
