@@ -98,7 +98,7 @@ pub struct Blackbox {
     pub(crate) state_index_previous: usize,
     pub(crate) state_index_pre_previous: usize,
     pub(crate) config: BlackboxConfig,
-    pub(crate) buf: [u8; 1024],
+    pub buf: [u8; 1024],
 }
 
 impl Default for Blackbox {

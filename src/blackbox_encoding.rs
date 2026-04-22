@@ -31,9 +31,16 @@ pub trait BlackboxWriter {
 }
 
 // Simple wrapper for a mutable slice
+#[derive(Default)]
 pub struct SliceWriter<'a> {
     pub buffer: &'a mut [u8],
     pub pos: usize,
+}
+
+impl SliceWriter<'_> {
+    pub fn new() -> Self {
+        Self::default()
+    }
 }
 
 impl BlackboxWriter for SliceWriter<'_> {

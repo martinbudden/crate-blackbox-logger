@@ -2,7 +2,7 @@ use crate::{BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS};
 use vqm::BitSet64;
 
 use crate::{ConditionalFieldDefinition, FieldHeader, MainFieldDefinition, SimpleFieldDefinition};
-use crate::BlackboxWriter;
+use crate::{BlackboxWriter,SliceWriter};
 
 // Helper to handle the "H Field X type: val,val" formatting
 // Notice the closure now takes (&mut dyn BlackboxWriter, &T)
@@ -73,6 +73,11 @@ where
 pub fn write_simple_header(writer: &mut dyn BlackboxWriter, frame_type: char, fields: &[SimpleFieldDefinition]) {
     // Only include fields that are "active"
     write_common_field_lines(writer, frame_type, fields, |_f| true);
+}
+
+pub fn write_slow_fields_header(writer: &mut SliceWriter) -> usize{
+    write_simple_header(writer, 'S', &BLACKBOX_SLOW_FIELDS);
+    writer.pos
 }
 
 /// Conditional header, used for G frames.
