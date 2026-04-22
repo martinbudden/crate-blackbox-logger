@@ -264,7 +264,7 @@ mod tests {
     }
     #[test]
     fn main_header() {
-        use crate::blackbox::{BlackboxConfig,Blackbox};
+        use crate::blackbox::{Blackbox, BlackboxConfig};
         let mut buffer = [0u8; 2048];
         let mut writer = MockWriter { buf: &mut buffer, pos: 0 };
 
