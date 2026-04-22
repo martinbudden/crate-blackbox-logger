@@ -6,7 +6,7 @@ use crate::BlackboxWriter;
 
 // Helper to handle the "H Field X type: val,val" formatting
 // Notice the closure now takes (&mut dyn BlackboxWriter, &T)
-fn write_header_line<'a, T, I, F>(writer: &mut dyn BlackboxWriter, frame_type: char, label: &str, fields: I, mut op: F)
+fn write_field_line<'a, T, I, F>(writer: &mut dyn BlackboxWriter, frame_type: char, label: &str, fields: I, mut op: F)
 where
     T: 'a,
     I: Iterator<Item = &'a T>,
@@ -27,7 +27,7 @@ where
     writer.write_char('\n');
 }
 
-fn write_common_header_lines<'a, T, P>(writer: &mut dyn BlackboxWriter, frame_type: char, fields: &[T], mut predicate: P)
+fn write_common_field_lines<'a, T, P>(writer: &mut dyn BlackboxWriter, frame_type: char, fields: &[T], mut predicate: P)
 where
     T: FieldHeader + 'a,
     P: FnMut(&T) -> bool, // The condition closure
@@ -36,7 +36,7 @@ where
     // We use .iter().filter() to apply the condition
 
     // Name line
-    write_header_line(writer, frame_type, "name", fields.iter().filter(|&f| predicate(f)), |w, f| {
+    write_field_line(writer, frame_type, "name", fields.iter().filter(|&f| predicate(f)), |w, f| {
         w.write_str(f.name());
         let index = f.field_name_index();
         if index >= 0 {
@@ -47,17 +47,17 @@ where
     });
 
     // Signed line
-    write_header_line(writer, frame_type, "signed", fields.iter().filter(|&f| predicate(f)), |w, f| {
+    write_field_line(writer, frame_type, "signed", fields.iter().filter(|&f| predicate(f)), |w, f| {
         w.write_u8_ascii(f.is_signed());
     });
 
     // Predictor line
-    write_header_line(writer, frame_type, "predictor", fields.iter().filter(|&f| predicate(f)), |w, f| {
+    write_field_line(writer, frame_type, "predictor", fields.iter().filter(|&f| predicate(f)), |w, f| {
         w.write_u8_ascii(f.predict());
     });
 
     // Encoder line
-    write_header_line(writer, frame_type, "encoding", fields.iter().filter(|&f| predicate(f)), |w, f| {
+    write_field_line(writer, frame_type, "encoding", fields.iter().filter(|&f| predicate(f)), |w, f| {
         w.write_u8_ascii(f.encode());
     });
 }
@@ -72,7 +72,7 @@ where
 // ..
 pub fn write_simple_header(writer: &mut dyn BlackboxWriter, frame_type: char, fields: &[SimpleFieldDefinition]) {
     // Only include fields that are "active"
-    write_common_header_lines(writer, frame_type, fields, |_f| true);
+    write_common_field_lines(writer, frame_type, fields, |_f| true);
 }
 
 /// Conditional header, used for G frames.
@@ -87,7 +87,7 @@ pub fn write_conditional_header(
     conditions: BitSet64,
 ) {
     let filter = |f: &ConditionalFieldDefinition| conditions.test(f.condition);
-    write_common_header_lines(writer, frame_type, fields, &filter);
+    write_common_field_lines(writer, frame_type, fields, &filter);
 
     /*let filtered = fields.iter().filter(|&f| filter(f));
     write_header_line(writer, frame_type, "condition", filtered, |w, f| {
@@ -104,15 +104,15 @@ pub fn write_conditional_header(
 //5: H Field P encoding: 9,0,0,0,0,7,7,7,0,0,0,8,8,8,8,6,6,0,0,0, 0,0,0,0
 pub fn write_main_header(writer: &mut dyn BlackboxWriter, fields: &[MainFieldDefinition], conditions: BitSet64) {
     let filter = |f: &MainFieldDefinition| conditions.test(f.condition);
-    write_common_header_lines(writer, 'I', fields, &filter);
+    write_common_field_lines(writer, 'I', fields, &filter);
 
     let filtered = fields.iter().filter(|&f| filter(f));
-    write_header_line(writer, 'P', "predictor", filtered, |w, f| {
+    write_field_line(writer, 'P', "predictor", filtered, |w, f| {
         w.write_u8_ascii(f.p_predict);
     });
 
     let filtered = fields.iter().filter(|&f| filter(f));
-    write_header_line(writer, 'P', "encoding", filtered, |w, f| {
+    write_field_line(writer, 'P', "encoding", filtered, |w, f| {
         w.write_u8_ascii(f.p_encode);
     });
 
