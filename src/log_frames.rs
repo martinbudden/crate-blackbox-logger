@@ -178,7 +178,7 @@ impl BlackboxContext {
                 encoder.write_unsigned_vb(u32::from(self.vbat_reference - current.battery_voltage) & 0x3FFF);
             }
 
-            assert_i_field_encoding!("amperage_latest", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+            assert_i_field_encoding!("amperage_latest", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
             if self.conditions.test(FieldCondition::BATTERY_CURRENT) {
                 // 12bit value directly from ADC
                 encoder.write_unsigned_vb_16(current.amperage);
