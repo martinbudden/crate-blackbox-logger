@@ -1,8 +1,7 @@
 use crate::drivers::SdStorage;
+use embassy_futures::yield_now;
 use std::fs::File;
 use std::io::Write;
-use embassy_futures::yield_now;
-
 
 pub struct MockSdCard {
     file: File,
@@ -12,9 +11,7 @@ pub struct MockSdCard {
 impl MockSdCard {
     /// # Panics
     pub fn new(path: &str) -> Self {
-        Self {
-            file: File::create(path).expect("Could not create log file"),
-        }
+        Self { file: File::create(path).expect("Could not create log file") }
     }
 }
 

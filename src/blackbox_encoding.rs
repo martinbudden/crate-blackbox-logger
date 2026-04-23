@@ -33,7 +33,7 @@ pub trait BlackboxWriter {
             self.write_char(buf[j] as char);
         }
     }
-        #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_possible_truncation)]
     fn write_u32_ascii(&mut self, mut n: u32) {
         if n == 0 {
             self.write_char('0');
@@ -49,6 +49,11 @@ pub trait BlackboxWriter {
         for j in (0..i).rev() {
             self.write_char(buf[j] as char);
         }
+    }
+    fn write_h_str_u32_ascii(&mut self, s: &str, n: u32) {
+        self.write_h_str(s);
+        self.write_u32_ascii(n);
+        self.write_char('\n');
     }
 }
 

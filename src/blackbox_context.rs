@@ -1,6 +1,6 @@
 use crate::{
     BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS, BlackboxStart, BlackboxWriter, FieldCondition, LogFieldSelect,
-    SliceWriter, write_main_header, write_simple_header,
+    MainFieldDefinition, SliceWriter, blackbox_headers::write_field_line, write_simple_header,
 };
 use vqm::BitSet64;
 
@@ -69,7 +69,7 @@ impl BlackboxContext {
 }
 
 impl BlackboxContext {
-    pub fn init(&mut self, sample_rate:u8) {
+    pub fn init(&mut self, sample_rate: u8) {
         self.log_select_enabled = LogFieldSelect::PID
         | LogFieldSelect::PID_KTERM
         | LogFieldSelect::PID_DTERM_ROLL
@@ -238,9 +238,83 @@ impl BlackboxContext {
         writer.pos
     }
 
-    pub fn send_main_field_header(&mut self, writer: &mut SliceWriter) -> usize {
-        write_main_header(writer, BLACKBOX_MAIN_FIELDS, self.conditions);
-        writer.pos
+    const FIELDS: &[MainFieldDefinition] = BLACKBOX_MAIN_FIELDS;
+    pub fn send_main_field_header(&mut self, writer: &mut SliceWriter, index: usize) -> usize {
+        //write_main_header(writer, BLACKBOX_MAIN_FIELDS, self.conditions);
+        let filter = |f: &MainFieldDefinition| self.conditions.test(f.condition);
+        //write_common_field_lines(writer, 'I', Self::FIELDS, &filter);
+
+        /*// Signed line
+        write_field_line(writer, frame_type, "signed", fields.iter().filter(|&f| predicate(f)), |w, f| {
+            w.write_u8_ascii(f.is_signed());
+        });
+
+        // Predictor line
+        write_field_line(writer, frame_type, "predictor", fields.iter().filter(|&f| predicate(f)), |w, f| {
+            w.write_u8_ascii(f.predict());
+        });
+
+        // Encoder line
+        write_field_line(writer, frame_type, "encoding", fields.iter().filter(|&f| predicate(f)), |w, f| {
+            w.write_u8_ascii(f.encode());
+        });*/
+
+        match index {
+            0 => {
+                // Name line. Note: This can exceed 500 bytes. Currently using buffer of size 1024, but perhaps this should be split.
+                write_field_line(writer, 'I', "name", Self::FIELDS.iter().filter(|&f| filter(f)), |w, f| {
+                    w.write_str(f.name);
+                    let index = f.field_name_index;
+                    if index >= 0 {
+                        w.write_char('[');
+                        w.write_u8_ascii(index.cast_unsigned());
+                        w.write_char(']');
+                    }
+                });
+                writer.pos
+            }
+            1 => {
+                // I Signed line
+                let filtered = Self::FIELDS.iter().filter(|&f| filter(f));
+                write_field_line(writer, 'I', "signed", filtered, |w, f| {
+                    w.write_u8_ascii(f.is_signed);
+                });
+                writer.pos
+            }
+            2 => {
+                // I Predictor line
+                let filtered = Self::FIELDS.iter().filter(|&f| filter(f));
+                write_field_line(writer, 'I', "predictor", filtered, |w, f| {
+                    w.write_u8_ascii(f.i_predict);
+                });
+                writer.pos
+            }
+            3 => {
+                // I Encoding line
+                let filtered = Self::FIELDS.iter().filter(|&f| filter(f));
+                write_field_line(writer, 'I', "encoding", filtered, |w, f| {
+                    w.write_u8_ascii(f.i_encode);
+                });
+                writer.pos
+            }
+            4 => {
+                // P Predictor line
+                let filtered = Self::FIELDS.iter().filter(|&f| filter(f));
+                write_field_line(writer, 'P', "predictor", filtered, |w, f| {
+                    w.write_u8_ascii(f.p_predict);
+                });
+                writer.pos
+            }
+            5 => {
+                // P Encoding line
+                let filtered = Self::FIELDS.iter().filter(|&f| filter(f));
+                write_field_line(writer, 'P', "encoding", filtered, |w, f| {
+                    w.write_u8_ascii(f.p_encode);
+                });
+                writer.pos
+            }
+            _ => 0,
+        }
     }
 
     pub fn send_slow_header(writer: &mut SliceWriter) -> usize {
@@ -272,23 +346,17 @@ impl BlackboxContext {
                 writer.pos
             }
             5 => {
-                writer.write_h_str("I interval:");
-                writer.write_u32_ascii(self.i_interval);
-                writer.write_char('\n');
+                writer.write_h_str_u32_ascii("I interval:", self.i_interval);
                 writer.pos
             }
             6 => {
-                writer.write_h_str("P interval:");
-                writer.write_u32_ascii(self.p_interval);
-                writer.write_char('\n');
+                writer.write_h_str_u32_ascii("P interval:", self.p_interval);
                 writer.pos
                 // "P denom" ignored by blackbox-log-view
                 // writer.write_h_str("P denom:32\n");
             }
             7 => {
-                writer.write_h_str("looptime:");
-                writer.write_u32_ascii(self.looptime);
-                writer.write_char('\n');
+                writer.write_h_str_u32_ascii("looptime:", self.looptime);
                 writer.pos
             }
             8 => {
@@ -328,7 +396,7 @@ pub(crate) enum State {
     Stopped,
     PrepareLogFile,
     SendHeader,
-    SendMainFieldHeader,
+    SendMainFieldHeader(usize),
     SendGpsHHeader,
     SendGpsGHeader,
     SendSlowHeader,
@@ -373,12 +441,17 @@ impl State {
                 0
             }
             State::SendHeader => {
-                *self = State::SendMainFieldHeader;
+                *self = State::SendMainFieldHeader(0);
                 BlackboxContext::send_header(writer)
             }
-            State::SendMainFieldHeader => {
-                *self = State::SendSlowHeader;
-                ctx.send_main_field_header(writer)
+            State::SendMainFieldHeader(index) => {
+                let len = ctx.send_main_field_header(writer, index);
+                if len == 0 {
+                    *self = State::SendSlowHeader;
+                } else {
+                    *self = State::SendMainFieldHeader(index + 1);
+                }
+                len
             }
             State::SendGpsHHeader => {
                 *self = State::SendGpsGHeader;
@@ -396,11 +469,10 @@ impl State {
                 let len = ctx.send_sys_header(writer, index);
                 if len == 0 {
                     *self = State::Running;
-                    0
                 } else {
                     *self = State::SendSysinfo(index + 1);
-                    len
                 }
+                len
             }
             State::Paused => {
                 *self = State::Running;
@@ -458,8 +530,12 @@ mod tests {
         let mut buffer = [0u8; 2048];
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
         let mut ctx = BlackboxContext::new();
+        ctx.init(0);
 
-        _ = ctx.send_main_field_header(&mut writer);
+        _ = ctx.send_main_field_header(&mut writer, 0);
+        _ = ctx.send_main_field_header(&mut writer, 1);
+        _ = ctx.send_main_field_header(&mut writer, 2);
+        _ = ctx.send_main_field_header(&mut writer, 3);
 
         // Convert the written portion to a string for validation
         #[allow(clippy::unwrap_used)]

@@ -1,8 +1,8 @@
-use crate::{BlackboxTelemetry};
-use crate::{LogFieldSelect};
+use crate::BlackboxTelemetry;
+use crate::LogFieldSelect;
+use crate::blackbox_context::{BlackboxContext, State};
 use crate::{GpsState, MainState, SlowState};
 use serde::{Deserialize, Serialize};
-use crate::blackbox_context::{State,BlackboxContext};
 pub struct BlackboxDevice {}
 impl BlackboxDevice {
     pub const NONE: u8 = 0;
@@ -64,13 +64,10 @@ impl BlackboxStart {
 }
 #[derive(Clone, Copy, Debug)]
 pub struct Blackbox {
-
-
     #[allow(dead_code)]
     state: State,
     #[allow(dead_code)]
     pub ctx: BlackboxContext,
-
 
     pub(crate) slow_state: SlowState,
     pub(crate) gps_state: GpsState,
@@ -119,7 +116,6 @@ impl Blackbox {
         self.config = config;
 
         self.ctx.init(self.config.sample_rate);
-
     }
     pub fn load_main_state(&mut self, current_time_us: u32, telemetry: BlackboxTelemetry) {
         let current = &mut self.main_states[self.main_state_index_current];
@@ -217,7 +213,6 @@ impl Blackbox {
         0
     }
 }
-
 
 #[cfg(test)]
 mod tests {

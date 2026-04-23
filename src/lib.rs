@@ -12,6 +12,7 @@
 #![allow(clippy::doc_markdown)]
 
 mod blackbox;
+mod blackbox_context;
 mod blackbox_encoding;
 mod blackbox_field_arrays;
 mod blackbox_field_definitions;
@@ -19,7 +20,6 @@ mod blackbox_headers;
 mod blackbox_log_frames;
 mod blackbox_states;
 mod blackbox_telemetry;
-mod blackbox_context;
 pub mod drivers;
 
 pub use crate::drivers::sd_card;
@@ -33,6 +33,8 @@ pub use blackbox_field_definitions::{ConditionalFieldDefinition, MainFieldDefini
 pub use blackbox_field_definitions::{
     FieldCondition, FieldEncoding, FieldHeader, FieldPredictor, FieldSign, LogFieldSelect,
 };
-pub use blackbox_headers::{write_conditional_header, write_header, write_main_header, write_simple_header,write_slow_fields_header};
+pub use blackbox_headers::{
+    write_conditional_header, write_header, write_main_header, write_simple_header, write_slow_fields_header,
+};
 pub use blackbox_states::{GpsState, MainState, SlowState};
 pub use blackbox_telemetry::BlackboxTelemetry;

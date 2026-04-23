@@ -1,13 +1,18 @@
 use crate::{BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS};
 use vqm::BitSet64;
 
+use crate::{BlackboxWriter, SliceWriter};
 use crate::{ConditionalFieldDefinition, FieldHeader, MainFieldDefinition, SimpleFieldDefinition};
-use crate::{BlackboxWriter,SliceWriter};
 
 // Helper to handle the "H Field X type: val,val" formatting
 // Notice the closure now takes (&mut dyn BlackboxWriter, &T)
-fn write_field_line<'a, T, I, F>(writer: &mut dyn BlackboxWriter, frame_type: char, label: &str, fields: I, mut op: F)
-where
+pub fn write_field_line<'a, T, I, F>(
+    writer: &mut dyn BlackboxWriter,
+    frame_type: char,
+    label: &str,
+    fields: I,
+    mut op: F,
+) where
     T: 'a,
     I: Iterator<Item = &'a T>,
     F: FnMut(&mut dyn BlackboxWriter, &T),
@@ -27,8 +32,12 @@ where
     writer.write_char('\n');
 }
 
-fn write_common_field_lines<'a, T, P>(writer: &mut dyn BlackboxWriter, frame_type: char, fields: &[T], mut predicate: P)
-where
+pub fn write_common_field_lines<'a, T, P>(
+    writer: &mut dyn BlackboxWriter,
+    frame_type: char,
+    fields: &[T],
+    mut predicate: P,
+) where
     T: FieldHeader + 'a,
     P: FnMut(&T) -> bool, // The condition closure
 {
@@ -75,7 +84,7 @@ pub fn write_simple_header(writer: &mut dyn BlackboxWriter, frame_type: char, fi
     write_common_field_lines(writer, frame_type, fields, |_f| true);
 }
 
-pub fn write_slow_fields_header(writer: &mut SliceWriter) -> usize{
+pub fn write_slow_fields_header(writer: &mut SliceWriter) -> usize {
     write_simple_header(writer, 'S', &BLACKBOX_SLOW_FIELDS);
     writer.pos
 }
@@ -178,12 +187,12 @@ mod tests {
     }
 
     impl BlackboxWriter for MockWriter<'_> {
-    fn write_byte(&mut self, byte: u8) {
-        if self.pos < self.buffer.len() {
-            self.buffer[self.pos] = byte;
-            self.pos += 1;
+        fn write_byte(&mut self, byte: u8) {
+            if self.pos < self.buffer.len() {
+                self.buffer[self.pos] = byte;
+                self.pos += 1;
+            }
         }
-    }
     }
 
     #[test]
@@ -243,7 +252,6 @@ mod tests {
         // Names: flight_mode_flags,state_flags,failsafe_phase,rx_signal_received,rx_flight_channel_is_valid
         // Predictors: 0,0,0,0,0 (All are PREDICT(ZERO) = 0)
         // Encodings: 1,1,7,7,7 (UNSIGNED_VB=1, TAG2_3S32=7)
-
     }
     #[test]
     fn main_header() {
@@ -283,6 +291,5 @@ mod tests {
         // Names: flight_mode_flags,state_flags,failsafe_phase,rx_signal_received,rx_flight_channel_is_valid
         // Predictors: 0,0,0,0,0 (All are PREDICT(ZERO) = 0)
         // Encodings: 1,1,7,7,7 (UNSIGNED_VB=1, TAG2_3S32=7)
-
     }
 }
