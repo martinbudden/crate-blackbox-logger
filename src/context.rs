@@ -615,7 +615,8 @@ mod tests {
     #![allow(clippy::float_cmp)]
     #![allow(unused_results)]
 
-    use crate::BlackboxTelemetry;
+    #![allow(unused)]
+    use crate::{BlackboxTelemetry, sd_card::MockSdCard};
 
     #[allow(unused)]
     use super::*;
@@ -687,9 +688,10 @@ mod tests {
     }
     #[test]
     fn state_machine() {
-        let mut buffer = [0u8; 2048];
+        let mut buffer = [0u8; 1024];
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
         let mut ctx = BlackboxContext::new();
+        //let mut _sd_card = MockSdCard::new("state_machine_log.bbl");
         ctx.init(0);
 
         let start = BlackboxStartParameters::new();
@@ -706,9 +708,41 @@ mod tests {
                 if writer.pos != 0 {
                     #[allow(clippy::unwrap_used)]
                     let result = core::str::from_utf8(&writer.buffer[..writer.pos]).unwrap();
-                    println!("{result}");
+                    println!("SS{result}");
                 }
                 break;
+            }
+            current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
+        }
+    }
+    #[test]
+    fn full_run() {
+        let mut buffer = [0u8; 512];
+        let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
+        let mut ctx = BlackboxContext::new();
+        ctx.init(0);
+
+        let start = BlackboxStartParameters::new();
+        let mut state = State::default();
+        let mut current_time_us: u32 = 0;
+        let telemetry = BlackboxTelemetry::new();
+        state.start(start);
+        let mut run_count = 0;
+        loop {
+            ctx.load_main_state(current_time_us, telemetry);
+            _ = state.update(&mut ctx, &mut writer, current_time_us);
+            //let state_i:u32 = state.into();
+            //println!("state={state_i}");
+            if state == State::Running {
+                if writer.pos != 0 {
+                    #[allow(clippy::unwrap_used)]
+                    let result = core::str::from_utf8(&writer.buffer[..writer.pos]).unwrap();
+                    println!("RR__{result}__RR");
+                    run_count += 1;
+                }
+                if run_count > 10 {
+                    break;
+                }
             }
             current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
         }
