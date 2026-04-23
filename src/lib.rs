@@ -19,6 +19,7 @@ mod blackbox_headers;
 mod blackbox_log_frames;
 mod blackbox_states;
 mod blackbox_telemetry;
+mod blackbox_context;
 pub mod drivers;
 
 pub use crate::drivers::sd_card;

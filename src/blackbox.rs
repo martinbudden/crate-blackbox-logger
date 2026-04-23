@@ -1,9 +1,8 @@
-use crate::BlackboxTelemetry;
+use crate::{BlackboxTelemetry};
 use crate::{FieldCondition, LogFieldSelect};
 use crate::{GpsState, MainState, SlowState};
 use serde::{Deserialize, Serialize};
-use vqm::BitSet64;
-
+use crate::blackbox_context::{State,BlackboxContext};
 pub struct BlackboxDevice {}
 impl BlackboxDevice {
     pub const NONE: u8 = 0;
@@ -63,22 +62,6 @@ impl BlackboxStart {
         Self { debug_mode: 0, motor_count: 4, servo_count: 0 }
     }
 }
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct BlackboxContext {
-    pub(crate) logged_any_frames: bool,
-}
-
-impl Default for BlackboxContext {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl BlackboxContext {
-    pub fn new() -> Self {
-        Self { logged_any_frames: false }
-    }
-}
 #[derive(Clone, Copy, Debug)]
 pub struct Blackbox {
     pub(crate) iteration: u32,
@@ -94,16 +77,13 @@ pub struct Blackbox {
     #[allow(dead_code)]
     state: State,
     #[allow(dead_code)]
-    ctx: BlackboxContext,
+    pub ctx: BlackboxContext,
 
     i_frame_index: u32,
-    i_interval: u32,
     p_frame_index: u32,
-    p_interval: u32,
     pub(crate) s_frame_index: u32,
     s_interval: u32,
 
-    pub(crate) conditions: BitSet64,
     pub(crate) log_select_enabled: u32,
 
     pub(crate) slow_state: SlowState,
@@ -137,14 +117,11 @@ impl Blackbox {
             motor_output_min: 750,
             min_throttle: 700,
             i_frame_index: 0,
-            i_interval: 0,
             p_frame_index: 0,
-            p_interval: 0,
             s_frame_index: 0,
             s_interval: 0,
             state: State::default(),
             ctx: BlackboxContext::default(),
-            conditions: BitSet64::default(),
             log_select_enabled: 0,
             vbat_reference: 0,
             slow_state: SlowState::default(),
@@ -194,15 +171,15 @@ impl Blackbox {
         // an i_frame is written every 32ms
         // blackboxUpdate() is run in synchronization with the PID loop
         // target_pid_looptime_us is 1000 for 1kHz loop, 500 for 2kHz loop etc, target_pid_looptime_us is rounded for short looptimes
-        // TODO: self.i_interval = 32 * 1000 / self.target_pid_looptime_us;
+        // TODO: self.ctx.i_interval = 32 * 1000 / self.target_pid_looptime_us;
 
-        self.p_interval = 1 << config.sample_rate;
-        if self.p_interval > self.i_interval {
-            self.p_interval = 0; // log only i_frames if logging frequency is too low
+        self.ctx.p_interval = 1 << config.sample_rate;
+        if self.ctx.p_interval > self.ctx.i_interval {
+            self.ctx.p_interval = 0; // log only i_frames if logging frequency is too low
         }
 
         // s_frame is written every 256*32 = 8192ms, approx every 8 seconds
-        self.s_interval = self.i_interval * 256;
+        self.s_interval = self.ctx.i_interval * 256;
 
         /*if config.device == BlackboxDevice::NONE {
             self.set_state(STATE_DISABLED);
@@ -215,10 +192,10 @@ impl Blackbox {
 
     /// Build condition cache, called from start().
     pub fn build_field_condition_cache(&mut self) {
-        self.conditions.reset_all();
+        self.ctx.conditions.reset_all();
         for condition in FieldCondition::FIRST..FieldCondition::LAST {
             if self.test_field_condition_uncached(condition) {
-                _ = self.conditions.set(condition);
+                _ = self.ctx.conditions.set(condition);
             }
         }
     }
@@ -237,13 +214,13 @@ impl Blackbox {
         self.iteration += 1;
         self.loop_index += 1;
 
-        if self.loop_index >= self.i_interval {
+        if self.loop_index >= self.ctx.i_interval {
             self.loop_index = 0; // value of zero means i_frame will be written on next update
             self.i_frame_index += 1;
             self.p_frame_index = 0;
         } else {
             self.p_frame_index += 1;
-            if self.p_frame_index >= self.p_interval {
+            if self.p_frame_index >= self.ctx.p_interval {
                 self.p_frame_index = 0; // value of zero means p_frame will be written on next update, if i_frame not written
             }
         }
@@ -322,10 +299,10 @@ impl Blackbox {
         true
     }
     pub fn should_log_p_frame(&self) -> bool {
-        self.p_frame_index == 0 && self.p_interval != 0
+        self.p_frame_index == 0 && self.ctx.p_interval != 0
     }
     pub fn is_only_logging_i_frames(&self) -> bool {
-        self.p_interval == 0
+        self.ctx.p_interval == 0
     }
 
     pub fn log_event_arming_beep_if_needed(&self) {}
@@ -423,7 +400,7 @@ impl Blackbox {
             FieldCondition::RANGEFINDER => self.is_field_enabled(LogFieldSelect::RANGEFINDER),
             FieldCondition::RSSI => self.is_field_enabled(LogFieldSelect::RSSI),
 
-            FieldCondition::NOT_LOGGING_EVERY_FRAME => self.p_interval != self.i_interval,
+            FieldCondition::NOT_LOGGING_EVERY_FRAME => self.ctx.p_interval != self.ctx.i_interval,
 
             FieldCondition::GYRO => self.is_field_enabled(LogFieldSelect::GYRO),
             FieldCondition::GYRO_UNFILTERED => self.is_field_enabled(LogFieldSelect::GYRO_UNFILTERED),
@@ -438,82 +415,6 @@ impl Blackbox {
     }
 }
 
-#[allow(dead_code)]
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-enum State {
-    #[default]
-    Disabled = 0,
-    Stopped,
-    PrepareLogFile,
-    SendHeader,
-    SendMainFieldHeader,
-    SendGpsHHeader,
-    SendGpsGHeader,
-    SendSlowHeader,
-    SendSysinfo,
-    Paused,
-    Running,
-    ShuttingDown,
-}
-
-#[allow(dead_code)]
-// Note: Not sure if this state machine is needed: it might naturally drop out of the embassy sync framework.
-impl State {
-    pub fn start(&mut self, _start_params: BlackboxStart) {
-        *self = State::PrepareLogFile;
-    }
-
-    pub fn finish(&mut self) {
-        *self = State::ShuttingDown;
-    }
-
-    /// Called each flight loop iteration to perform blackbox logging.
-    pub fn update(&mut self, ctx: &mut BlackboxContext) {
-        #[allow(clippy::match_same_arms)]
-        match core::mem::take(self) {
-            State::Disabled => {
-                // If we are disabled, we stay disabled until start() is called
-                // Explicitly setting *self = State::Disabled defends against a change in the default.
-                *self = State::Disabled;
-            }
-            State::Stopped => {
-                *self = State::Stopped;
-            }
-            State::PrepareLogFile => {
-                ctx.logged_any_frames = false;
-                *self = State::SendHeader;
-            }
-            State::SendHeader => {
-                *self = State::SendMainFieldHeader;
-            }
-            State::SendMainFieldHeader => {
-                //*self = State::SendGpsHHeader;
-                *self = State::SendSlowHeader;
-            }
-            State::SendGpsHHeader => {
-                *self = State::SendGpsGHeader;
-            }
-            State::SendGpsGHeader => {
-                *self = State::SendSlowHeader;
-            }
-            State::SendSlowHeader => {
-                *self = State::SendSysinfo;
-            }
-            State::SendSysinfo => {
-                *self = State::Running;
-            }
-            State::Paused => {
-                *self = State::Running;
-            }
-            State::Running => {
-                *self = State::Paused;
-            }
-            State::ShuttingDown => {
-                *self = State::Stopped;
-            }
-        }
-    }
-}
 #[cfg(test)]
 mod tests {
     #![allow(clippy::float_cmp)]

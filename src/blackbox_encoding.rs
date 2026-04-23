@@ -11,6 +11,11 @@ pub trait BlackboxWriter {
         }
     }
 
+    fn write_h_str(&mut self, s: &str) {
+        self.write_str("H ");
+        self.write_str(s);
+    }
+
     /// Minimal no_std u8 to ASCII helper.
     fn write_u8_ascii(&mut self, mut n: u8) {
         if n == 0 {
@@ -21,6 +26,23 @@ pub trait BlackboxWriter {
         let mut i = 0;
         while n > 0 {
             buf[i] = (n % 10) + b'0';
+            n /= 10;
+            i += 1;
+        }
+        for j in (0..i).rev() {
+            self.write_char(buf[j] as char);
+        }
+    }
+        #[allow(clippy::cast_possible_truncation)]
+    fn write_u32_ascii(&mut self, mut n: u32) {
+        if n == 0 {
+            self.write_char('0');
+            return;
+        }
+        let mut buf = [0u8; 16];
+        let mut i = 0;
+        while n > 0 {
+            buf[i] = ((n % 10) + u32::from(b'0')) as u8;
             n /= 10;
             i += 1;
         }

@@ -127,7 +127,7 @@ pub fn write_main_header(writer: &mut dyn BlackboxWriter, fields: &[MainFieldDef
     });*/
 }
 
-pub fn write_header(writer: &mut dyn BlackboxWriter, conditions: BitSet64) {
+pub fn write_header(writer: &mut SliceWriter, conditions: BitSet64) -> usize {
     writer.write_str("H Product:Blackbox flight data recorder by Nicholas Sherlock\n");
     writer.write_str("H Data version:2\n");
 
@@ -163,6 +163,7 @@ pub fn write_header(writer: &mut dyn BlackboxWriter, conditions: BitSet64) {
     writer.write_str("H vbatcellvoltage:33,35,43\n");
     writer.write_str("H vbatref:113\n");
     writer.write_str("H currentSensor:0,235\n");
+    writer.pos
 }
 
 #[cfg(test)]
@@ -203,7 +204,7 @@ mod tests {
         // Encodings: 1,1,7,7,7 (UNSIGNED_VB=1, TAG2_3S32=7)
 
         // Print for manual inspection (if running with `cargo test -- --nocapture`)
-        //println!("{result}");
+        //println!("\nSLOW HEADER:\n\n{result}\n");
         assert!(result.contains(
             "H Field S name:flight_mode_flags,state_flags,failsafe_phase,rx_signal_received,rx_flight_channel_is_valid"
         ));
@@ -215,7 +216,6 @@ mod tests {
         let mut buffer = [0u8; 2048];
         let mut writer = MockWriter { buffer: &mut buffer, pos: 0 };
 
-        // Generate headers for the SLOW_FIELDS array defined earlier
         let mut conditions = BitSet64::new();
         _ = conditions.set(FieldCondition::ALWAYS);
         _ = conditions.set(FieldCondition::AT_LEAST_MOTORS_1);
@@ -235,6 +235,8 @@ mod tests {
         // Convert the written portion to a string for validation
         #[allow(clippy::unwrap_used)]
         let result = core::str::from_utf8(&writer.buffer[..writer.pos]).unwrap();
+        // Print for manual inspection (if running with `cargo test -- --nocapture`)
+        //println!("\nMAIN HEADER:\n\n{result}\n");
         assert!(result.contains("H Field I name:loopIteration,time"));
 
         // Expected output segments:
@@ -242,15 +244,13 @@ mod tests {
         // Predictors: 0,0,0,0,0 (All are PREDICT(ZERO) = 0)
         // Encodings: 1,1,7,7,7 (UNSIGNED_VB=1, TAG2_3S32=7)
 
-        // Print for manual inspection (if running with `cargo test -- --nocapture`)
-        //println!("{result}");
     }
     #[test]
     fn main_header() {
         use crate::blackbox::{Blackbox, BlackboxConfig};
         let mut buffer = [0u8; 2048];
-        let mut writer = MockWriter { buffer: &mut buffer, pos: 0 };
-
+        //let mut writer = MockWriter { buffer: &mut buffer, pos: 0 };
+        let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
         // Generate headers for the SLOW_FIELDS array defined earlier
         /*let mut conditions = BitSet64::new();
         _ = conditions.set(FieldCondition::ALWAYS);
@@ -270,11 +270,13 @@ mod tests {
         let mut blackbox = Blackbox::new();
         let config = BlackboxConfig::new();
         blackbox.init(config);
-        write_header(&mut writer, blackbox.conditions);
+        let _pos = write_header(&mut writer, blackbox.ctx.conditions);
 
         // Convert the written portion to a string for validation
         #[allow(clippy::unwrap_used)]
         let result = core::str::from_utf8(&writer.buffer[..writer.pos]).unwrap();
+        // Print for manual inspection (if running with `cargo test -- --nocapture`)
+        //println!("\nFULL HEADER:\n\n{result}\n");
         assert!(result.contains("H Field I name:loopIteration,time"));
 
         // Expected output segments:
@@ -282,7 +284,5 @@ mod tests {
         // Predictors: 0,0,0,0,0 (All are PREDICT(ZERO) = 0)
         // Encodings: 1,1,7,7,7 (UNSIGNED_VB=1, TAG2_3S32=7)
 
-        // Print for manual inspection (if running with `cargo test -- --nocapture`)
-        println!("{result}");
     }
 }
