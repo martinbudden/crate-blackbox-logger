@@ -1,6 +1,6 @@
-use crate::blackbox_field_definitions::{FieldCondition, LogFieldSelect, MainFieldDefinition};
-use crate::blackbox_headers::{write_field_line, write_simple_header};
-use crate::blackbox_states::{GpsState, MainState, SlowState};
+use crate::field_definitions::{FieldCondition, LogFieldSelect, MainFieldDefinition};
+use crate::headers::{write_field_line, write_simple_header};
+use crate::states::{GpsState, MainState, SlowState};
 use crate::{BlackboxSlowTelemetry, BlackboxTelemetry};
 use crate::{BlackboxStartParameters, BlackboxWriter, Features, SliceWriter};
 use vqm::BitSet64;
@@ -353,16 +353,17 @@ impl BlackboxContext {
 }
 
 impl BlackboxContext {
+    const MAIN_FIELDS: &[MainFieldDefinition] = crate::field_arrays::BLACKBOX_MAIN_FIELDS;
+
     pub fn send_header(writer: &mut SliceWriter) -> usize {
         writer.write_h_str("Product:Blackbox flight data recorder by Nicholas Sherlock\n");
         writer.write_h_str("Data version:2\n");
         writer.pos
     }
 
-    const FIELDS: &[MainFieldDefinition] = crate::blackbox_field_arrays::BLACKBOX_MAIN_FIELDS;
     pub fn send_main_field_header(&mut self, writer: &mut SliceWriter, index: usize) -> usize {
-        //write_main_header(writer, BLACKBOX_MAIN_FIELDS, self.conditions);
         let filter = |f: &MainFieldDefinition| self.conditions.test(f.condition);
+        //write_main_header(writer, BLACKBOX_MAIN_FIELDS, self.conditions);
         //write_common_field_lines(writer, 'I', Self::FIELDS, &filter);
 
         /*// Signed line
@@ -383,7 +384,7 @@ impl BlackboxContext {
         match index {
             0 => {
                 // Name line. Note: This can exceed 500 bytes. Currently using buffer of size 1024, but perhaps this should be split.
-                write_field_line(writer, 'I', "name", Self::FIELDS.iter().filter(|&f| filter(f)), |w, f| {
+                write_field_line(writer, 'I', "name", Self::MAIN_FIELDS.iter().filter(|&f| filter(f)), |w, f| {
                     w.write_str(f.name);
                     let index = f.field_name_index;
                     if index >= 0 {
@@ -396,7 +397,7 @@ impl BlackboxContext {
             }
             1 => {
                 // I Signed line
-                let filtered = Self::FIELDS.iter().filter(|&f| filter(f));
+                let filtered = Self::MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(writer, 'I', "signed", filtered, |w, f| {
                     w.write_u8_ascii(f.is_signed);
                 });
@@ -404,7 +405,7 @@ impl BlackboxContext {
             }
             2 => {
                 // I Predictor line
-                let filtered = Self::FIELDS.iter().filter(|&f| filter(f));
+                let filtered = Self::MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(writer, 'I', "predictor", filtered, |w, f| {
                     w.write_u8_ascii(f.i_predict);
                 });
@@ -412,7 +413,7 @@ impl BlackboxContext {
             }
             3 => {
                 // I Encoding line
-                let filtered = Self::FIELDS.iter().filter(|&f| filter(f));
+                let filtered = Self::MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(writer, 'I', "encoding", filtered, |w, f| {
                     w.write_u8_ascii(f.i_encode);
                 });
@@ -420,7 +421,7 @@ impl BlackboxContext {
             }
             4 => {
                 // P Predictor line
-                let filtered = Self::FIELDS.iter().filter(|&f| filter(f));
+                let filtered = Self::MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(writer, 'P', "predictor", filtered, |w, f| {
                     w.write_u8_ascii(f.p_predict);
                 });
@@ -428,7 +429,7 @@ impl BlackboxContext {
             }
             5 => {
                 // P Encoding line
-                let filtered = Self::FIELDS.iter().filter(|&f| filter(f));
+                let filtered = Self::MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(writer, 'P', "encoding", filtered, |w, f| {
                     w.write_u8_ascii(f.p_encode);
                 });
@@ -439,7 +440,7 @@ impl BlackboxContext {
     }
 
     pub fn send_slow_header(writer: &mut SliceWriter) -> usize {
-        write_simple_header(writer, 'S', &crate::blackbox_field_arrays::BLACKBOX_SLOW_FIELDS);
+        write_simple_header(writer, 'S', &crate::field_arrays::BLACKBOX_SLOW_FIELDS);
         writer.pos
     }
 

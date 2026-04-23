@@ -1,7 +1,5 @@
-use crate::blackbox_field_arrays::{BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS};
-use crate::blackbox_field_definitions::{
-    ConditionalFieldDefinition, FieldHeader, MainFieldDefinition, SimpleFieldDefinition,
-};
+use crate::field_arrays::{BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS};
+use crate::field_definitions::{ConditionalFieldDefinition, FieldHeader, MainFieldDefinition, SimpleFieldDefinition};
 use crate::{BlackboxWriter, SliceWriter};
 use vqm::BitSet64;
 
@@ -182,8 +180,8 @@ pub fn write_header(writer: &mut SliceWriter, conditions: BitSet64) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::blackbox_field_arrays::{BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS};
-    use crate::blackbox_field_definitions::FieldCondition;
+    use crate::field_arrays::{BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS};
+    use crate::field_definitions::FieldCondition;
 
     // A simple mock writer that captures output into a byte slice
     struct MockWriter<'a> {

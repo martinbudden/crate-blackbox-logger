@@ -1,5 +1,5 @@
-use crate::blackbox_field_definitions::{ConditionalFieldDefinition, MainFieldDefinition, SimpleFieldDefinition};
-use crate::blackbox_field_definitions::{FieldCondition, FieldEncoding, FieldPredictor, FieldSign};
+use crate::field_definitions::{ConditionalFieldDefinition, MainFieldDefinition, SimpleFieldDefinition};
+use crate::field_definitions::{FieldCondition, FieldEncoding, FieldPredictor, FieldSign};
 
 pub const SLOW_FIELD_COUNT: usize = 5;
 pub static BLACKBOX_SLOW_FIELDS: [SimpleFieldDefinition; SLOW_FIELD_COUNT] = [

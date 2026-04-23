@@ -1,10 +1,10 @@
 use crate::SliceWriter;
-use crate::blackbox_context::BlackboxContext;
-use crate::blackbox_field_definitions::{FieldCondition, LogFieldSelect};
-use crate::blackbox_states::MainState;
+use crate::context::BlackboxContext;
+use crate::field_definitions::{FieldCondition, LogFieldSelect};
+use crate::states::MainState;
 
 #[cfg(test)]
-use crate::blackbox_field_definitions::{FieldEncoding, FieldPredictor, MainFieldDefinition};
+use crate::field_definitions::{FieldEncoding, FieldPredictor, MainFieldDefinition};
 
 /// Write the contents of slow_state to the log as an s_frame.
 /// Returns the length written.

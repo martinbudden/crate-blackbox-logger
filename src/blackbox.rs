@@ -1,4 +1,4 @@
-use crate::blackbox_context::{BlackboxContext, State};
+use crate::context::{BlackboxContext, State};
 use serde::{Deserialize, Serialize};
 
 pub struct BlackboxDevice {}
