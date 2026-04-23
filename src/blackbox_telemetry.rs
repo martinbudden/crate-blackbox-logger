@@ -56,6 +56,34 @@ impl Default for BlackboxTelemetry {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct BlackboxSlowTelemetry {
+    pub flight_mode_flags: u32,
+    pub state_flags: u8,
+    pub failsafe_phase: u8,
+    pub rx_signal_received: bool,
+    pub rx_flight_channel_is_valid: bool,
+}
+
+impl BlackboxSlowTelemetry {
+    pub fn new() -> Self {
+        Self {
+            flight_mode_flags: 0,
+            state_flags: 0,
+            failsafe_phase: 0,
+            rx_signal_received: false,
+            rx_flight_channel_is_valid: false,
+        }
+    }
+}
+
+impl Default for BlackboxSlowTelemetry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -71,6 +99,7 @@ mod tests {
     #[test]
     fn normal_types() {
         is_full::<BlackboxTelemetry>();
+        is_full::<BlackboxSlowTelemetry>();
     }
     #[test]
     fn fast_new() {

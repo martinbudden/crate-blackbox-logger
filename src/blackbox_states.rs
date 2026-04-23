@@ -6,6 +6,7 @@ pub struct SlowState {
     pub rx_signal_received: bool,
     pub rx_flight_channel_is_valid: bool,
 }
+
 impl Default for SlowState {
     fn default() -> Self {
         Self::new()
@@ -69,6 +70,13 @@ impl GpsState {
             satellite_count: 0,
         }
     }
+    #[allow(unused)]
+    pub fn state_changed(&self, new_state: Self) -> bool {
+        //We could check for velocity changes as well but I doubt it changes independent of position
+        new_state.satellite_count != self.satellite_count
+            || new_state.latitude_degrees_1e7 != self.latitude_degrees_1e7
+            || new_state.longitude_degrees_1e7 != self.longitude_degrees_1e7
+    }
 }
 
 /// MainState is 152 bytes when all features enabled, so storing 3 copies for predictive purposes is not over onerous.
@@ -105,6 +113,7 @@ impl MainState {
     pub const RPY_AXIS_COUNT: usize = 3;
     pub const XYZ_AXIS_COUNT: usize = 3;
     pub const MAX_SUPPORTED_MOTOR_COUNT: usize = 8;
+    #[cfg(feature = "servos")]
     pub const MAX_SUPPORTED_SERVO_COUNT: usize = 8;
     pub const DEBUG_VALUE_COUNT: usize = 4;
     pub const THROTTLE: usize = 3;

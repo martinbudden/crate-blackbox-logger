@@ -21,21 +21,11 @@ mod blackbox_log_frames;
 mod blackbox_states;
 mod blackbox_telemetry;
 pub mod drivers;
+pub mod features;
 
 pub use crate::drivers::sd_card;
+pub use features::Features;
 
-pub use blackbox::Features;
-pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStart};
+pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStartParameters};
 pub use blackbox_encoding::{BlackboxWriter, SliceWriter};
-pub use blackbox_field_arrays::{
-    BLACKBOX_GPS_G_FIELDS, BLACKBOX_GPS_H_FIELDS, BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS,
-};
-pub use blackbox_field_definitions::{ConditionalFieldDefinition, MainFieldDefinition, SimpleFieldDefinition};
-pub use blackbox_field_definitions::{
-    FieldCondition, FieldEncoding, FieldHeader, FieldPredictor, FieldSign, LogFieldSelect,
-};
-pub use blackbox_headers::{
-    write_conditional_header, write_header, write_main_header, write_simple_header, write_slow_fields_header,
-};
-pub use blackbox_states::{GpsState, MainState, SlowState};
-pub use blackbox_telemetry::BlackboxTelemetry;
+pub use blackbox_telemetry::{BlackboxSlowTelemetry, BlackboxTelemetry};

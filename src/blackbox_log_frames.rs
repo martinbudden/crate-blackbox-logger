@@ -1,8 +1,10 @@
-use crate::MainState;
+use crate::SliceWriter;
 use crate::blackbox_context::BlackboxContext;
-use crate::{FieldCondition, LogFieldSelect, SliceWriter};
+use crate::blackbox_field_definitions::{FieldCondition, LogFieldSelect};
+use crate::blackbox_states::MainState;
+
 #[cfg(test)]
-use crate::{FieldEncoding, FieldPredictor, MainFieldDefinition};
+use crate::blackbox_field_definitions::{FieldEncoding, FieldPredictor, MainFieldDefinition};
 
 /// Write the contents of slow_state to the log as an s_frame.
 /// Returns the length written.
@@ -30,8 +32,9 @@ macro_rules! assert_p_field_encoding {
 
 impl BlackboxContext {
     pub fn log_s_frame(&mut self, encoder: &mut SliceWriter) -> usize {
-        //self.logged_any_frames = true;
+        self.logged_any_frames = true;
         self.s_frame_index = 0;
+        self.new_slow_state = false;
 
         encoder.begin_frame(b'S');
 
@@ -52,7 +55,7 @@ impl BlackboxContext {
 
     /// GPS home frame: h_frame.
     pub fn log_h_frame(&mut self, encoder: &mut SliceWriter) -> usize {
-        //self.logged_any_frames = true;
+        self.logged_any_frames = true;
 
         encoder.begin_frame(b'H');
 
@@ -66,7 +69,8 @@ impl BlackboxContext {
 
     /// GPS frame: g_frame.
     pub fn log_g_frame(&mut self, current_time_us: u32, encoder: &mut SliceWriter) -> usize {
-        //self.logged_any_frames = true;
+        self.logged_any_frames = true;
+        self.new_gps_state = false;
 
         encoder.begin_frame(b'G');
 
@@ -104,7 +108,7 @@ impl BlackboxContext {
     #[allow(clippy::too_many_lines)]
     /// Intra frame: i_frame.
     pub fn log_i_frame(&mut self, encoder: &mut SliceWriter) -> usize {
-        //self.logged_any_frames = true;
+        self.logged_any_frames = true;
 
         encoder.begin_frame(b'I');
 
@@ -267,7 +271,7 @@ impl BlackboxContext {
     /// So this code and those definitions must be changed in tandem with each other.
     #[allow(clippy::too_many_lines)]
     pub fn log_p_frame(&mut self, encoder: &mut SliceWriter) -> usize {
-        //self.logged_any_frames = true;
+        self.logged_any_frames = true;
 
         encoder.begin_frame(b'P');
 

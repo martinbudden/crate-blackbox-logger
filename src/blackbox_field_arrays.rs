@@ -1,8 +1,7 @@
-use crate::{ConditionalFieldDefinition, MainFieldDefinition, SimpleFieldDefinition};
-use crate::{FieldCondition, FieldEncoding, FieldPredictor, FieldSign};
+use crate::blackbox_field_definitions::{ConditionalFieldDefinition, MainFieldDefinition, SimpleFieldDefinition};
+use crate::blackbox_field_definitions::{FieldCondition, FieldEncoding, FieldPredictor, FieldSign};
 
 pub const SLOW_FIELD_COUNT: usize = 5;
-
 pub static BLACKBOX_SLOW_FIELDS: [SimpleFieldDefinition; SLOW_FIELD_COUNT] = [
     SimpleFieldDefinition {
         name: "flight_mode_flags",
@@ -42,13 +41,16 @@ pub static BLACKBOX_SLOW_FIELDS: [SimpleFieldDefinition; SLOW_FIELD_COUNT] = [
 ];
 
 impl SimpleFieldDefinition {
+    #[allow(unused)]
     pub fn find_by_name(name: &str) -> Option<&'static Self> {
         BLACKBOX_SLOW_FIELDS.iter().find(|field| field.name == name)
     }
 }
 
 // GPS home frame
+#[allow(unused)]
 pub const GPS_H_FIELD_COUNT: usize = 3;
+#[allow(unused)]
 pub static BLACKBOX_GPS_H_FIELDS: [SimpleFieldDefinition; GPS_H_FIELD_COUNT] = [
     SimpleFieldDefinition {
         name: "GPS_home",
@@ -75,6 +77,7 @@ pub static BLACKBOX_GPS_H_FIELDS: [SimpleFieldDefinition; GPS_H_FIELD_COUNT] = [
 
 // GPS position/velocity frame
 pub const GPS_G_FIELD_COUNT: usize = 10;
+#[cfg(feature = "gps")]
 pub static BLACKBOX_GPS_G_FIELDS: [ConditionalFieldDefinition; GPS_G_FIELD_COUNT] = [
     ConditionalFieldDefinition {
         name: "time",
@@ -159,6 +162,7 @@ pub static BLACKBOX_GPS_G_FIELDS: [ConditionalFieldDefinition; GPS_G_FIELD_COUNT
 ];
 
 impl ConditionalFieldDefinition {
+    #[allow(unused)]
     pub fn find_by_name(name: &str) -> Option<&'static Self> {
         BLACKBOX_GPS_G_FIELDS.iter().find(|field| field.name == name)
     }
@@ -739,6 +743,7 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
 ];
 
 impl MainFieldDefinition {
+    #[allow(unused)]
     pub fn find_by_name(name: &str) -> Option<&'static Self> {
         BLACKBOX_MAIN_FIELDS.iter().find(|field| field.name == name)
     }

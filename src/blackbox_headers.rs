@@ -1,8 +1,9 @@
-use crate::{BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS};
-use vqm::BitSet64;
-
+use crate::blackbox_field_arrays::{BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS};
+use crate::blackbox_field_definitions::{
+    ConditionalFieldDefinition, FieldHeader, MainFieldDefinition, SimpleFieldDefinition,
+};
 use crate::{BlackboxWriter, SliceWriter};
-use crate::{ConditionalFieldDefinition, FieldHeader, MainFieldDefinition, SimpleFieldDefinition};
+use vqm::BitSet64;
 
 // Helper to handle the "H Field X type: val,val" formatting
 // Notice the closure now takes (&mut dyn BlackboxWriter, &T)
@@ -84,6 +85,7 @@ pub fn write_simple_header(writer: &mut dyn BlackboxWriter, frame_type: char, fi
     write_common_field_lines(writer, frame_type, fields, |_f| true);
 }
 
+#[allow(unused)]
 pub fn write_slow_fields_header(writer: &mut SliceWriter) -> usize {
     write_simple_header(writer, 'S', &BLACKBOX_SLOW_FIELDS);
     writer.pos
@@ -94,6 +96,7 @@ pub fn write_slow_fields_header(writer: &mut SliceWriter) -> usize {
 // H Field G signed:0,0,1,1,1,0,0,1,1,1
 // H Field G predictor:10,0,7,7,0,0,0,0,0,0
 // H Field G encoding:1,1,0,0,0,1,1,0,0,0
+#[allow(unused)]
 pub fn write_conditional_header(
     writer: &mut dyn BlackboxWriter,
     frame_type: char,
@@ -136,6 +139,7 @@ pub fn write_main_header(writer: &mut dyn BlackboxWriter, fields: &[MainFieldDef
     });*/
 }
 
+#[allow(unused)]
 pub fn write_header(writer: &mut SliceWriter, conditions: BitSet64) -> usize {
     writer.write_str("H Product:Blackbox flight data recorder by Nicholas Sherlock\n");
     writer.write_str("H Data version:2\n");
@@ -178,7 +182,8 @@ pub fn write_header(writer: &mut SliceWriter, conditions: BitSet64) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS, FieldCondition};
+    use crate::blackbox_field_arrays::{BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS};
+    use crate::blackbox_field_definitions::FieldCondition;
 
     // A simple mock writer that captures output into a byte slice
     struct MockWriter<'a> {

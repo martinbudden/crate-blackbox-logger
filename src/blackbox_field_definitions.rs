@@ -110,7 +110,9 @@ impl FieldPredictor {
     pub const MIN_THROTTLE: u8 = 4;
     pub const MOTOR_0: u8 = 5;
     pub const INC: u8 = 6;
+    #[cfg(feature = "gps")]
     pub const HOME_COORD: u8 = 7;
+    #[cfg(feature = "servos")]
     pub const S_1500: u8 = 8;
     pub const VBATREF: u8 = 9;
     pub const LAST_MAIN_FRAME_TIME: u8 = 10;
@@ -126,6 +128,7 @@ impl FieldEncoding {
     pub const TAG2_3S32: u8 = 7;
     pub const TAG8_4S16: u8 = 8;
     pub const ZERO: u8 = 9;
+    #[allow(unused)]
     pub const TAG2_3SVARIABLE: u8 = 10;
 }
 
@@ -152,6 +155,7 @@ impl FieldCondition {
     pub const MOTOR_8_HAS_RPM: u8 = 16;
 
     pub const SERVOS: u8 = 17;
+    #[cfg(feature = "servos")]
     pub const TRICOPTER: u8 = 18;
 
     pub const MAGNETOMETER: u8 = 19;

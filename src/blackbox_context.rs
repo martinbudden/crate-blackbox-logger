@@ -1,8 +1,8 @@
-use crate::{
-    BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS, BlackboxStart, BlackboxWriter, FieldCondition, GpsState,
-    LogFieldSelect, MainFieldDefinition, MainState, SliceWriter, SlowState, blackbox::Features,
-    blackbox_headers::write_field_line, write_simple_header,
-};
+use crate::blackbox_field_definitions::{FieldCondition, LogFieldSelect, MainFieldDefinition};
+use crate::blackbox_headers::{write_field_line, write_simple_header};
+use crate::blackbox_states::{GpsState, MainState, SlowState};
+use crate::{BlackboxSlowTelemetry, BlackboxTelemetry};
+use crate::{BlackboxStartParameters, BlackboxWriter, Features, SliceWriter};
 use vqm::BitSet64;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -15,17 +15,20 @@ pub struct BlackboxContext {
     pub(crate) vbat_reference: u16,
     pub(crate) logged_any_frames: bool,
     pub(crate) conditions: BitSet64,
-    pub(crate) i_interval: u32,
-    pub(crate) p_interval: u32,
-    pub(crate) looptime: u32,
-    pub(crate) log_select_enabled: u32,
-    pub(crate) i_frame_index: u32,
-    pub(crate) p_frame_index: u32,
-    pub(crate) s_frame_index: u32,
-    pub(crate) s_interval: u32,
-    pub(crate) iteration: u32,
-    pub(crate) loop_index: u32,
     features: Features,
+    looptime: u32,
+    loop_index: u32,
+    i_interval: u32,
+    p_interval: u32,
+    s_interval: u32,
+    i_frame_index: u32,
+    p_frame_index: u32,
+    pub(crate) s_frame_index: u32,
+    pub(crate) iteration: u32,
+
+    pub(crate) log_select_enabled: u32,
+    pub(crate) new_slow_state: bool,
+    pub(crate) new_gps_state: bool,
     pub(crate) slow_state: SlowState,
     pub(crate) gps_state: GpsState,
     pub(crate) home_longitude_degrees_1e7: i32, // home longitude in degrees * 1e7
@@ -63,6 +66,8 @@ impl BlackboxContext {
             p_frame_index: 0,
             s_frame_index: 0,
             s_interval: 0,
+            new_slow_state: false,
+            new_gps_state: false,
             iteration: 0,
             loop_index: 0,
             features: Features::default(),
@@ -78,6 +83,7 @@ impl BlackboxContext {
         }
     }
 }
+
 impl BlackboxContext {
     /// Build condition cache, called from start().
     pub fn build_field_condition_cache(&mut self) {
@@ -136,6 +142,99 @@ impl BlackboxContext {
             self.set_state(STATE_STOPPED);
         }*/
     }
+}
+
+impl BlackboxContext {
+    pub fn load_main_state(&mut self, current_time_us: u32, telemetry: BlackboxTelemetry) {
+        let current = &mut self.main_states[self.main_state_index_current];
+        current.time_us = current_time_us;
+        current.acc = (telemetry.acc * 4096.0).into();
+        current.gyro = (telemetry.gyro_rps.to_degrees()).into();
+        current.gyro_unfiltered = (telemetry.gyro_rps_unfiltered.to_degrees()).into();
+    }
+    pub fn load_slow_state(&mut self, telemetry: BlackboxSlowTelemetry) {
+        self.new_slow_state = true;
+        self.slow_state.flight_mode_flags = telemetry.flight_mode_flags;
+        self.slow_state.state_flags = telemetry.state_flags;
+        self.slow_state.failsafe_phase = telemetry.failsafe_phase;
+        self.slow_state.rx_signal_received = telemetry.rx_signal_received;
+        self.slow_state.rx_flight_channel_is_valid = telemetry.rx_flight_channel_is_valid;
+    }
+    pub fn load_gps_state(&mut self) {
+        self.new_gps_state = true;
+    }
+
+    /// Called when the flight controller signals it has new data.
+    #[allow(unused_results)]
+    pub fn log_iteration(&mut self, current_time_us: u32, encoder: &mut SliceWriter) {
+        // Write a keyframe every i_interval frames so we can resynchronise upon missing frames
+        if self.should_log_i_frame() {
+            // Don't log a slow frame if the slow data didn't change.
+            // i_frames are already large enough without adding an additional item to write at the same time.
+            // Unless we're *only* logging i_frames, then we have no choice.
+            if self.is_only_logging_i_frames() && self.should_log_s_frame() {
+                self.log_s_frame(encoder);
+            }
+            self.log_i_frame(encoder);
+        } else {
+            self.log_event_arming_beep_if_needed();
+            self.log_event_flight_mode_if_needed(); // Check for FlightMode status change event
+
+            if self.should_log_p_frame() {
+                // ie p_frame_index == 0 && p_interval != 0
+                // We assume that slow frames are only interesting in that they aid the interpretation of the main data stream.
+                // So only log slow frames during loop iterations where we log a main frame.
+                if self.should_log_p_frame() {
+                    self.log_s_frame(encoder);
+                }
+                self.log_p_frame(encoder);
+            }
+            #[cfg(feature = "gps")]
+            if BlackboxContext::field_enabled(self.log_select_enabled, LogFieldSelect::GPS) {
+                if self.should_log_h_frame() {
+                    self.home_latitude_degrees_1e7 = self.gps_state.home_latitude_degrees_1e7;
+                    self.home_longitude_degrees_1e7 = self.gps_state.home_longitude_degrees_1e7;
+                    self.home_altitude_cm = self.gps_state.home_altitude_cm;
+                    let _len = self.log_h_frame(encoder);
+                    let _len = self.log_g_frame(current_time_us, encoder);
+                } else if self.should_log_g_frame() {
+                    let _len = self.log_g_frame(current_time_us, encoder);
+                }
+            }
+        }
+    }
+
+    pub fn should_log_i_frame(&self) -> bool {
+        self.loop_index == 0
+    }
+    pub fn should_log_h_frame(&self) -> bool {
+        self.features.is_set(Features::GPS)
+    }
+    pub fn should_log_g_frame(&self) -> bool {
+        self.features.is_set(Features::GPS) && self.new_gps_state
+    }
+    pub fn should_log_p_frame(&self) -> bool {
+        self.p_frame_index == 0 && self.p_interval != 0
+    }
+    /// If the data in the slow frame has changed, log a slow frame.
+    ///
+    /// The frame is also logged if it has been more than s_interval logging iterations
+    /// since the field was last logged.
+    // Write the slow frame periodically so it can be recovered if we ever lose sync
+    pub fn should_log_s_frame(&self) -> bool {
+        self.s_frame_index >= self.s_interval && self.new_slow_state
+    }
+    pub fn is_only_logging_i_frames(&self) -> bool {
+        self.p_interval == 0
+    }
+
+    #[allow(clippy::unused_self)]
+    pub fn log_event_arming_beep_if_needed(&self) {}
+    #[allow(clippy::unused_self)]
+    pub fn log_event_flight_mode_if_needed(&self) {} // Check for FlightMode status change event
+}
+
+impl BlackboxContext {
     pub fn reset_iteration_timers(&mut self) {
         self.iteration = 0;
         self.loop_index = 0;
@@ -164,7 +263,7 @@ impl BlackboxContext {
     //fn field_enabled(enabled_mask:u32, field:LogFieldSelect) -> bool { enabled_mask & (field as u32) }
     //pub fn is_field_enabled(&self, field:LogFieldSelect) ->bool { field_enabled(self.log_select_enabled, field) }
     // Helper function to check if a field is enabled
-    pub(crate) fn field_enabled(enabled_mask: u32, field: u32) -> bool {
+    pub fn field_enabled(enabled_mask: u32, field: u32) -> bool {
         enabled_mask & field != 0
     }
 
@@ -260,7 +359,7 @@ impl BlackboxContext {
         writer.pos
     }
 
-    const FIELDS: &[MainFieldDefinition] = BLACKBOX_MAIN_FIELDS;
+    const FIELDS: &[MainFieldDefinition] = crate::blackbox_field_arrays::BLACKBOX_MAIN_FIELDS;
     pub fn send_main_field_header(&mut self, writer: &mut SliceWriter, index: usize) -> usize {
         //write_main_header(writer, BLACKBOX_MAIN_FIELDS, self.conditions);
         let filter = |f: &MainFieldDefinition| self.conditions.test(f.condition);
@@ -340,7 +439,7 @@ impl BlackboxContext {
     }
 
     pub fn send_slow_header(writer: &mut SliceWriter) -> usize {
-        write_simple_header(writer, 'S', &BLACKBOX_SLOW_FIELDS);
+        write_simple_header(writer, 'S', &crate::blackbox_field_arrays::BLACKBOX_SLOW_FIELDS);
         writer.pos
     }
 
@@ -431,7 +530,7 @@ pub(crate) enum State {
 #[allow(dead_code)]
 // Note: Not sure if this state machine is needed: it might naturally drop out of the embassy sync framework.
 impl State {
-    pub fn start(&mut self, _start_params: BlackboxStart) {
+    pub fn start(&mut self, _start_params: BlackboxStartParameters) {
         *self = State::PrepareLogFile;
     }
 
@@ -444,7 +543,7 @@ impl State {
     }
 
     /// Called each flight loop iteration to perform blackbox logging.
-    pub fn update(&mut self, ctx: &mut BlackboxContext, writer: &mut SliceWriter) -> usize {
+    pub fn update(&mut self, ctx: &mut BlackboxContext, writer: &mut SliceWriter, current_time_us: u32) -> usize {
         #[allow(clippy::match_same_arms)]
         match core::mem::take(self) {
             State::Disabled => {
@@ -499,6 +598,7 @@ impl State {
             }
             State::Running => {
                 *self = State::Paused;
+                ctx.log_iteration(current_time_us, writer);
                 0
             }
             State::ShuttingDown => {
@@ -513,6 +613,8 @@ impl State {
 mod tests {
     #![allow(clippy::float_cmp)]
     #![allow(unused_results)]
+
+    use crate::BlackboxTelemetry;
 
     #[allow(unused)]
     use super::*;
@@ -589,11 +691,14 @@ mod tests {
         let mut ctx = BlackboxContext::new();
         ctx.init(0);
 
-        let start = BlackboxStart::new();
+        let start = BlackboxStartParameters::new();
         let mut state = State::default();
+        let mut current_time_us: u32 = 0;
+        let telemetry = BlackboxTelemetry::new();
         state.start(start);
         loop {
-            _ = state.update(&mut ctx, &mut writer);
+            ctx.load_main_state(current_time_us, telemetry);
+            _ = state.update(&mut ctx, &mut writer, current_time_us);
             //let state_i:u32 = state.into();
             //println!("state={state_i}");
             if state == State::Running {
@@ -604,6 +709,7 @@ mod tests {
                 }
                 break;
             }
+            current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
         }
     }
 }
