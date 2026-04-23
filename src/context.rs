@@ -1,5 +1,6 @@
-use crate::field_definitions::{FieldCondition, LogFieldSelect, MainFieldDefinition};
-use crate::headers::{write_field_line, write_simple_header};
+use crate::field_arrays::BLACKBOX_SLOW_FIELDS;
+use crate::field_definitions::{FieldCondition, LogFieldSelect, MainFieldDefinition, SimpleFieldDefinition};
+use crate::encoding::write_field_line;
 use crate::states::{GpsState, MainState, SlowState};
 use crate::{BlackboxSlowTelemetry, BlackboxTelemetry};
 use crate::{BlackboxStartParameters, BlackboxWriter, Features, SliceWriter};
@@ -58,8 +59,8 @@ impl BlackboxContext {
             vbat_reference: 0,
             logged_any_frames: false,
             conditions: BitSet64::default(),
-            i_interval: 0,
-            p_interval: 0,
+            i_interval: 256,
+            p_interval: 8,
             looptime: 125,
             log_select_enabled: 0,
             i_frame_index: 0,
@@ -70,7 +71,7 @@ impl BlackboxContext {
             new_gps_state: false,
             iteration: 0,
             loop_index: 0,
-            features: Features::default(),
+            features: Features {flags:Features::VBAT |Features::INFLIGHT_ACC_CAL |Features::RX_SERIAL |Features::BLACKBOX |Features::FAILSAFE},
             slow_state: SlowState::default(),
             gps_state: GpsState::default(),
             home_longitude_degrees_1e7: 0,
@@ -152,6 +153,7 @@ impl BlackboxContext {
         current.gyro = (telemetry.gyro_rps.to_degrees()).into();
         current.gyro_unfiltered = (telemetry.gyro_rps_unfiltered.to_degrees()).into();
     }
+
     pub fn load_slow_state(&mut self, telemetry: BlackboxSlowTelemetry) {
         self.new_slow_state = true;
         self.slow_state.flight_mode_flags = telemetry.flight_mode_flags;
@@ -160,6 +162,7 @@ impl BlackboxContext {
         self.slow_state.rx_signal_received = telemetry.rx_signal_received;
         self.slow_state.rx_flight_channel_is_valid = telemetry.rx_flight_channel_is_valid;
     }
+
     pub fn load_gps_state(&mut self) {
         self.new_gps_state = true;
     }
@@ -363,23 +366,6 @@ impl BlackboxContext {
 
     pub fn send_main_field_header(&mut self, writer: &mut SliceWriter, index: usize) -> usize {
         let filter = |f: &MainFieldDefinition| self.conditions.test(f.condition);
-        //write_main_header(writer, BLACKBOX_MAIN_FIELDS, self.conditions);
-        //write_common_field_lines(writer, 'I', Self::FIELDS, &filter);
-
-        /*// Signed line
-        write_field_line(writer, frame_type, "signed", fields.iter().filter(|&f| predicate(f)), |w, f| {
-            w.write_u8_ascii(f.is_signed());
-        });
-
-        // Predictor line
-        write_field_line(writer, frame_type, "predictor", fields.iter().filter(|&f| predicate(f)), |w, f| {
-            w.write_u8_ascii(f.predict());
-        });
-
-        // Encoder line
-        write_field_line(writer, frame_type, "encoding", fields.iter().filter(|&f| predicate(f)), |w, f| {
-            w.write_u8_ascii(f.encode());
-        });*/
 
         match index {
             0 => {
@@ -439,8 +425,35 @@ impl BlackboxContext {
         }
     }
 
-    pub fn send_slow_header(writer: &mut SliceWriter) -> usize {
-        write_simple_header(writer, 'S', &crate::field_arrays::BLACKBOX_SLOW_FIELDS);
+    #[allow(clippy::unused_self)]
+    pub fn send_slow_header(&mut self, writer: &mut SliceWriter) -> usize {
+        let filter = |_: &SimpleFieldDefinition| true;
+
+        // Name line.
+        write_field_line(writer, 'S', "name", BLACKBOX_SLOW_FIELDS.iter().filter(|&f| filter(f)), |w, f| {
+            w.write_str(f.name);
+            let index = f.field_name_index;
+            if index >= 0 {
+                w.write_char('[');
+                w.write_u8_ascii(index.cast_unsigned());
+                w.write_char(']');
+            }
+        });
+        // Signed line
+        let filtered = BLACKBOX_SLOW_FIELDS.iter().filter(|&f| filter(f));
+        write_field_line(writer, 'S', "signed", filtered, |w, f| {
+            w.write_u8_ascii(f.is_signed);
+        });
+        // Predictor line
+        let filtered = BLACKBOX_SLOW_FIELDS.iter().filter(|&f| filter(f));
+        write_field_line(writer, 'S', "predictor", filtered, |w, f| {
+            w.write_u8_ascii(f.predict);
+        });
+        // Encoding line
+        let filtered = BLACKBOX_SLOW_FIELDS.iter().filter(|&f| filter(f));
+        write_field_line(writer, 'S', "encoding", filtered, |w, f| {
+            w.write_u8_ascii(f.encode);
+        });
         writer.pos
     }
 
@@ -472,7 +485,7 @@ impl BlackboxContext {
                 writer.pos
             }
             6 => {
-                writer.write_h_str_u32_ascii("P interval:", self.p_interval);
+                writer.write_h_str_u32_ascii("P interval:1/", self.p_interval);
                 writer.pos
                 // "P denom" ignored by blackbox-log-view
                 // writer.write_h_str("P denom:32\n");
@@ -586,7 +599,7 @@ impl State {
             }
             State::SendSlowHeader => {
                 *self = State::SendSysinfo(0);
-                BlackboxContext::send_slow_header(writer)
+                ctx.send_slow_header(writer)
             }
             State::SendSysinfo(index) => {
                 let len = ctx.send_sys_header(writer, index);
@@ -598,7 +611,7 @@ impl State {
                 0
             }
             State::Running => {
-                *self = State::Paused;
+                //*self = State::Paused;
                 ctx.log_iteration(current_time_us, writer);
                 0
             }
@@ -614,8 +627,8 @@ impl State {
 mod tests {
     #![allow(clippy::float_cmp)]
     #![allow(unused_results)]
-
     #![allow(unused)]
+    #![allow(clippy::unwrap_used)]
     use crate::{BlackboxTelemetry, sd_card::MockSdCard};
 
     #[allow(unused)]
@@ -635,18 +648,25 @@ mod tests {
         assert!(!ctx.logged_any_frames);
     }
     #[test]
-    fn test_send_header() {
+    fn send_header() {
         let mut buffer = [0u8; 2048];
-        let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
+        //let mut sd_card = MockSdCard::new("state_machine_log.bbl");
+        let pos = {
+            let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
 
-        _ = BlackboxContext::send_header(&mut writer);
+            _ = BlackboxContext::send_header(&mut writer);
 
-        // Convert the written portion to a string for validation
-        #[allow(clippy::unwrap_used)]
-        let result = core::str::from_utf8(&writer.buffer[..writer.pos]).unwrap();
-        // Print for manual inspection (if running with `cargo test -- --nocapture`)
-        println!("\nHEADER\r\n{result}\n");
-        assert!(result.contains("H Product:Blackbox"));
+            // Convert the written portion to a string for validation
+            let result = core::str::from_utf8(&writer.buffer[..writer.pos]).unwrap();
+            // Print for manual inspection (if running with `cargo test -- --nocapture`)
+            println!("\nHEADER\n{result}\n");
+            assert!(result.contains("H Product:Blackbox"));
+            writer.pos
+        };
+        let result = core::str::from_utf8(&buffer[..pos]).unwrap();
+        println!("\nBUFFER\n{result}\n");
+
+        //sd_card.write_all(&buffer[..pos]);
     }
     #[test]
     fn send_main_field_header() {
@@ -664,7 +684,22 @@ mod tests {
         #[allow(clippy::unwrap_used)]
         let result = core::str::from_utf8(&writer.buffer[..writer.pos]).unwrap();
         // Print for manual inspection (if running with `cargo test -- --nocapture`)
-        println!("\nMAIN FIELD HEADER\r\n{result}\n");
+        println!("\nMAIN FIELD HEADER\n{result}\n");
+    }
+    #[test]
+    fn send_slow_header() {
+        let mut buffer = [0u8; 2048];
+        let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
+        let mut ctx = BlackboxContext::new();
+        ctx.init(0);
+
+        _ = ctx.send_slow_header(&mut writer);
+
+        // Convert the written portion to a string for validation
+        #[allow(clippy::unwrap_used)]
+        let result = core::str::from_utf8(&writer.buffer[..writer.pos]).unwrap();
+        // Print for manual inspection (if running with `cargo test -- --nocapture`)
+        println!("\nSLOW HEADER\n{result}\n");
     }
     #[test]
     fn send_sys_header() {
@@ -684,11 +719,12 @@ mod tests {
         #[allow(clippy::unwrap_used)]
         let result = core::str::from_utf8(&writer.buffer[..writer.pos]).unwrap();
         // Print for manual inspection (if running with `cargo test -- --nocapture`)
-        println!("\nSYS HEADER\r\n{result}\n");
+        println!("\nSYS HEADER\n{result}\n");
     }
     #[test]
     fn state_machine() {
-        let mut buffer = [0u8; 1024];
+        println!("\nSTATE_MACHINE\n");
+        let mut buffer = [0u8; 4096];
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
         let mut ctx = BlackboxContext::new();
         //let mut _sd_card = MockSdCard::new("state_machine_log.bbl");
@@ -708,7 +744,7 @@ mod tests {
                 if writer.pos != 0 {
                     #[allow(clippy::unwrap_used)]
                     let result = core::str::from_utf8(&writer.buffer[..writer.pos]).unwrap();
-                    println!("SS{result}");
+                    println!("{result}");
                 }
                 break;
             }
@@ -717,7 +753,7 @@ mod tests {
     }
     #[test]
     fn full_run() {
-        let mut buffer = [0u8; 512];
+        let mut buffer = [0u8; 4096];
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
         let mut ctx = BlackboxContext::new();
         ctx.init(0);

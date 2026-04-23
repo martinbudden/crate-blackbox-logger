@@ -57,6 +57,34 @@ pub trait BlackboxWriter {
     }
 }
 
+// Helper to handle the "H Field X type: val,val" formatting
+// Notice the closure now takes (&mut dyn BlackboxWriter, &T)
+pub fn write_field_line<'a, T, I, F>(
+    writer: &mut dyn BlackboxWriter,
+    frame_type: char,
+    label: &str,
+    fields: I,
+    mut op: F,
+) where
+    T: 'a,
+    I: Iterator<Item = &'a T>,
+    F: FnMut(&mut dyn BlackboxWriter, &T),
+{
+    writer.write_str("H Field ");
+    writer.write_char(frame_type);
+    writer.write_char(' ');
+    writer.write_str(label);
+    writer.write_char(':');
+
+    for (i, field) in fields.enumerate() {
+        if i > 0 {
+            writer.write_char(',');
+        }
+        op(writer, field);
+    }
+    writer.write_char('\n');
+}
+
 // Simple wrapper for a mutable slice
 #[derive(Default)]
 pub struct SliceWriter<'a> {

@@ -18,7 +18,6 @@ mod encoding;
 pub mod features;
 mod field_arrays;
 mod field_definitions;
-mod headers;
 mod log_frames;
 mod states;
 mod telemetry;

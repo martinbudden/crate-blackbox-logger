@@ -1,11 +1,3 @@
-pub trait FieldHeader {
-    fn name(&self) -> &'static str;
-    fn field_name_index(&self) -> i8;
-    fn is_signed(&self) -> u8;
-    fn predict(&self) -> u8;
-    fn encode(&self) -> u8;
-}
-
 // Simple fields, used for S-Frames and H-Frames
 #[repr(C)]
 pub struct SimpleFieldDefinition {
@@ -16,24 +8,7 @@ pub struct SimpleFieldDefinition {
     pub encode: u8,
 }
 
-impl FieldHeader for SimpleFieldDefinition {
-    fn name(&self) -> &'static str {
-        self.name
-    }
-    fn field_name_index(&self) -> i8 {
-        self.field_name_index
-    }
-    fn is_signed(&self) -> u8 {
-        self.is_signed
-    }
-    fn predict(&self) -> u8 {
-        self.predict
-    }
-    fn encode(&self) -> u8 {
-        self.encode
-    }
-}
-
+pub struct FieldSign;
 // Conditional fields, used for G-Frames
 #[repr(C)]
 pub struct ConditionalFieldDefinition {
@@ -43,24 +18,6 @@ pub struct ConditionalFieldDefinition {
     pub predict: u8,
     pub encode: u8,
     pub condition: u8,
-}
-
-impl FieldHeader for ConditionalFieldDefinition {
-    fn name(&self) -> &'static str {
-        self.name
-    }
-    fn field_name_index(&self) -> i8 {
-        self.field_name_index
-    }
-    fn is_signed(&self) -> u8 {
-        self.is_signed
-    }
-    fn predict(&self) -> u8 {
-        self.predict
-    }
-    fn encode(&self) -> u8 {
-        self.encode
-    }
 }
 
 #[repr(C)]
@@ -77,25 +34,6 @@ pub struct MainFieldDefinition {
     pub condition: u8,
 }
 
-impl FieldHeader for MainFieldDefinition {
-    fn name(&self) -> &'static str {
-        self.name
-    }
-    fn field_name_index(&self) -> i8 {
-        self.field_name_index
-    }
-    fn is_signed(&self) -> u8 {
-        self.is_signed
-    }
-    fn predict(&self) -> u8 {
-        self.i_predict
-    }
-    fn encode(&self) -> u8 {
-        self.i_encode
-    }
-}
-
-pub struct FieldSign;
 impl FieldSign {
     pub const UNSIGNED: u8 = 0;
     pub const SIGNED: u8 = 1;

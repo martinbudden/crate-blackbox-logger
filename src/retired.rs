@@ -1,86 +1,63 @@
-use crate::field_arrays::{BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS};
-use crate::field_definitions::{ConditionalFieldDefinition, FieldHeader, MainFieldDefinition, SimpleFieldDefinition};
-use crate::{BlackboxWriter, SliceWriter};
-use vqm::BitSet64;
+pub trait FieldHeader {
+    fn name(&self) -> &'static str;
+    fn field_name_index(&self) -> i8;
+    fn is_signed(&self) -> u8;
+    fn predict(&self) -> u8;
+    fn encode(&self) -> u8;
+}
 
-// Helper to handle the "H Field X type: val,val" formatting
-// Notice the closure now takes (&mut dyn BlackboxWriter, &T)
-pub fn write_field_line<'a, T, I, F>(
-    writer: &mut dyn BlackboxWriter,
-    frame_type: char,
-    label: &str,
-    fields: I,
-    mut op: F,
-) where
-    T: 'a,
-    I: Iterator<Item = &'a T>,
-    F: FnMut(&mut dyn BlackboxWriter, &T),
-{
-    writer.write_str("H Field ");
-    writer.write_char(frame_type);
-    writer.write_char(' ');
-    writer.write_str(label);
-    writer.write_char(':');
-
-    for (i, field) in fields.enumerate() {
-        if i > 0 {
-            writer.write_char(',');
-        }
-        op(writer, field);
+impl FieldHeader for SimpleFieldDefinition {
+    fn name(&self) -> &'static str {
+        self.name
     }
-    writer.write_char('\n');
+    fn field_name_index(&self) -> i8 {
+        self.field_name_index
+    }
+    fn is_signed(&self) -> u8 {
+        self.is_signed
+    }
+    fn predict(&self) -> u8 {
+        self.predict
+    }
+    fn encode(&self) -> u8 {
+        self.encode
+    }
 }
 
-pub fn write_common_field_lines<'a, T, P>(
-    writer: &mut dyn BlackboxWriter,
-    frame_type: char,
-    fields: &[T],
-    mut predicate: P,
-) where
-    T: FieldHeader + 'a,
-    P: FnMut(&T) -> bool, // The condition closure
-{
-    // Helper to create a fresh iterator for each line
-    // We use .iter().filter() to apply the condition
-
-    // Name line
-    write_field_line(writer, frame_type, "name", fields.iter().filter(|&f| predicate(f)), |w, f| {
-        w.write_str(f.name());
-        let index = f.field_name_index();
-        if index >= 0 {
-            w.write_char('[');
-            w.write_u8_ascii(index.cast_unsigned());
-            w.write_char(']');
-        }
-    });
-
-    // Signed line
-    write_field_line(writer, frame_type, "signed", fields.iter().filter(|&f| predicate(f)), |w, f| {
-        w.write_u8_ascii(f.is_signed());
-    });
-
-    // Predictor line
-    write_field_line(writer, frame_type, "predictor", fields.iter().filter(|&f| predicate(f)), |w, f| {
-        w.write_u8_ascii(f.predict());
-    });
-
-    // Encoder line
-    write_field_line(writer, frame_type, "encoding", fields.iter().filter(|&f| predicate(f)), |w, f| {
-        w.write_u8_ascii(f.encode());
-    });
+impl FieldHeader for ConditionalFieldDefinition {
+    fn name(&self) -> &'static str {
+        self.name
+    }
+    fn field_name_index(&self) -> i8 {
+        self.field_name_index
+    }
+    fn is_signed(&self) -> u8 {
+        self.is_signed
+    }
+    fn predict(&self) -> u8 {
+        self.predict
+    }
+    fn encode(&self) -> u8 {
+        self.encode
+    }
 }
 
-/// Simple header, used for S and H frames.
-// H Field S name:flight_mode_flags,state_flags,failsafe_phase,rx_signal_received,rx_flight_channel_is_valid
-// H Field S signed:   0,0,0,0,0
-// H Field S predictor:0,0,0,0,0
-// H Field S encoding: 1,1,7,7,7
-// or
-// H Field H name:GPS_home[0],GPS_home[1]
-// ..
-pub fn write_simple_header(writer: &mut dyn BlackboxWriter, frame_type: char, fields: &[SimpleFieldDefinition]) {
-    // Only include fields that are "active"
-    write_common_field_lines(writer, frame_type, fields, |_f| true);
+impl FieldHeader for MainFieldDefinition {
+    fn name(&self) -> &'static str {
+        self.name
+    }
+    fn field_name_index(&self) -> i8 {
+        self.field_name_index
+    }
+    fn is_signed(&self) -> u8 {
+        self.is_signed
+    }
+    fn predict(&self) -> u8 {
+        self.i_predict
+    }
+    fn encode(&self) -> u8 {
+        self.i_encode
+    }
 }
 
 #[allow(unused)]
@@ -136,6 +113,57 @@ pub fn write_main_header(writer: &mut dyn BlackboxWriter, fields: &[MainFieldDef
         w.write_u8_ascii(f.condition);
     });*/
 }
+/// Simple header, used for S and H frames.
+// H Field S name:flight_mode_flags,state_flags,failsafe_phase,rx_signal_received,rx_flight_channel_is_valid
+// H Field S signed:   0,0,0,0,0
+// H Field S predictor:0,0,0,0,0
+// H Field S encoding: 1,1,7,7,7
+// or
+// H Field H name:GPS_home[0],GPS_home[1]
+// ..
+pub fn write_simple_header(writer: &mut dyn BlackboxWriter, frame_type: char, fields: &[SimpleFieldDefinition]) {
+    // Only include fields that are "active"
+    write_common_field_lines(writer, frame_type, fields, |_f| true);
+}
+pub fn write_common_field_lines<'a, T, P>(
+    writer: &mut dyn BlackboxWriter,
+    frame_type: char,
+    fields: &[T],
+    mut predicate: P,
+) where
+    T: FieldHeader + 'a,
+    P: FnMut(&T) -> bool, // The condition closure
+{
+    // Helper to create a fresh iterator for each line
+    // We use .iter().filter() to apply the condition
+
+    // Name line
+    write_field_line(writer, frame_type, "name", fields.iter().filter(|&f| predicate(f)), |w, f| {
+        w.write_str(f.name());
+        let index = f.field_name_index();
+        if index >= 0 {
+            w.write_char('[');
+            w.write_u8_ascii(index.cast_unsigned());
+            w.write_char(']');
+        }
+    });
+
+    // Signed line
+    write_field_line(writer, frame_type, "signed", fields.iter().filter(|&f| predicate(f)), |w, f| {
+        w.write_u8_ascii(f.is_signed());
+    });
+
+    // Predictor line
+    write_field_line(writer, frame_type, "predictor", fields.iter().filter(|&f| predicate(f)), |w, f| {
+        w.write_u8_ascii(f.predict());
+    });
+
+    // Encoder line
+    write_field_line(writer, frame_type, "encoding", fields.iter().filter(|&f| predicate(f)), |w, f| {
+        w.write_u8_ascii(f.encode());
+    });
+}
+
 
 #[allow(unused)]
 pub fn write_header(writer: &mut SliceWriter, conditions: BitSet64) -> usize {
@@ -179,50 +207,6 @@ pub fn write_header(writer: &mut SliceWriter, conditions: BitSet64) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::field_arrays::{BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS};
-    use crate::field_definitions::FieldCondition;
-
-    // A simple mock writer that captures output into a byte slice
-    struct MockWriter<'a> {
-        buffer: &'a mut [u8],
-        pos: usize,
-    }
-
-    impl BlackboxWriter for MockWriter<'_> {
-        fn write_byte(&mut self, byte: u8) {
-            if self.pos < self.buffer.len() {
-                self.buffer[self.pos] = byte;
-                self.pos += 1;
-            }
-        }
-    }
-
-    #[test]
-    fn slow_fields_header() {
-        let mut buffer = [0u8; 1024];
-        let mut writer = MockWriter { buffer: &mut buffer, pos: 0 };
-
-        // Generate headers for the SLOW_FIELDS array defined earlier
-        write_simple_header(&mut writer, 'S', &BLACKBOX_SLOW_FIELDS);
-
-        // Convert the written portion to a string for validation
-        #[allow(clippy::unwrap_used)]
-        let result = core::str::from_utf8(&writer.buffer[..writer.pos]).unwrap();
-
-        // Expected output segments:
-        // Names: flight_mode_flags,state_flags,failsafe_phase,rx_signal_received,rx_flight_channel_is_valid
-        // Predictors: 0,0,0,0,0 (All are PREDICT(ZERO) = 0)
-        // Encodings: 1,1,7,7,7 (UNSIGNED_VB=1, TAG2_3S32=7)
-
-        // Print for manual inspection (if running with `cargo test -- --nocapture`)
-        //println!("\nSLOW HEADER:\n\n{result}\n");
-        assert!(result.contains(
-            "H Field S name:flight_mode_flags,state_flags,failsafe_phase,rx_signal_received,rx_flight_channel_is_valid"
-        ));
-        assert!(result.contains("H Field S predictor:0,0,0,0,0"));
-        assert!(result.contains("H Field S encoding:1,1,7,7,7"));
-    }
     #[test]
     fn main_fields_header() {
         let mut buffer = [0u8; 2048];
@@ -294,5 +278,67 @@ mod tests {
         // Names: flight_mode_flags,state_flags,failsafe_phase,rx_signal_received,rx_flight_channel_is_valid
         // Predictors: 0,0,0,0,0 (All are PREDICT(ZERO) = 0)
         // Encodings: 1,1,7,7,7 (UNSIGNED_VB=1, TAG2_3S32=7)
+    }
+    #[test]
+    fn slow_fields_header() {
+        let mut buffer = [0u8; 1024];
+        let mut writer = MockWriter { buffer: &mut buffer, pos: 0 };
+
+        // Generate headers for the SLOW_FIELDS array defined earlier
+        write_simple_header(&mut writer, 'S', &BLACKBOX_SLOW_FIELDS);
+
+        // Convert the written portion to a string for validation
+        #[allow(clippy::unwrap_used)]
+        let result = core::str::from_utf8(&writer.buffer[..writer.pos]).unwrap();
+
+        // Expected output segments:
+        // Names: flight_mode_flags,state_flags,failsafe_phase,rx_signal_received,rx_flight_channel_is_valid
+        // Predictors: 0,0,0,0,0 (All are PREDICT(ZERO) = 0)
+        // Encodings: 1,1,7,7,7 (UNSIGNED_VB=1, TAG2_3S32=7)
+
+        // Print for manual inspection (if running with `cargo test -- --nocapture`)
+        //println!("\nSLOW HEADER:\n\n{result}\n");
+        assert!(result.contains(
+            "H Field S name:flight_mode_flags,state_flags,failsafe_phase,rx_signal_received,rx_flight_channel_is_valid"
+        ));
+        assert!(result.contains("H Field S predictor:0,0,0,0,0"));
+        assert!(result.contains("H Field S encoding:1,1,7,7,7"));
+    }
+}
+#[cfg(test)]
+mod tests {
+    /*use super::*;
+
+    // A simple mock writer that captures output into a byte slice
+    struct MockWriter<'a> {
+        buffer: &'a mut [u8],
+        pos: usize,
+    }
+
+    impl BlackboxWriter for MockWriter<'_> {
+        fn write_byte(&mut self, byte: u8) {
+            if self.pos < self.buffer.len() {
+                self.buffer[self.pos] = byte;
+                self.pos += 1;
+            }
+        }
+    }*/
+
+}
+#![allow(unused)]
+
+use crate::{GpsState, MainState, SlowState};
+
+#[allow(clippy::struct_field_names)]
+#[derive(Clone, Copy, Debug)]
+pub struct BlackboxCallbacks {
+    pub load_main_state: fn(&mut MainState, u32),
+    pub load_slow_state: fn(&mut SlowState),
+    pub load_gps_state: fn(&mut GpsState),
+}
+
+impl Default for BlackboxCallbacks {
+    fn default() -> Self {
+        Self { load_main_state: |_, _| {}, load_slow_state: |_| {}, load_gps_state: |_| {} }
     }
 }

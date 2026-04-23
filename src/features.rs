@@ -1,6 +1,6 @@
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Features {
-    flags: u32,
+    pub(crate) flags: u32,
 }
 impl Features {
     pub const RX_PPM: u32 = 1 << 0;
@@ -25,7 +25,6 @@ impl Features {
     pub const BLACKBOX: u32 = 1 << 19;
     pub const CHANNEL_FORWARDING: u32 = 1 << 20;
     pub const TRANSPONDER: u32 = 1 << 21;
-
     pub fn set(&mut self, flag: u32) {
         self.flags |= flag;
     }
