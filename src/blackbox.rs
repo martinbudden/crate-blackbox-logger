@@ -1,5 +1,5 @@
 use crate::{BlackboxTelemetry};
-use crate::{FieldCondition, LogFieldSelect};
+use crate::{LogFieldSelect};
 use crate::{GpsState, MainState, SlowState};
 use serde::{Deserialize, Serialize};
 use crate::blackbox_context::{State,BlackboxContext};
@@ -64,27 +64,13 @@ impl BlackboxStart {
 }
 #[derive(Clone, Copy, Debug)]
 pub struct Blackbox {
-    pub(crate) iteration: u32,
-    loop_index: u32,
 
-    pub(crate) motor_count: usize,
-    pub(crate) servo_count: usize,
-    pub(crate) debug_mode: u32,
-    pub(crate) motor_output_min: i16,
-    pub(crate) min_throttle: i16,
-    pub(crate) vbat_reference: u16,
 
     #[allow(dead_code)]
     state: State,
     #[allow(dead_code)]
     pub ctx: BlackboxContext,
 
-    i_frame_index: u32,
-    p_frame_index: u32,
-    pub(crate) s_frame_index: u32,
-    s_interval: u32,
-
-    pub(crate) log_select_enabled: u32,
 
     pub(crate) slow_state: SlowState,
     pub(crate) gps_state: GpsState,
@@ -109,21 +95,8 @@ impl Default for Blackbox {
 impl Blackbox {
     pub fn new() -> Self {
         Self {
-            iteration: 0,
-            loop_index: 0,
-            motor_count: 4,
-            servo_count: 0,
-            debug_mode: 0,
-            motor_output_min: 750,
-            min_throttle: 700,
-            i_frame_index: 0,
-            p_frame_index: 0,
-            s_frame_index: 0,
-            s_interval: 0,
             state: State::default(),
             ctx: BlackboxContext::default(),
-            log_select_enabled: 0,
-            vbat_reference: 0,
             slow_state: SlowState::default(),
             gps_state: GpsState::default(),
             home_longitude_degrees_1e7: 0,
@@ -145,85 +118,8 @@ impl Blackbox {
 
         self.config = config;
 
-        self.log_select_enabled = LogFieldSelect::PID
-        | LogFieldSelect::PID_KTERM
-        | LogFieldSelect::PID_DTERM_ROLL
-        | LogFieldSelect::PID_DTERM_PITCH
-        //| LogFieldSelect::PID_STERM_ROLL
-        //| LogFieldSelect::PID_STERM_PITCH
-        //| LogFieldSelect::PID_STERM_YAW
-        | LogFieldSelect::SETPOINT
-        | LogFieldSelect::RC_COMMANDS
-        | LogFieldSelect::GYRO
-        | LogFieldSelect::GYRO_UNFILTERED
-        | LogFieldSelect::ACCELEROMETER
-        | LogFieldSelect::ATTITUDE
-        | LogFieldSelect::MOTOR
-        | LogFieldSelect::MOTOR_RPM
-        | LogFieldSelect::BATTERY_VOLTAGE
-        | LogFieldSelect::BATTERY_CURRENT;
+        self.ctx.init(self.config.sample_rate);
 
-        self.build_field_condition_cache();
-        //self.conditions &= !BitSet64::from(config.fields_disabled_mask);
-
-        self.reset_iteration_timers();
-
-        // an i_frame is written every 32ms
-        // blackboxUpdate() is run in synchronization with the PID loop
-        // target_pid_looptime_us is 1000 for 1kHz loop, 500 for 2kHz loop etc, target_pid_looptime_us is rounded for short looptimes
-        // TODO: self.ctx.i_interval = 32 * 1000 / self.target_pid_looptime_us;
-
-        self.ctx.p_interval = 1 << config.sample_rate;
-        if self.ctx.p_interval > self.ctx.i_interval {
-            self.ctx.p_interval = 0; // log only i_frames if logging frequency is too low
-        }
-
-        // s_frame is written every 256*32 = 8192ms, approx every 8 seconds
-        self.s_interval = self.ctx.i_interval * 256;
-
-        /*if config.device == BlackboxDevice::NONE {
-            self.set_state(STATE_DISABLED);
-        } else if (config.mode == BlackboxMode::ALWAYS_ON) {
-            self.start();
-        } else {
-            self.set_state(STATE_STOPPED);
-        }*/
-    }
-
-    /// Build condition cache, called from start().
-    pub fn build_field_condition_cache(&mut self) {
-        self.ctx.conditions.reset_all();
-        for condition in FieldCondition::FIRST..FieldCondition::LAST {
-            if self.test_field_condition_uncached(condition) {
-                _ = self.ctx.conditions.set(condition);
-            }
-        }
-    }
-
-    pub fn reset_iteration_timers(&mut self) {
-        self.iteration = 0;
-        self.loop_index = 0;
-        self.i_frame_index = 0;
-        self.p_frame_index = 0;
-        self.s_frame_index = 0;
-    }
-
-    /// Called once every FC loop in order to keep track of how many FC loop iterations have passed.
-    pub fn advance_iteration_timers(&mut self) {
-        self.s_frame_index += 1;
-        self.iteration += 1;
-        self.loop_index += 1;
-
-        if self.loop_index >= self.ctx.i_interval {
-            self.loop_index = 0; // value of zero means i_frame will be written on next update
-            self.i_frame_index += 1;
-            self.p_frame_index = 0;
-        } else {
-            self.p_frame_index += 1;
-            if self.p_frame_index >= self.ctx.p_interval {
-                self.p_frame_index = 0; // value of zero means p_frame will be written on next update, if i_frame not written
-            }
-        }
     }
     pub fn load_main_state(&mut self, current_time_us: u32, telemetry: BlackboxTelemetry) {
         let current = &mut self.main_states[self.main_state_index_current];
@@ -266,7 +162,7 @@ impl Blackbox {
                 //self.sd_card.write_all(&self.buf[..len]).await.ok();
             }
             #[cfg(feature = "gps")]
-            if Self::field_enabled(self.log_select_enabled, LogFieldSelect::GPS) {
+            if BlackboxContext::field_enabled(self.ctx.log_select_enabled, LogFieldSelect::GPS) {
                 let gps_state_new = GpsState::new();
 
                 let gps_state_changed = gps_state_new.satellite_count != self.gps_state.satellite_count
@@ -293,13 +189,13 @@ impl Blackbox {
     }
 
     pub fn should_log_i_frame(&self) -> bool {
-        self.loop_index == 0
+        self.ctx.loop_index == 0
     }
     pub fn should_log_h_frame(&self) -> bool {
         true
     }
     pub fn should_log_p_frame(&self) -> bool {
-        self.p_frame_index == 0 && self.ctx.p_interval != 0
+        self.ctx.p_frame_index == 0 && self.ctx.p_interval != 0
     }
     pub fn is_only_logging_i_frames(&self) -> bool {
         self.ctx.p_interval == 0
@@ -315,105 +211,13 @@ impl Blackbox {
     pub fn log_s_frame_if_needed(&mut self) -> usize {
         // Write the slow frame periodically so it can be recovered if we ever lose sync
         // TODO: add a check if new slow data has arrived
-        if self.s_frame_index >= self.s_interval {
+        if self.ctx.s_frame_index >= self.ctx.s_interval {
             return self.log_s_frame();
         }
         0
     }
 }
 
-impl Blackbox {
-    //fn field_enabled(enabled_mask:u32, field:LogFieldSelect) -> bool { enabled_mask & (field as u32) }
-    //pub fn is_field_enabled(&self, field:LogFieldSelect) ->bool { field_enabled(self.log_select_enabled, field) }
-    // Helper function to check if a field is enabled
-    pub(crate) fn field_enabled(enabled_mask: u32, field: u32) -> bool {
-        enabled_mask & field != 0
-    }
-
-    // Public method to check if a log field is enabled
-    pub fn is_field_enabled(&self, field: u32) -> bool {
-        Self::field_enabled(self.log_select_enabled, field)
-    }
-
-    //Called from build_field_condition_cache(), which is called from start()
-    // Test condition without caching
-    pub fn test_field_condition_uncached(&self, condition: u8) -> bool {
-        match condition {
-            FieldCondition::ALWAYS => true,
-
-            FieldCondition::AT_LEAST_MOTORS_1
-            | FieldCondition::AT_LEAST_MOTORS_2
-            | FieldCondition::AT_LEAST_MOTORS_3
-            | FieldCondition::AT_LEAST_MOTORS_4
-            | FieldCondition::AT_LEAST_MOTORS_5
-            | FieldCondition::AT_LEAST_MOTORS_6
-            | FieldCondition::AT_LEAST_MOTORS_7
-            | FieldCondition::AT_LEAST_MOTORS_8 => {
-                self.is_field_enabled(LogFieldSelect::MOTOR)
-                    && self.motor_count > (condition - FieldCondition::AT_LEAST_MOTORS_1) as usize
-            }
-
-            FieldCondition::MOTOR_1_HAS_RPM
-            | FieldCondition::MOTOR_2_HAS_RPM
-            | FieldCondition::MOTOR_3_HAS_RPM
-            | FieldCondition::MOTOR_4_HAS_RPM
-            | FieldCondition::MOTOR_5_HAS_RPM
-            | FieldCondition::MOTOR_6_HAS_RPM
-            | FieldCondition::MOTOR_7_HAS_RPM
-            | FieldCondition::MOTOR_8_HAS_RPM => {
-                self.is_field_enabled(LogFieldSelect::MOTOR_RPM)
-                    && self.motor_count > (condition - FieldCondition::MOTOR_1_HAS_RPM) as usize
-            }
-
-            FieldCondition::SERVOS => self.is_field_enabled(LogFieldSelect::SERVO) && self.servo_count > 0,
-
-            FieldCondition::PID => self.is_field_enabled(LogFieldSelect::PID),
-
-            FieldCondition::PID_K => {
-                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_KTERM)
-            }
-            FieldCondition::PID_D_ROLL => {
-                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_DTERM_ROLL)
-            }
-            FieldCondition::PID_D_PITCH => {
-                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_DTERM_PITCH)
-            }
-            FieldCondition::PID_D_YAW => {
-                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_DTERM_YAW)
-            }
-            FieldCondition::PID_S_ROLL => {
-                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_STERM_ROLL)
-            }
-            FieldCondition::PID_S_PITCH => {
-                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_STERM_PITCH)
-            }
-            FieldCondition::PID_S_YAW => {
-                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_STERM_YAW)
-            }
-
-            FieldCondition::RC_COMMANDS => self.is_field_enabled(LogFieldSelect::RC_COMMANDS),
-            FieldCondition::SETPOINT => self.is_field_enabled(LogFieldSelect::SETPOINT),
-            FieldCondition::MAGNETOMETER => self.is_field_enabled(LogFieldSelect::MAGNETOMETER),
-            FieldCondition::BAROMETER => self.is_field_enabled(LogFieldSelect::BAROMETER),
-            FieldCondition::BATTERY_VOLTAGE => self.is_field_enabled(LogFieldSelect::BATTERY_VOLTAGE),
-            FieldCondition::BATTERY_CURRENT => self.is_field_enabled(LogFieldSelect::BATTERY_CURRENT),
-            FieldCondition::RANGEFINDER => self.is_field_enabled(LogFieldSelect::RANGEFINDER),
-            FieldCondition::RSSI => self.is_field_enabled(LogFieldSelect::RSSI),
-
-            FieldCondition::NOT_LOGGING_EVERY_FRAME => self.ctx.p_interval != self.ctx.i_interval,
-
-            FieldCondition::GYRO => self.is_field_enabled(LogFieldSelect::GYRO),
-            FieldCondition::GYRO_UNFILTERED => self.is_field_enabled(LogFieldSelect::GYRO_UNFILTERED),
-            FieldCondition::ACC => self.is_field_enabled(LogFieldSelect::ACCELEROMETER),
-            FieldCondition::ATTITUDE => self.is_field_enabled(LogFieldSelect::ATTITUDE),
-
-            FieldCondition::DEBUG => self.is_field_enabled(LogFieldSelect::DEBUG) && self.debug_mode != 0,
-
-            // Handle any unknown condition
-            _ => false,
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -439,6 +243,6 @@ mod tests {
     #[test]
     fn new() {
         let blackbox = Blackbox::default();
-        assert_eq!(0, blackbox.iteration);
+        assert_eq!(0, blackbox.ctx.iteration);
     }
 }

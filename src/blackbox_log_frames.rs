@@ -1,3 +1,4 @@
+use crate::blackbox_context::BlackboxContext;
 use crate::{Blackbox, MainState};
 use crate::{FieldCondition, LogFieldSelect, SliceWriter};
 #[cfg(test)]
@@ -30,7 +31,7 @@ macro_rules! assert_p_field_encoding {
 impl Blackbox {
     pub fn log_s_frame(&mut self) -> usize {
         //self.logged_any_frames = true;
-        self.s_frame_index = 0;
+        self.ctx.s_frame_index = 0;
 
         let mut encoder = SliceWriter { buffer: &mut self.buf, pos: 0 };
         encoder.begin_frame(b'S');
@@ -52,7 +53,7 @@ impl Blackbox {
 
     pub fn log_s_frame2(&mut self, encoder: &mut SliceWriter) -> usize {
         //self.logged_any_frames = true;
-        self.s_frame_index = 0;
+        self.ctx.s_frame_index = 0;
 
         encoder.begin_frame(b'S');
 
@@ -133,7 +134,7 @@ impl Blackbox {
         encoder.begin_frame(b'I');
 
         assert_i_field_encoding!("loopIteration", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
-        encoder.write_unsigned_vb(self.iteration);
+        encoder.write_unsigned_vb(self.ctx.iteration);
 
         let current = &self.main_states[self.main_state_index_current];
 
@@ -181,7 +182,7 @@ impl Blackbox {
                 // Write the throttle separately from the rest of the RC data as it's UNSIGNED.
                 // Throttle lies in range [PWM_RANGE_MIN, PWM_RANGE_MAX], ie [1000, 2000]
                 #[allow(clippy::cast_sign_loss)]
-                encoder.write_unsigned_vb((current.rc_commands[MainState::THROTTLE] - self.min_throttle) as u32);
+                encoder.write_unsigned_vb((current.rc_commands[MainState::THROTTLE] - self.ctx.min_throttle) as u32);
             }
 
             assert_i_field_encoding!("setpoint", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
@@ -195,7 +196,7 @@ impl Blackbox {
                 //Our voltage is expected to decrease over the course of the flight, so store our difference from
                 //the reference:
                 // Write 14 bits even if the number is negative (which would otherwise result in 32 bits)
-                encoder.write_unsigned_vb(u32::from(self.vbat_reference - current.battery_voltage) & 0x3FFF);
+                encoder.write_unsigned_vb(u32::from(self.ctx.vbat_reference - current.battery_voltage) & 0x3FFF);
             }
 
             assert_i_field_encoding!("amperage_latest", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
@@ -249,12 +250,12 @@ impl Blackbox {
             }
 
             assert_i_field_encoding!("motor", FieldPredictor::MIN_MOTOR, FieldEncoding::UNSIGNED_VB);
-            if Self::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
+            if BlackboxContext::field_enabled(self.ctx.log_select_enabled, LogFieldSelect::MOTOR) {
                 //Motors can be below minimum output when disarmed, but that doesn't happen much
-                encoder.write_signed_vb_16(current.motor[0] - self.motor_output_min);
+                encoder.write_signed_vb_16(current.motor[0] - self.ctx.motor_output_min);
 
                 //Motors tend to be similar to each other so use the first motor's value as a predicted of the others
-                for ii in 1..self.motor_count {
+                for ii in 1..self.ctx.motor_count {
                     encoder.write_signed_vb_16(current.motor[ii] - current.motor[0]);
                 }
             }
@@ -265,7 +266,7 @@ impl Blackbox {
                 encoder.write_tag8_8svb(&out);
             }
             #[cfg(feature = "dshot_telemetry")]
-            if Self::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
+            if BlackboxContext::field_enabled(self.ctx.log_select_enabled, LogFieldSelect::MOTOR) {
                 for erpm in current.erpm {
                     encoder.write_signed_vb_16(erpm);
                 }
@@ -465,8 +466,8 @@ impl Blackbox {
         }
 
         assert_p_field_encoding!("motor", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
-        if Self::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
-            for ii in 0..self.motor_count {
+        if BlackboxContext::field_enabled(self.ctx.log_select_enabled, LogFieldSelect::MOTOR) {
+            for ii in 0..self.ctx.motor_count {
                 let predicted = i16::midpoint(previous.motor[ii], pre_previous.motor[ii]);
                 encoder.write_signed_vb_16(current.motor[ii] - predicted);
             }
@@ -480,8 +481,8 @@ impl Blackbox {
         }
 
         #[cfg(feature = "dshot_telemetry")]
-        if Self::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR_RPM) {
-            for ii in 0..self.motor_count {
+        if BlackboxContext::field_enabled(self.ctx.log_select_enabled, LogFieldSelect::MOTOR_RPM) {
+            for ii in 0..self.ctx.motor_count {
                 encoder.write_signed_vb_16(current.erpm[ii] - previous.erpm[ii]);
             }
         }

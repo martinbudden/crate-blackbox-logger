@@ -1,13 +1,29 @@
-use crate::{BLACKBOX_MAIN_FIELDS, BlackboxStart, BlackboxWriter, SliceWriter, write_main_header};
+use crate::{
+    BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS, BlackboxStart, BlackboxWriter, FieldCondition, LogFieldSelect,
+    SliceWriter, write_main_header, write_simple_header,
+};
 use vqm::BitSet64;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BlackboxContext {
+    pub(crate) motor_count: usize,
+    pub(crate) servo_count: usize,
+    pub(crate) debug_mode: u32,
+    pub(crate) motor_output_min: i16,
+    pub(crate) min_throttle: i16,
+    pub(crate) vbat_reference: u16,
     pub(crate) logged_any_frames: bool,
     pub(crate) conditions: BitSet64,
     pub(crate) i_interval: u32,
     pub(crate) p_interval: u32,
-    looptime: u32,
+    pub(crate) looptime: u32,
+    pub(crate) log_select_enabled: u32,
+    pub(crate) i_frame_index: u32,
+    pub(crate) p_frame_index: u32,
+    pub(crate) s_frame_index: u32,
+    pub(crate) s_interval: u32,
+    pub(crate) iteration: u32,
+    pub(crate) loop_index: u32,
 }
 
 impl Default for BlackboxContext {
@@ -18,7 +34,200 @@ impl Default for BlackboxContext {
 
 impl BlackboxContext {
     pub fn new() -> Self {
-        Self { logged_any_frames: false, conditions: BitSet64::default(), i_interval: 0, p_interval: 0, looptime: 125 }
+        Self {
+            motor_count: 4,
+            servo_count: 0,
+            debug_mode: 0,
+            motor_output_min: 750,
+            min_throttle: 700,
+            vbat_reference: 0,
+            logged_any_frames: false,
+            conditions: BitSet64::default(),
+            i_interval: 0,
+            p_interval: 0,
+            looptime: 125,
+            log_select_enabled: 0,
+            i_frame_index: 0,
+            p_frame_index: 0,
+            s_frame_index: 0,
+            s_interval: 0,
+            iteration: 0,
+            loop_index: 0,
+        }
+    }
+}
+impl BlackboxContext {
+    /// Build condition cache, called from start().
+    pub fn build_field_condition_cache(&mut self) {
+        self.conditions.reset_all();
+        for condition in FieldCondition::FIRST..FieldCondition::LAST {
+            if self.test_field_condition_uncached(condition) {
+                _ = self.conditions.set(condition);
+            }
+        }
+    }
+}
+
+impl BlackboxContext {
+    pub fn init(&mut self, sample_rate:u8) {
+        self.log_select_enabled = LogFieldSelect::PID
+        | LogFieldSelect::PID_KTERM
+        | LogFieldSelect::PID_DTERM_ROLL
+        | LogFieldSelect::PID_DTERM_PITCH
+        //| LogFieldSelect::PID_STERM_ROLL
+        //| LogFieldSelect::PID_STERM_PITCH
+        //| LogFieldSelect::PID_STERM_YAW
+        | LogFieldSelect::SETPOINT
+        | LogFieldSelect::RC_COMMANDS
+        | LogFieldSelect::GYRO
+        | LogFieldSelect::GYRO_UNFILTERED
+        | LogFieldSelect::ACCELEROMETER
+        | LogFieldSelect::ATTITUDE
+        | LogFieldSelect::MOTOR
+        | LogFieldSelect::MOTOR_RPM
+        | LogFieldSelect::BATTERY_VOLTAGE
+        | LogFieldSelect::BATTERY_CURRENT;
+
+        self.build_field_condition_cache();
+        //self.conditions &= !BitSet64::from(config.fields_disabled_mask);
+
+        self.reset_iteration_timers();
+
+        // an i_frame is written every 32ms
+        // blackboxUpdate() is run in synchronization with the PID loop
+        // target_pid_looptime_us is 1000 for 1kHz loop, 500 for 2kHz loop etc, target_pid_looptime_us is rounded for short looptimes
+        // TODO: self.i_interval = 32 * 1000 / self.target_pid_looptime_us;
+
+        self.p_interval = 1 << sample_rate;
+        if self.p_interval > self.i_interval {
+            self.p_interval = 0; // log only i_frames if logging frequency is too low
+        }
+
+        // s_frame is written every 256*32 = 8192ms, approx every 8 seconds
+        self.s_interval = self.i_interval * 256;
+
+        /*if config.device == BlackboxDevice::NONE {
+            self.set_state(STATE_DISABLED);
+        } else if (config.mode == BlackboxMode::ALWAYS_ON) {
+            self.start();
+        } else {
+            self.set_state(STATE_STOPPED);
+        }*/
+    }
+    pub fn reset_iteration_timers(&mut self) {
+        self.iteration = 0;
+        self.loop_index = 0;
+        self.i_frame_index = 0;
+        self.p_frame_index = 0;
+        self.s_frame_index = 0;
+    }
+
+    /// Called once every FC loop in order to keep track of how many FC loop iterations have passed.
+    pub fn advance_iteration_timers(&mut self) {
+        self.s_frame_index += 1;
+        self.iteration += 1;
+        self.loop_index += 1;
+
+        if self.loop_index >= self.i_interval {
+            self.loop_index = 0; // value of zero means i_frame will be written on next update
+            self.i_frame_index += 1;
+            self.p_frame_index = 0;
+        } else {
+            self.p_frame_index += 1;
+            if self.p_frame_index >= self.p_interval {
+                self.p_frame_index = 0; // value of zero means p_frame will be written on next update, if i_frame not written
+            }
+        }
+    }
+    //fn field_enabled(enabled_mask:u32, field:LogFieldSelect) -> bool { enabled_mask & (field as u32) }
+    //pub fn is_field_enabled(&self, field:LogFieldSelect) ->bool { field_enabled(self.log_select_enabled, field) }
+    // Helper function to check if a field is enabled
+    pub(crate) fn field_enabled(enabled_mask: u32, field: u32) -> bool {
+        enabled_mask & field != 0
+    }
+
+    // Public method to check if a log field is enabled
+    pub fn is_field_enabled(&self, field: u32) -> bool {
+        Self::field_enabled(self.log_select_enabled, field)
+    }
+
+    // Called from build_field_condition_cache(), which is called from start()
+    // Test condition without caching
+    pub fn test_field_condition_uncached(&self, condition: u8) -> bool {
+        match condition {
+            FieldCondition::ALWAYS => true,
+
+            FieldCondition::AT_LEAST_MOTORS_1
+            | FieldCondition::AT_LEAST_MOTORS_2
+            | FieldCondition::AT_LEAST_MOTORS_3
+            | FieldCondition::AT_LEAST_MOTORS_4
+            | FieldCondition::AT_LEAST_MOTORS_5
+            | FieldCondition::AT_LEAST_MOTORS_6
+            | FieldCondition::AT_LEAST_MOTORS_7
+            | FieldCondition::AT_LEAST_MOTORS_8 => {
+                self.is_field_enabled(LogFieldSelect::MOTOR)
+                    && self.motor_count > (condition - FieldCondition::AT_LEAST_MOTORS_1) as usize
+            }
+
+            FieldCondition::MOTOR_1_HAS_RPM
+            | FieldCondition::MOTOR_2_HAS_RPM
+            | FieldCondition::MOTOR_3_HAS_RPM
+            | FieldCondition::MOTOR_4_HAS_RPM
+            | FieldCondition::MOTOR_5_HAS_RPM
+            | FieldCondition::MOTOR_6_HAS_RPM
+            | FieldCondition::MOTOR_7_HAS_RPM
+            | FieldCondition::MOTOR_8_HAS_RPM => {
+                self.is_field_enabled(LogFieldSelect::MOTOR_RPM)
+                    && self.motor_count > (condition - FieldCondition::MOTOR_1_HAS_RPM) as usize
+            }
+
+            FieldCondition::SERVOS => self.is_field_enabled(LogFieldSelect::SERVO) && self.servo_count > 0,
+
+            FieldCondition::PID => self.is_field_enabled(LogFieldSelect::PID),
+
+            FieldCondition::PID_K => {
+                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_KTERM)
+            }
+            FieldCondition::PID_D_ROLL => {
+                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_DTERM_ROLL)
+            }
+            FieldCondition::PID_D_PITCH => {
+                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_DTERM_PITCH)
+            }
+            FieldCondition::PID_D_YAW => {
+                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_DTERM_YAW)
+            }
+            FieldCondition::PID_S_ROLL => {
+                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_STERM_ROLL)
+            }
+            FieldCondition::PID_S_PITCH => {
+                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_STERM_PITCH)
+            }
+            FieldCondition::PID_S_YAW => {
+                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_STERM_YAW)
+            }
+
+            FieldCondition::RC_COMMANDS => self.is_field_enabled(LogFieldSelect::RC_COMMANDS),
+            FieldCondition::SETPOINT => self.is_field_enabled(LogFieldSelect::SETPOINT),
+            FieldCondition::MAGNETOMETER => self.is_field_enabled(LogFieldSelect::MAGNETOMETER),
+            FieldCondition::BAROMETER => self.is_field_enabled(LogFieldSelect::BAROMETER),
+            FieldCondition::BATTERY_VOLTAGE => self.is_field_enabled(LogFieldSelect::BATTERY_VOLTAGE),
+            FieldCondition::BATTERY_CURRENT => self.is_field_enabled(LogFieldSelect::BATTERY_CURRENT),
+            FieldCondition::RANGEFINDER => self.is_field_enabled(LogFieldSelect::RANGEFINDER),
+            FieldCondition::RSSI => self.is_field_enabled(LogFieldSelect::RSSI),
+
+            FieldCondition::NOT_LOGGING_EVERY_FRAME => self.p_interval != self.i_interval,
+
+            FieldCondition::GYRO => self.is_field_enabled(LogFieldSelect::GYRO),
+            FieldCondition::GYRO_UNFILTERED => self.is_field_enabled(LogFieldSelect::GYRO_UNFILTERED),
+            FieldCondition::ACC => self.is_field_enabled(LogFieldSelect::ACCELEROMETER),
+            FieldCondition::ATTITUDE => self.is_field_enabled(LogFieldSelect::ATTITUDE),
+
+            FieldCondition::DEBUG => self.is_field_enabled(LogFieldSelect::DEBUG) && self.debug_mode != 0,
+
+            // Handle any unknown condition
+            _ => false,
+        }
     }
 }
 
@@ -31,6 +240,11 @@ impl BlackboxContext {
 
     pub fn send_main_field_header(&mut self, writer: &mut SliceWriter) -> usize {
         write_main_header(writer, BLACKBOX_MAIN_FIELDS, self.conditions);
+        writer.pos
+    }
+
+    pub fn send_slow_header(writer: &mut SliceWriter) -> usize {
+        write_simple_header(writer, 'S', &BLACKBOX_SLOW_FIELDS);
         writer.pos
     }
 
@@ -128,7 +342,7 @@ pub(crate) enum State {
 // Note: Not sure if this state machine is needed: it might naturally drop out of the embassy sync framework.
 impl State {
     pub fn start(&mut self, _start_params: BlackboxStart) {
-        *self = State::SendSysinfo(0);
+        *self = State::PrepareLogFile;
     }
 
     pub fn finish(&mut self) {
@@ -163,12 +377,8 @@ impl State {
                 BlackboxContext::send_header(writer)
             }
             State::SendMainFieldHeader => {
-                let len = ctx.send_main_field_header(writer);
-                if len == 0 {
-                    *self = State::SendSlowHeader;
-                    //*self = State::SendGpsHHeader;
-                }
-                len
+                *self = State::SendSlowHeader;
+                ctx.send_main_field_header(writer)
             }
             State::SendGpsHHeader => {
                 *self = State::SendGpsGHeader;
@@ -180,7 +390,7 @@ impl State {
             }
             State::SendSlowHeader => {
                 *self = State::SendSysinfo(0);
-                0
+                BlackboxContext::send_slow_header(writer)
             }
             State::SendSysinfo(index) => {
                 let len = ctx.send_sys_header(writer, index);
@@ -282,6 +492,7 @@ mod tests {
         let mut buffer = [0u8; 2048];
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
         let mut ctx = BlackboxContext::new();
+        ctx.init(0);
 
         let start = BlackboxStart::new();
         let mut state = State::default();
