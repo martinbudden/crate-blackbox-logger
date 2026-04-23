@@ -28,6 +28,7 @@
         "maxthrottle",
         "minthrottle",
         "nocapture",
+        "ONESHOT",
         "Protoflight",
         "Quaternionf",
         "RSSI",

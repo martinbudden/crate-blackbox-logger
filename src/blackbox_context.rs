@@ -1,6 +1,7 @@
 use crate::{
-    BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS, BlackboxStart, BlackboxWriter, FieldCondition, LogFieldSelect,
-    MainFieldDefinition, SliceWriter, blackbox_headers::write_field_line, write_simple_header,
+    BLACKBOX_MAIN_FIELDS, BLACKBOX_SLOW_FIELDS, BlackboxStart, BlackboxWriter, FieldCondition, GpsState,
+    LogFieldSelect, MainFieldDefinition, MainState, SliceWriter, SlowState, blackbox::Features,
+    blackbox_headers::write_field_line, write_simple_header,
 };
 use vqm::BitSet64;
 
@@ -24,6 +25,17 @@ pub struct BlackboxContext {
     pub(crate) s_interval: u32,
     pub(crate) iteration: u32,
     pub(crate) loop_index: u32,
+    features: Features,
+    pub(crate) slow_state: SlowState,
+    pub(crate) gps_state: GpsState,
+    pub(crate) home_longitude_degrees_1e7: i32, // home longitude in degrees * 1e7
+    pub(crate) home_latitude_degrees_1e7: i32,  // home latitude in degrees * 1e7
+    pub(crate) home_altitude_cm: i32,           // home altitude in cm
+
+    pub(crate) main_states: [MainState; 3],
+    pub(crate) main_state_index_current: usize,
+    pub(crate) main_state_index_previous: usize,
+    pub(crate) main_state_index_pre_previous: usize,
 }
 
 impl Default for BlackboxContext {
@@ -53,6 +65,16 @@ impl BlackboxContext {
             s_interval: 0,
             iteration: 0,
             loop_index: 0,
+            features: Features::default(),
+            slow_state: SlowState::default(),
+            gps_state: GpsState::default(),
+            home_longitude_degrees_1e7: 0,
+            home_latitude_degrees_1e7: 0,
+            home_altitude_cm: 0,
+            main_states: <[MainState; 3]>::default(),
+            main_state_index_current: 0,
+            main_state_index_previous: 1,
+            main_state_index_pre_previous: 2,
         }
     }
 }
@@ -447,7 +469,8 @@ impl State {
             State::SendMainFieldHeader(index) => {
                 let len = ctx.send_main_field_header(writer, index);
                 if len == 0 {
-                    *self = State::SendSlowHeader;
+                    *self =
+                        if ctx.features.is_set(Features::GPS) { State::SendGpsHHeader } else { State::SendSlowHeader }
                 } else {
                     *self = State::SendMainFieldHeader(index + 1);
                 }
@@ -467,11 +490,7 @@ impl State {
             }
             State::SendSysinfo(index) => {
                 let len = ctx.send_sys_header(writer, index);
-                if len == 0 {
-                    *self = State::Running;
-                } else {
-                    *self = State::SendSysinfo(index + 1);
-                }
+                *self = if len == 0 { State::Running } else { State::SendSysinfo(index + 1) };
                 len
             }
             State::Paused => {

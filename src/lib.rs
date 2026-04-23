@@ -24,6 +24,7 @@ pub mod drivers;
 
 pub use crate::drivers::sd_card;
 
+pub use blackbox::Features;
 pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStart};
 pub use blackbox_encoding::{BlackboxWriter, SliceWriter};
 pub use blackbox_field_arrays::{
