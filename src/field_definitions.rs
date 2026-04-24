@@ -10,6 +10,7 @@ pub struct SimpleFieldDefinition {
 
 pub struct FieldSign;
 // Conditional fields, used for G-Frames
+#[cfg(feature = "gps")]
 #[repr(C)]
 pub struct ConditionalFieldDefinition {
     pub name: &'static str,
@@ -48,11 +49,13 @@ impl FieldPredictor {
     pub const MIN_THROTTLE: u8 = 4;
     pub const MOTOR_0: u8 = 5;
     pub const INC: u8 = 6;
-    #[cfg(feature = "gps")]
+    #[allow(unused)]
     pub const HOME_COORD: u8 = 7;
-    #[cfg(feature = "servos")]
-    pub const S_1500: u8 = 8;
+    #[allow(unused)]
+    pub const S_1500: i32 = 8;
+    #[allow(unused)]
     pub const VBATREF: u8 = 9;
+    #[allow(unused)]
     pub const LAST_MAIN_FRAME_TIME: u8 = 10;
     pub const MIN_MOTOR: u8 = 11;
 }
@@ -93,7 +96,7 @@ impl FieldCondition {
     pub const MOTOR_8_HAS_RPM: u8 = 16;
 
     pub const SERVOS: u8 = 17;
-    #[cfg(feature = "servos")]
+    #[allow(unused)]
     pub const TRICOPTER: u8 = 18;
 
     pub const MAGNETOMETER: u8 = 19;
@@ -108,9 +111,9 @@ impl FieldCondition {
     pub const PID_D_ROLL: u8 = 27;
     pub const PID_D_PITCH: u8 = 28;
     pub const PID_D_YAW: u8 = 29;
-    pub const PID_S_ROLL: u8 = 30;
-    pub const PID_S_PITCH: u8 = 31;
-    pub const PID_S_YAW: u8 = 32;
+    pub const PID_S_ROLL: u8 = 30; // equivalent to Betaflight NONZERO_WING_S_0
+    pub const PID_S_PITCH: u8 = 31; // equivalent to Betaflight NONZERO_WING_S_1
+    pub const PID_S_YAW: u8 = 32; // equivalent to Betaflight NONZERO_WING_S_2
 
     pub const RC_COMMANDS: u8 = 33;
     pub const SETPOINT: u8 = 34;
@@ -155,5 +158,6 @@ impl LogFieldSelect {
     pub const BATTERY_CURRENT: u32 = 0x20_0000;
     pub const BAROMETER: u32 = 0x40_0000;
     pub const RANGEFINDER: u32 = 0x80_0000;
+    #[allow(unused)]
     pub const GPS: u32 = 0x100_0000;
 }

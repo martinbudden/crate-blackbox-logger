@@ -2,6 +2,7 @@
 pub struct Features {
     pub(crate) flags: u32,
 }
+
 impl Features {
     pub const RX_PPM: u32 = 1 << 0;
     pub const VBAT: u32 = 1 << 1;

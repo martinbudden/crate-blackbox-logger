@@ -7,9 +7,9 @@ pub struct MockSdCard {
     file: File,
 }
 
-#[allow(clippy::expect_used)]
 impl MockSdCard {
     /// # Panics
+    #[allow(clippy::expect_used)]
     pub fn new(path: &str) -> Self {
         Self { file: File::create(path).expect("Could not create log file") }
     }

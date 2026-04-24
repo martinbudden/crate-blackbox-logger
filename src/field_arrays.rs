@@ -1,5 +1,7 @@
-use crate::field_definitions::{ConditionalFieldDefinition, MainFieldDefinition, SimpleFieldDefinition};
+#[cfg(feature = "gps")]
+use crate::field_definitions::ConditionalFieldDefinition;
 use crate::field_definitions::{FieldCondition, FieldEncoding, FieldPredictor, FieldSign};
+use crate::field_definitions::{MainFieldDefinition, SimpleFieldDefinition};
 
 pub const SLOW_FIELD_COUNT: usize = 5;
 pub static BLACKBOX_SLOW_FIELDS: [SimpleFieldDefinition; SLOW_FIELD_COUNT] = [
@@ -76,6 +78,7 @@ pub static BLACKBOX_GPS_H_FIELDS: [SimpleFieldDefinition; GPS_H_FIELD_COUNT] = [
 ];
 
 // GPS position/velocity frame
+#[allow(unused)]
 pub const GPS_G_FIELD_COUNT: usize = 10;
 #[cfg(feature = "gps")]
 pub static BLACKBOX_GPS_G_FIELDS: [ConditionalFieldDefinition; GPS_G_FIELD_COUNT] = [
@@ -161,8 +164,10 @@ pub static BLACKBOX_GPS_G_FIELDS: [ConditionalFieldDefinition; GPS_G_FIELD_COUNT
     },
 ];
 
+#[cfg(feature = "gps")]
 impl ConditionalFieldDefinition {
     #[allow(unused)]
+    #[cfg(feature = "gps")]
     pub fn find_by_name(name: &str) -> Option<&'static Self> {
         BLACKBOX_GPS_G_FIELDS.iter().find(|field| field.name == name)
     }

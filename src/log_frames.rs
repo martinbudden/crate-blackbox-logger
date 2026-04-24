@@ -1,7 +1,7 @@
-use crate::SliceWriter;
-use crate::data::MainData;
+use crate::data::{Event, MainData};
 use crate::field_definitions::{FieldCondition, LogFieldSelect};
 use crate::logger::Logger;
+use crate::{BlackboxWriter, SliceWriter};
 
 #[cfg(test)]
 use crate::field_definitions::{FieldEncoding, FieldPredictor, MainFieldDefinition};
@@ -31,6 +31,42 @@ macro_rules! assert_p_field_encoding {
 }
 
 impl Logger {
+    /// Log event: e_frame. Written immediately to log when event occurs.
+    pub fn log_e_frame(&mut self, encoder: &mut SliceWriter, event: u8) -> usize {
+        encoder.begin_frame(b'E');
+        encoder.write_byte(event);
+
+        #[allow(clippy::match_same_arms)]
+        match event {
+            Event::SYNC_BEEP => {
+                encoder.write_unsigned_vb(0);
+            }
+            Event::INFLIGHT_ADJUSTMENT => {
+                encoder.write_byte(event);
+                encoder.write_signed_vb(0);
+            }
+            Event::DISARM => {
+                encoder.write_unsigned_vb(0);
+            }
+            Event::LOGGING_RESUME => {
+                encoder.write_unsigned_vb(0);
+                encoder.write_unsigned_vb(0);
+            }
+            Event::FLIGHT_MODE => {
+                encoder.write_unsigned_vb(0);
+                encoder.write_unsigned_vb(0);
+            }
+            Event::LOG_END => {
+                encoder.write_str("End of log");
+                encoder.write_byte(0);
+                // TODO:
+            }
+            _ => {}
+        }
+        encoder.end_frame()
+    }
+
+    /// Log slow frame: s_frame.
     pub fn log_s_frame(&mut self, encoder: &mut SliceWriter) -> usize {
         self.logged_any_frames = true;
         self.s_frame_index = 0;
@@ -67,7 +103,7 @@ impl Logger {
         encoder.end_frame()
     }
 
-    /// GPS frame: g_frame.
+    /// GPS frame: g_frame. Written at a frequency of about 10Hz.
     pub fn log_g_frame(&mut self, current_time_us: u32, encoder: &mut SliceWriter) -> usize {
         self.logged_any_frames = true;
         self.new_gps_data = false;
@@ -186,7 +222,7 @@ impl Logger {
             }
 
             #[cfg(feature = "magnetometer")]
-            if self.condition_cache.test(FieldCondition::MAGNETOMETER) {
+            if self.conditions.test(FieldCondition::MAGNETOMETER) {
                 encoder.write_signed_vb_16_array(&current.mag);
             }
 
@@ -196,7 +232,7 @@ impl Logger {
             }
 
             #[cfg(feature = "rangefinder")]
-            if self.condition_cache.test(FieldCondition::RANGEFINDER) {
+            if self.conditions.test(FieldCondition::RANGEFINDER) {
                 encoder.write_signed_vb(current.range_raw);
             }
 
@@ -240,9 +276,10 @@ impl Logger {
                 }
             }
             #[cfg(feature = "servos")]
-            if self.condition_cache.test(FieldCondition::SERVOS) {
-                let out: [i32; MainData::MAX_SUPPORTED_SERVO_COUNT] =
-                    std::array::from_fn(|i| i32::from(current.servos[i]) - 1500);
+            if self.conditions.test(FieldCondition::SERVOS) {
+                let out: [i32; MainData::MAX_SUPPORTED_SERVO_COUNT] = std::array::from_fn(|i| {
+                    i32::from(current.servos[i]) - crate::field_definitions::FieldPredictor::S_1500
+                });
                 encoder.write_tag8_8svb(&out);
             }
             #[cfg(feature = "dshot_telemetry")]
@@ -288,7 +325,7 @@ impl Logger {
         assert_p_field_encoding!("loopIteration", FieldPredictor::INC, FieldEncoding::ZERO);
         encoder.write_unsigned_vb(current.time_us - 2 * previous.time_us + pre_previous.time_us);
 
-        // if self.condition_cache.test(FieldCondition::GYRO_UNFILTERED) {
+        // if self.conditions.test(FieldCondition::GYRO_UNFILTERED) {
         assert_p_field_encoding!("axisP", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
         assert_p_field_encoding!("axisI", FieldPredictor::PREVIOUS, FieldEncoding::TAG2_3S32);
         assert_p_field_encoding!("axisD", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
@@ -380,7 +417,7 @@ impl Logger {
         }
 
         #[cfg(feature = "magnetometer")]
-        if self.condition_cache.test(FieldCondition::MAGNETOMETER) {
+        if self.conditions.test(FieldCondition::MAGNETOMETER) {
             for ii in 0..MainData::XYZ_AXIS_COUNT {
                 deltas[optional_field_count] = i32::from(current.mag[ii] - previous.mag[ii]);
                 optional_field_count += 1;
@@ -394,7 +431,7 @@ impl Logger {
         }
 
         #[cfg(feature = "rangefinder")]
-        if self.condition_cache.test(FieldCondition::RANGEFINDER) {
+        if self.conditions.test(FieldCondition::RANGEFINDER) {
             deltas[optional_field_count] = current.range_raw - previous.range_raw;
             optional_field_count += 1;
         }
@@ -439,7 +476,7 @@ impl Logger {
 
         assert_p_field_encoding!("debug", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::DEBUG) {
-            for ii in 0..MainData::DEBUG_VALUE_COUNT {
+            for ii in 0..MainData::DEBUG_COUNT {
                 let predicted = i16::midpoint(previous.debug[ii], pre_previous.debug[ii]);
                 encoder.write_signed_vb_16(current.debug[ii] - predicted);
             }
@@ -454,9 +491,10 @@ impl Logger {
         }
 
         #[cfg(feature = "servos")]
-        if self.condition_cache.test(FieldCondition::SERVOS) {
-            let servos: [i32; MainData::MAX_SUPPORTED_SERVO_COUNT] =
-                core::array::from_fn(|ii| i32::from(current.servos[ii]) - 1500);
+        if self.conditions.test(FieldCondition::SERVOS) {
+            let servos: [i32; MainData::MAX_SUPPORTED_SERVO_COUNT] = core::array::from_fn(|ii| {
+                i32::from(current.servos[ii]) - crate::field_definitions::FieldPredictor::S_1500
+            });
             encoder.write_tag8_8svb(&servos);
         }
 

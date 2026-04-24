@@ -121,39 +121,42 @@ impl Logger {
                 writer.write_h_str("Firmware type:Cleanflight\n");
             }
             1 => {
-                writer.write_h_str("Firmware revision:Betaflight 3.3.1 (611bc70f8) REVOLT\n");
+                writer.write_h_str("Firmware revision:Betaflight 4.2.11\n");
+                writer.write_h_str("Firmware date:Mar 9 2021 00:00:00\n");
             }
             2 => {
-                writer.write_h_str("Firmware date:Mar 21 2018 00:00:00\n");
+                writer.write_h_str("Board information:");
+                writer.write_h_str("Log start datetime:0000-01-01T00:00:00.000+00:00");
+                writer.write_h_str("Craft name:");
             }
             3 => {
-                writer.write_h_str_u32_ascii("P interval:1/", self.p_interval);
+                writer.write_h_str_u32_ascii("I interval:", self.i_interval);
+                writer.write_h_str_u32_ascii("P interval:", self.p_interval);
+                writer.write_h_str_u32_ascii("looptime:", self.looptime);
+            }
+            4 => {
+                writer.write_h_str_u32_ascii("gyro_sync_denom:", 1);
+                writer.write_h_str_u32_ascii("pid_process_denom:", 1);
                 // "P denom" ignored by blackbox-log-view
                 // writer.write_h_str("P denom:32\n");
             }
-            4 => {
-                writer.write_h_str("Device UID:0x0000\n");
-            }
             5 => {
-                writer.write_h_str_u32_ascii("rcRate:", 1);
+                writer.write_h_str("gyro_scale:0x3f800000\n");
+                writer.write_h_str_u32_ascii("acc_1G:", 4096);
             }
             6 => {
-                writer.write_h_str("gyro.scale:0x3f800000\n");
-                writer.write_h_str("acc_1G:4096\n");
+                writer.write_h_str_u32_ascii("minthrottle:", 1070);
+                writer.write_h_str_u32_ascii("maxthrottle:", 2000);
             }
             7 => {
-                writer.write_h_str("minthrottle:1070\n");
-                writer.write_h_str("maxthrottle:2000\n");
+                writer.write_h_str_u32_ascii("vbatscale:", 110);
+                writer.write_h_str("vbatcellvoltage:330,350,430\n");
+                writer.write_h_str_u32_ascii("vbatref:", 2466);
+                writer.write_h_str("currentSensor:0,250\n");
             }
             8 => {
-                writer.write_h_str("vbatscale:110\n");
-                writer.write_h_str("vbatcellvoltage:33,35,43\n");
-                writer.write_h_str("vbatref:113\n");
-                writer.write_h_str("currentMeter:0,235\n");
-            }
-            9 => {
                 writer.write_h_str("features:541130760\n");
-                writer.write_h_str("debug_mode:0\n");
+                writer.write_h_str_u32_ascii("debug_mode:", 0);
             }
             _ => {
                 return 0;

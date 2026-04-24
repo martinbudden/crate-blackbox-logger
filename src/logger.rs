@@ -3,7 +3,7 @@ use crate::SliceWriter;
 use crate::data::{GpsData, GpsPosition, MainData, SlowData};
 use crate::field_definitions::{FieldCondition, LogFieldSelect};
 use crate::state_machine::StateMachine;
-use crate::{BlackboxSlowTelemetry, BlackboxTelemetry};
+use crate::{BlackboxGpsTelemetry, BlackboxSlowTelemetry, BlackboxTelemetry};
 use vqm::BitSet64;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -95,18 +95,6 @@ impl Logger {
 }
 
 impl Logger {
-    /// Build condition cache, called from start().
-    pub fn build_field_condition_cache(&mut self) {
-        self.conditions.reset_all();
-        for condition in FieldCondition::FIRST..FieldCondition::LAST {
-            if self.test_field_condition_uncached(condition) {
-                _ = self.conditions.set(condition);
-            }
-        }
-    }
-}
-
-impl Logger {
     pub fn init(&mut self, sample_rate: u8) {
         self.log_select_enabled = LogFieldSelect::PID
         | LogFieldSelect::PID_KTERM
@@ -155,25 +143,26 @@ impl Logger {
 }
 
 impl Logger {
-    pub fn load_telemetry(&mut self, current_time_us: u32, telemetry: BlackboxTelemetry) {
+    pub fn load_telemetry(&mut self, _current_time_us: u32, telemetry: BlackboxTelemetry) {
+        self.main_data[self.main_data_index_current] = MainData::from(telemetry);
         let current = &mut self.main_data[self.main_data_index_current];
-        current.time_us = current_time_us;
-        current.acc = (telemetry.acc * 4096.0).into();
-        current.gyro = (telemetry.gyro_rps.to_degrees()).into();
-        current.gyro_unfiltered = (telemetry.gyro_rps_unfiltered.to_degrees()).into();
+        // debug doubles up as pid_s when it is not being used
+        current.pid_s = [i32::from(current.debug[0]), i32::from(current.debug[1]), i32::from(current.debug[2])];
+        current.debug[3] = self.slow_data.debug[0];
+        current.debug[4] = self.slow_data.debug[1];
+        current.debug[5] = self.slow_data.debug[2];
+        current.debug[6] = self.slow_data.debug[3];
+        current.debug[7] = self.slow_data.debug[4];
     }
 
     pub fn load_slow_telemetry(&mut self, telemetry: BlackboxSlowTelemetry) {
         self.new_slow_data = true;
-        self.slow_data.flight_mode_flags = telemetry.flight_mode_flags;
-        self.slow_data.state_flags = telemetry.state_flags;
-        self.slow_data.failsafe_phase = telemetry.failsafe_phase;
-        self.slow_data.rx_signal_received = telemetry.rx_signal_received;
-        self.slow_data.rx_flight_channel_is_valid = telemetry.rx_flight_channel_is_valid;
+        self.slow_data = SlowData::from(telemetry);
     }
 
-    pub fn load_gps_data(&mut self) {
+    pub fn load_gps_data(&mut self, telemetry: BlackboxGpsTelemetry) {
         self.new_gps_data = true;
+        self.gps_data = GpsData::from(telemetry);
     }
 
     pub fn update(&mut self, state: &mut StateMachine, writer: &mut SliceWriter, current_time_us: u32) -> usize {
@@ -181,7 +170,7 @@ impl Logger {
     }
 
     /// Called when the flight controller signals it has new data.
-    #[allow(unused_results)]
+    #[allow(unused_results, unused)]
     pub fn log_iteration(&mut self, current_time_us: u32, encoder: &mut SliceWriter) {
         // Write a keyframe every i_interval frames so we can resynchronise upon missing frames
         if self.should_log_i_frame() {
@@ -271,6 +260,16 @@ impl Logger {
             self.p_frame_index += 1;
             if self.p_frame_index >= self.p_interval {
                 self.p_frame_index = 0; // value of zero means p_frame will be written on next update, if i_frame not written
+            }
+        }
+    }
+
+    /// Build condition cache, called from start().
+    pub fn build_field_condition_cache(&mut self) {
+        self.conditions.reset_all();
+        for condition in FieldCondition::FIRST..FieldCondition::LAST {
+            if self.test_field_condition_uncached(condition) {
+                _ = self.conditions.set(condition);
             }
         }
     }

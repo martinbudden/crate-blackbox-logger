@@ -1,5 +1,5 @@
 [package]
-name = "blackbox"
+name = "blackbox-logger"
 version = "0.1.0"
 edition = "2024"
 authors = ["Martin Budden"]
@@ -17,8 +17,9 @@ categories = [
 ]
 
 [features]
-#default = ["barometer","servos","dshot_telemetry","rangefinder","magnetometer","eight_motors", "gps"]
-default = ["barometer","dshot_telemetry","eight_motors", "gps"]
+default = ["barometer","dshot_telemetry", "gps", "rangefinder"]
+#default = ["barometer", "dshot_telemetry", "eight_motors", "gps"]
+#default = ["barometer","dshot_telemetry","eight_motors", "gps","magnetometer","rangefinder","servos"]
 barometer=[]
 eight_motors = []
 servos = []

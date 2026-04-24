@@ -1,6 +1,7 @@
+use crate::SliceWriter;
 use crate::logger::Logger;
 use crate::state_machine::StateMachine;
-use crate::{BlackboxSlowTelemetry, BlackboxTelemetry, SliceWriter};
+use crate::{BlackboxSlowTelemetry, BlackboxTelemetry};
 use serde::{Deserialize, Serialize};
 
 pub struct BlackboxDevice {}
