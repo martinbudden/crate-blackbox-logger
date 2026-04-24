@@ -1,12 +1,12 @@
 use crate::SliceWriter;
+use crate::data::MainData;
 use crate::field_definitions::{FieldCondition, LogFieldSelect};
 use crate::logger::Logger;
-use crate::states::MainState;
 
 #[cfg(test)]
 use crate::field_definitions::{FieldEncoding, FieldPredictor, MainFieldDefinition};
 
-/// Write the contents of slow_state to the log as an s_frame.
+/// Write the contents of slow_data to the log as an s_frame.
 /// Returns the length written.
 macro_rules! assert_i_field_encoding {
     ($name:expr, $expected_predict:expr, $expected_encode:expr) => {
@@ -34,18 +34,18 @@ impl Logger {
     pub fn log_s_frame(&mut self, encoder: &mut SliceWriter) -> usize {
         self.logged_any_frames = true;
         self.s_frame_index = 0;
-        self.new_slow_state = false;
+        self.new_slow_data = false;
 
         encoder.begin_frame(b'S');
 
-        encoder.write_unsigned_vb(self.slow_state.flight_mode_flags);
-        encoder.write_unsigned_vb(u32::from(self.slow_state.state_flags));
+        encoder.write_unsigned_vb(self.slow_data.flight_mode_flags);
+        encoder.write_unsigned_vb(u32::from(self.slow_data.state_flags));
 
         // Most of the time these three values will be able to pack into one byte.
         let values = [
-            i32::from(self.slow_state.failsafe_phase),
-            i32::from(self.slow_state.rx_signal_received),
-            i32::from(self.slow_state.rx_flight_channel_is_valid),
+            i32::from(self.slow_data.failsafe_phase),
+            i32::from(self.slow_data.rx_signal_received),
+            i32::from(self.slow_data.rx_flight_channel_is_valid),
         ];
 
         encoder.write_tag2_3s32(values);
@@ -59,10 +59,10 @@ impl Logger {
 
         encoder.begin_frame(b'H');
 
-        encoder.write_signed_vb(self.gps_state.home.latitude_degrees_1e7);
-        encoder.write_signed_vb(self.gps_state.home.longitude_degrees_1e7);
+        encoder.write_signed_vb(self.gps_data.home.latitude_degrees_1e7);
+        encoder.write_signed_vb(self.gps_data.home.longitude_degrees_1e7);
         // log altitude in increments of 0.1m
-        encoder.write_signed_vb(self.gps_state.home.altitude_cm / 10);
+        encoder.write_signed_vb(self.gps_data.home.altitude_cm / 10);
 
         encoder.end_frame()
     }
@@ -70,7 +70,7 @@ impl Logger {
     /// GPS frame: g_frame.
     pub fn log_g_frame(&mut self, current_time_us: u32, encoder: &mut SliceWriter) -> usize {
         self.logged_any_frames = true;
-        self.new_gps_state = false;
+        self.new_gps_data = false;
 
         encoder.begin_frame(b'G');
 
@@ -79,28 +79,28 @@ impl Logger {
         // If we're not logging every frame, we need to store the time of this GPS frame.
         if self.conditions.test(FieldCondition::NOT_LOGGING_EVERY_FRAME) {
             // Predict the time of the last frame in the main log
-            encoder.write_unsigned_vb(current_time_us - self.main_states[self.main_state_index_current].time_us);
+            encoder.write_unsigned_vb(current_time_us - self.main_data[self.main_data_index_current].time_us);
         }
 
-        encoder.write_unsigned_vb(u32::from(self.gps_state.satellite_count));
-        encoder.write_signed_vb(self.gps_state.position.latitude_degrees_1e7 - self.gps_home.latitude_degrees_1e7);
-        encoder.write_signed_vb(self.gps_state.position.longitude_degrees_1e7 - self.gps_home.longitude_degrees_1e7);
+        encoder.write_unsigned_vb(u32::from(self.gps_data.satellite_count));
+        encoder.write_signed_vb(self.gps_data.position.latitude_degrees_1e7 - self.gps_home.latitude_degrees_1e7);
+        encoder.write_signed_vb(self.gps_data.position.longitude_degrees_1e7 - self.gps_home.longitude_degrees_1e7);
         // log altitude in increments of 0.1m
-        encoder.write_signed_vb(self.gps_state.position.altitude_cm / 10);
+        encoder.write_signed_vb(self.gps_data.position.altitude_cm / 10);
 
         #[allow(clippy::cast_sign_loss)]
         //if self.config.gps_use_3d_speed {
-        //    encoder.write_unsigned_vb(self.gps_state.speed3d_cmps as u32);
+        //    encoder.write_unsigned_vb(self.gps_data.speed3d_cmps as u32);
         //} else {
-        encoder.write_unsigned_vb(self.gps_state.ground_speed_cmps as u32);
+        encoder.write_unsigned_vb(self.gps_data.ground_speed_cmps as u32);
         //}
 
         #[allow(clippy::cast_sign_loss)]
-        encoder.write_unsigned_vb(self.gps_state.ground_course_deci_degrees as u32);
+        encoder.write_unsigned_vb(self.gps_data.ground_course_deci_degrees as u32);
 
-        encoder.write_signed_vb_16(self.gps_state.velocity_north_cmps);
-        encoder.write_signed_vb_16(self.gps_state.velocity_east_cmps);
-        encoder.write_signed_vb_16(self.gps_state.velocity_down_cmps);
+        encoder.write_signed_vb_16(self.gps_data.velocity_north_cmps);
+        encoder.write_signed_vb_16(self.gps_data.velocity_east_cmps);
+        encoder.write_signed_vb_16(self.gps_data.velocity_down_cmps);
 
         encoder.end_frame()
     }
@@ -115,7 +115,7 @@ impl Logger {
         assert_i_field_encoding!("loopIteration", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
         encoder.write_unsigned_vb(self.iteration);
 
-        let current = &self.main_states[self.main_state_index_current];
+        let current = &self.main_data[self.main_data_index_current];
 
         encoder.write_unsigned_vb(current.time_us);
 
@@ -161,7 +161,7 @@ impl Logger {
                 // Write the throttle separately from the rest of the RC data as it's UNSIGNED.
                 // Throttle lies in range [PWM_RANGE_MIN, PWM_RANGE_MAX], ie [1000, 2000]
                 #[allow(clippy::cast_sign_loss)]
-                encoder.write_unsigned_vb((current.rc_commands[MainState::THROTTLE] - self.min_throttle) as u32);
+                encoder.write_unsigned_vb((current.rc_commands[MainData::THROTTLE] - self.min_throttle) as u32);
             }
 
             assert_i_field_encoding!("setpoint", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
@@ -240,7 +240,7 @@ impl Logger {
             }
             #[cfg(feature = "servos")]
             if self.condition_cache.test(FieldCondition::SERVOS) {
-                let out: [i32; MainState::MAX_SUPPORTED_SERVO_COUNT] =
+                let out: [i32; MainData::MAX_SUPPORTED_SERVO_COUNT] =
                     std::array::from_fn(|i| i32::from(current.servos[i]) - 1500);
                 encoder.write_tag8_8svb(&out);
             }
@@ -255,12 +255,12 @@ impl Logger {
         let ret = encoder.end_frame();
 
         // Rotate the state indices
-        let new_current = self.main_state_index_pre_previous;
-        self.main_state_index_pre_previous = self.main_state_index_previous;
-        self.main_state_index_previous = self.main_state_index_current;
-        self.main_state_index_current = new_current;
+        let new_current = self.main_data_index_pre_previous;
+        self.main_data_index_pre_previous = self.main_data_index_previous;
+        self.main_data_index_previous = self.main_data_index_current;
+        self.main_data_index_current = new_current;
         // This is an i_frame, so there is no other pre_previous state, so we copy the previous state into the pre_previous state
-        self.main_states[self.main_state_index_pre_previous] = self.main_states[self.main_state_index_previous];
+        self.main_data[self.main_data_index_pre_previous] = self.main_data[self.main_data_index_previous];
 
         ret
     }
@@ -275,9 +275,9 @@ impl Logger {
 
         encoder.begin_frame(b'P');
 
-        let current = &self.main_states[self.main_state_index_current];
-        let previous = &self.main_states[self.main_state_index_previous];
-        let pre_previous = &self.main_states[self.main_state_index_pre_previous];
+        let current = &self.main_data[self.main_data_index_current];
+        let previous = &self.main_data[self.main_data_index_previous];
+        let pre_previous = &self.main_data[self.main_data_index_pre_previous];
 
         //No need to store iteration count since its delta is always 1
 
@@ -379,7 +379,7 @@ impl Logger {
 
         #[cfg(feature = "magnetometer")]
         if self.condition_cache.test(FieldCondition::MAGNETOMETER) {
-            for ii in 0..MainState::XYZ_AXIS_COUNT {
+            for ii in 0..MainData::XYZ_AXIS_COUNT {
                 deltas[optional_field_count] = i32::from(current.mag[ii] - previous.mag[ii]);
                 optional_field_count += 1;
             }
@@ -408,28 +408,28 @@ impl Logger {
         // Since gyros, accelerometers and motors are noisy, base their predictions on the average of the history:
         assert_p_field_encoding!("gyro_adc", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::GYRO) {
-            for ii in 0..MainState::XYZ_AXIS_COUNT {
+            for ii in 0..MainData::XYZ_AXIS_COUNT {
                 let predicted = i16::midpoint(previous.gyro[ii], pre_previous.gyro[ii]);
                 encoder.write_signed_vb_16(current.gyro[ii] - predicted);
             }
         }
         assert_p_field_encoding!("gyroUnfilt", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::GYRO_UNFILTERED) {
-            for ii in 0..MainState::XYZ_AXIS_COUNT {
+            for ii in 0..MainData::XYZ_AXIS_COUNT {
                 let predicted = i16::midpoint(previous.gyro_unfiltered[ii], pre_previous.gyro_unfiltered[ii]);
                 encoder.write_signed_vb_16(current.gyro_unfiltered[ii] - predicted);
             }
         }
         assert_p_field_encoding!("accSmooth", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::ACC) {
-            for ii in 0..MainState::XYZ_AXIS_COUNT {
+            for ii in 0..MainData::XYZ_AXIS_COUNT {
                 let predicted = i16::midpoint(previous.acc[ii], pre_previous.acc[ii]);
                 encoder.write_signed_vb_16(current.acc[ii] - predicted);
             }
         }
         assert_p_field_encoding!("imuQuaternion", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::ATTITUDE) {
-            for ii in 0..MainState::XYZ_AXIS_COUNT {
+            for ii in 0..MainData::XYZ_AXIS_COUNT {
                 let predicted = i16::midpoint(previous.orientation[ii], pre_previous.orientation[ii]);
                 encoder.write_signed_vb_16(current.orientation[ii] - predicted);
             }
@@ -437,7 +437,7 @@ impl Logger {
 
         assert_p_field_encoding!("debug", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::DEBUG) {
-            for ii in 0..MainState::DEBUG_VALUE_COUNT {
+            for ii in 0..MainData::DEBUG_VALUE_COUNT {
                 let predicted = i16::midpoint(previous.debug[ii], pre_previous.debug[ii]);
                 encoder.write_signed_vb_16(current.debug[ii] - predicted);
             }
@@ -453,7 +453,7 @@ impl Logger {
 
         #[cfg(feature = "servos")]
         if self.condition_cache.test(FieldCondition::SERVOS) {
-            let servos: [i32; MainState::MAX_SUPPORTED_SERVO_COUNT] =
+            let servos: [i32; MainData::MAX_SUPPORTED_SERVO_COUNT] =
                 core::array::from_fn(|ii| i32::from(current.servos[ii]) - 1500);
             encoder.write_tag8_8svb(&servos);
         }
@@ -467,10 +467,10 @@ impl Logger {
         let ret = encoder.end_frame();
 
         // Rotate the state indices
-        let new_current = self.main_state_index_pre_previous;
-        self.main_state_index_pre_previous = self.main_state_index_previous;
-        self.main_state_index_previous = self.main_state_index_current;
-        self.main_state_index_current = new_current;
+        let new_current = self.main_data_index_pre_previous;
+        self.main_data_index_pre_previous = self.main_data_index_previous;
+        self.main_data_index_previous = self.main_data_index_current;
+        self.main_data_index_current = new_current;
 
         ret
     }
@@ -486,29 +486,29 @@ mod tests {
     fn i_encodings() {
         assert_i_field_encoding!("loopIteration", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
         let mut blackbox = Logger::default();
-        assert_eq!(0, blackbox.main_state_index_current);
-        assert_eq!(1, blackbox.main_state_index_previous);
-        assert_eq!(2, blackbox.main_state_index_pre_previous);
+        assert_eq!(0, blackbox.main_data_index_current);
+        assert_eq!(1, blackbox.main_data_index_previous);
+        assert_eq!(2, blackbox.main_data_index_pre_previous);
         let mut buffer = [0u8; 512];
         let mut encoder = SliceWriter { buffer: &mut buffer, pos: 0 };
         blackbox.log_i_frame(&mut encoder);
-        assert_eq!(2, blackbox.main_state_index_current);
-        assert_eq!(0, blackbox.main_state_index_previous);
-        assert_eq!(1, blackbox.main_state_index_pre_previous);
+        assert_eq!(2, blackbox.main_data_index_current);
+        assert_eq!(0, blackbox.main_data_index_previous);
+        assert_eq!(1, blackbox.main_data_index_pre_previous);
     }
     #[test]
     fn p_encodings() {
         assert_p_field_encoding!("loopIteration", FieldPredictor::INC, FieldEncoding::ZERO);
         let mut blackbox = Logger::default();
-        assert_eq!(0, blackbox.main_state_index_current);
-        assert_eq!(1, blackbox.main_state_index_previous);
-        assert_eq!(2, blackbox.main_state_index_pre_previous);
+        assert_eq!(0, blackbox.main_data_index_current);
+        assert_eq!(1, blackbox.main_data_index_previous);
+        assert_eq!(2, blackbox.main_data_index_pre_previous);
 
         let mut buffer = [0u8; 512];
         let mut encoder = SliceWriter { buffer: &mut buffer, pos: 0 };
         blackbox.log_p_frame(&mut encoder);
-        assert_eq!(2, blackbox.main_state_index_current);
-        assert_eq!(0, blackbox.main_state_index_previous);
-        assert_eq!(1, blackbox.main_state_index_pre_previous);
+        assert_eq!(2, blackbox.main_data_index_current);
+        assert_eq!(0, blackbox.main_data_index_previous);
+        assert_eq!(1, blackbox.main_data_index_pre_previous);
     }
 }

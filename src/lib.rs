@@ -12,6 +12,7 @@
 #![allow(clippy::doc_markdown)]
 
 mod blackbox;
+mod data;
 pub mod drivers;
 mod encoding;
 pub mod features;
@@ -21,7 +22,6 @@ mod log_frames;
 mod log_headers;
 mod logger;
 pub mod state_machine;
-mod states;
 mod telemetry;
 
 pub use crate::drivers::sd_card;

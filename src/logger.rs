@@ -1,8 +1,8 @@
 use crate::Features;
 use crate::SliceWriter;
+use crate::data::{GpsData, GpsPosition, MainData, SlowData};
 use crate::field_definitions::{FieldCondition, LogFieldSelect};
 use crate::state_machine::StateMachine;
-use crate::states::{GpsPosition, GpsState, MainState, SlowState};
 use crate::{BlackboxSlowTelemetry, BlackboxTelemetry};
 use vqm::BitSet64;
 
@@ -29,17 +29,17 @@ pub struct Logger {
 
     pub(crate) log_select_enabled: u32,
     pub(crate) logged_any_frames: bool,
-    pub(crate) new_slow_state: bool,
-    pub(crate) new_gps_state: bool,
+    pub(crate) new_slow_data: bool,
+    pub(crate) new_gps_data: bool,
 
-    pub(crate) slow_state: SlowState,
-    pub(crate) gps_state: GpsState,
+    pub(crate) slow_data: SlowData,
+    pub(crate) gps_data: GpsData,
     pub(crate) gps_home: GpsPosition,
 
-    pub(crate) main_states: [MainState; 3],
-    pub(crate) main_state_index_current: usize,
-    pub(crate) main_state_index_previous: usize,
-    pub(crate) main_state_index_pre_previous: usize,
+    pub(crate) main_data: [MainData; 3],
+    pub(crate) main_data_index_current: usize,
+    pub(crate) main_data_index_previous: usize,
+    pub(crate) main_data_index_pre_previous: usize,
 }
 
 impl Default for Logger {
@@ -71,8 +71,8 @@ impl Logger {
 
             log_select_enabled: 0,
             logged_any_frames: false,
-            new_slow_state: false,
-            new_gps_state: false,
+            new_slow_data: false,
+            new_gps_data: false,
 
             features: Features {
                 flags: Features::VBAT
@@ -81,15 +81,15 @@ impl Logger {
                     | Features::BLACKBOX
                     | Features::FAILSAFE,
             },
-            slow_state: SlowState::default(),
+            slow_data: SlowData::default(),
 
-            gps_state: GpsState::default(),
+            gps_data: GpsData::default(),
             gps_home: GpsPosition::default(),
 
-            main_states: <[MainState; 3]>::default(),
-            main_state_index_current: 0,
-            main_state_index_previous: 1,
-            main_state_index_pre_previous: 2,
+            main_data: <[MainData; 3]>::default(),
+            main_data_index_current: 0,
+            main_data_index_previous: 1,
+            main_data_index_pre_previous: 2,
         }
     }
 }
@@ -145,18 +145,18 @@ impl Logger {
         self.s_interval = self.i_interval * 256;
 
         /*if config.device == BlackboxDevice::NONE {
-            self.set_state(STATE_DISABLED);
+            self.set_data(STATE_DISABLED);
         } else if (config.mode == BlackboxMode::ALWAYS_ON) {
             self.start();
         } else {
-            self.set_state(STATE_STOPPED);
+            self.set_data(STATE_STOPPED);
         }*/
     }
 }
 
 impl Logger {
     pub fn load_telemetry(&mut self, current_time_us: u32, telemetry: BlackboxTelemetry) {
-        let current = &mut self.main_states[self.main_state_index_current];
+        let current = &mut self.main_data[self.main_data_index_current];
         current.time_us = current_time_us;
         current.acc = (telemetry.acc * 4096.0).into();
         current.gyro = (telemetry.gyro_rps.to_degrees()).into();
@@ -164,16 +164,16 @@ impl Logger {
     }
 
     pub fn load_slow_telemetry(&mut self, telemetry: BlackboxSlowTelemetry) {
-        self.new_slow_state = true;
-        self.slow_state.flight_mode_flags = telemetry.flight_mode_flags;
-        self.slow_state.state_flags = telemetry.state_flags;
-        self.slow_state.failsafe_phase = telemetry.failsafe_phase;
-        self.slow_state.rx_signal_received = telemetry.rx_signal_received;
-        self.slow_state.rx_flight_channel_is_valid = telemetry.rx_flight_channel_is_valid;
+        self.new_slow_data = true;
+        self.slow_data.flight_mode_flags = telemetry.flight_mode_flags;
+        self.slow_data.state_flags = telemetry.state_flags;
+        self.slow_data.failsafe_phase = telemetry.failsafe_phase;
+        self.slow_data.rx_signal_received = telemetry.rx_signal_received;
+        self.slow_data.rx_flight_channel_is_valid = telemetry.rx_flight_channel_is_valid;
     }
 
-    pub fn load_gps_state(&mut self) {
-        self.new_gps_state = true;
+    pub fn load_gps_data(&mut self) {
+        self.new_gps_data = true;
     }
 
     pub fn update(&mut self, state: &mut StateMachine, writer: &mut SliceWriter, current_time_us: u32) -> usize {
@@ -208,7 +208,7 @@ impl Logger {
             #[cfg(feature = "gps")]
             if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::GPS) {
                 if self.should_log_h_frame() {
-                    self.gps_home = self.gps_state.home;
+                    self.gps_home = self.gps_data.home;
                     let _len = self.log_h_frame(encoder);
                     let _len = self.log_g_frame(current_time_us, encoder);
                 } else if self.should_log_g_frame() {
@@ -225,7 +225,7 @@ impl Logger {
         self.features.is_set(Features::GPS)
     }
     pub fn should_log_g_frame(&self) -> bool {
-        self.features.is_set(Features::GPS) && self.new_gps_state
+        self.features.is_set(Features::GPS) && self.new_gps_data
     }
     pub fn should_log_p_frame(&self) -> bool {
         self.p_frame_index == 0 && self.p_interval != 0
@@ -236,7 +236,7 @@ impl Logger {
     /// since the field was last logged.
     // Write the slow frame periodically so it can be recovered if we ever lose sync
     pub fn should_log_s_frame(&self) -> bool {
-        self.s_frame_index >= self.s_interval && self.new_slow_state
+        self.s_frame_index >= self.s_interval && self.new_slow_data
     }
     pub fn is_only_logging_i_frames(&self) -> bool {
         self.p_interval == 0

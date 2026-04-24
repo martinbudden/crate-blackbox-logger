@@ -1,5 +1,5 @@
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct SlowState {
+pub struct SlowData {
     pub flight_mode_flags: u32,
     pub state_flags: u8,
     pub failsafe_phase: u8,
@@ -7,13 +7,13 @@ pub struct SlowState {
     pub rx_flight_channel_is_valid: bool,
 }
 
-impl Default for SlowState {
+impl Default for SlowData {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl SlowState {
+impl SlowData {
     pub fn new() -> Self {
         Self {
             flight_mode_flags: 0,
@@ -44,7 +44,7 @@ impl GpsPosition {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct GpsState {
+pub struct GpsData {
     pub time_of_week_ms: u32, // GPS time of week in ms
     pub interval_ms: u32,     // interval between GPS solutions in ms
     pub home: GpsPosition,    // home position
@@ -58,13 +58,13 @@ pub struct GpsState {
     pub satellite_count: u8,
 }
 
-impl Default for GpsState {
+impl Default for GpsData {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl GpsState {
+impl GpsData {
     pub fn new() -> Self {
         Self {
             time_of_week_ms: 0,
@@ -82,19 +82,19 @@ impl GpsState {
     }
 }
 
-impl GpsState {
+impl GpsData {
     #[allow(unused)]
-    pub fn state_changed(&self, new_state: Self) -> bool {
+    pub fn state_changed(&self, new_data: Self) -> bool {
         //We could check for velocity changes as well but I doubt it changes independent of position
-        new_state.satellite_count != self.satellite_count
-            || new_state.position.latitude_degrees_1e7 != self.position.latitude_degrees_1e7
-            || new_state.position.longitude_degrees_1e7 != self.position.longitude_degrees_1e7
+        new_data.satellite_count != self.satellite_count
+            || new_data.position.latitude_degrees_1e7 != self.position.latitude_degrees_1e7
+            || new_data.position.longitude_degrees_1e7 != self.position.longitude_degrees_1e7
     }
 }
 
 /// MainState is 152 bytes when all features enabled, so storing 3 copies for predictive purposes is not over onerous.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct MainState {
+pub struct MainData {
     pub time_us: u32,
     pub baro_altitude: i32,
     #[cfg(feature = "rangefinder")]
@@ -122,7 +122,7 @@ pub struct MainState {
     pub servos: [i16; Self::MAX_SUPPORTED_SERVO_COUNT],
 }
 
-impl MainState {
+impl MainData {
     pub const RPY_AXIS_COUNT: usize = 3;
     pub const XYZ_AXIS_COUNT: usize = 3;
     pub const MAX_SUPPORTED_MOTOR_COUNT: usize = 8;
@@ -132,13 +132,13 @@ impl MainState {
     pub const THROTTLE: usize = 3;
 }
 
-impl Default for MainState {
+impl Default for MainData {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl MainState {
+impl MainData {
     pub fn new() -> Self {
         Self {
             time_us: 0,
@@ -181,21 +181,21 @@ mod tests {
 
     #[test]
     fn normal_types() {
-        is_full::<SlowState>();
-        is_full::<GpsState>();
+        is_full::<SlowData>();
+        is_full::<GpsData>();
         is_full::<GpsPosition>();
-        is_full::<MainState>();
+        is_full::<MainData>();
     }
     #[test]
     fn new() {
-        let slow_state = SlowState::new();
-        assert_eq!(0, slow_state.flight_mode_flags);
+        let slow_data = SlowData::new();
+        assert_eq!(0, slow_data.flight_mode_flags);
         //assert_eq!(152, core::mem::size_of::<MainState>());
 
-        let main_state = MainState::new();
-        assert_eq!(0, main_state.time_us);
+        let main_data = MainData::new();
+        assert_eq!(0, main_data.time_us);
 
-        let gps_state = GpsState::new();
-        assert_eq!(0, gps_state.time_of_week_ms);
+        let gps_data = GpsData::new();
+        assert_eq!(0, gps_data.time_of_week_ms);
     }
 }

@@ -313,7 +313,7 @@ mod tests {
         state.start(start);
         let mut run_count = 0;
         loop {
-            ctx.load_main_state(current_time_us, telemetry);
+            ctx.load_main_data(current_time_us, telemetry);
             _ = state.update(&mut ctx, &mut writer, current_time_us);
             //let state_i:u32 = state.into();
             //println!("state={state_i}");
