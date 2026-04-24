@@ -12,7 +12,7 @@
 #![allow(clippy::doc_markdown)]
 
 mod blackbox;
-mod context;
+mod blackbox_wrapper;
 pub mod drivers;
 mod encoding;
 pub mod features;
@@ -25,6 +25,7 @@ mod telemetry;
 pub use crate::drivers::sd_card;
 pub use features::Features;
 
-pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStartParameters};
+pub use blackbox::{Blackbox, BlackboxStateMachine};
+pub use blackbox_wrapper::{BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStartParameters};
 pub use encoding::{BlackboxWriter, SliceWriter};
 pub use telemetry::{BlackboxSlowTelemetry, BlackboxTelemetry};

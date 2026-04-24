@@ -1,5 +1,5 @@
 use crate::SliceWriter;
-use crate::context::BlackboxContext;
+use crate::blackbox::Blackbox;
 use crate::field_definitions::{FieldCondition, LogFieldSelect};
 use crate::states::MainState;
 
@@ -30,7 +30,7 @@ macro_rules! assert_p_field_encoding {
     };
 }
 
-impl BlackboxContext {
+impl Blackbox {
     pub fn log_s_frame(&mut self, encoder: &mut SliceWriter) -> usize {
         self.logged_any_frames = true;
         self.s_frame_index = 0;
@@ -229,7 +229,7 @@ impl BlackboxContext {
             }
 
             assert_i_field_encoding!("motor", FieldPredictor::MIN_MOTOR, FieldEncoding::UNSIGNED_VB);
-            if BlackboxContext::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
+            if Blackbox::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
                 //Motors can be below minimum output when disarmed, but that doesn't happen much
                 encoder.write_signed_vb_16(current.motor[0] - self.motor_output_min);
 
@@ -245,7 +245,7 @@ impl BlackboxContext {
                 encoder.write_tag8_8svb(&out);
             }
             #[cfg(feature = "dshot_telemetry")]
-            if BlackboxContext::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
+            if Blackbox::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
                 for erpm in current.erpm {
                     encoder.write_signed_vb_16(erpm);
                 }
@@ -444,7 +444,7 @@ impl BlackboxContext {
         }
 
         assert_p_field_encoding!("motor", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
-        if BlackboxContext::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
+        if Blackbox::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
             for ii in 0..self.motor_count {
                 let predicted = i16::midpoint(previous.motor[ii], pre_previous.motor[ii]);
                 encoder.write_signed_vb_16(current.motor[ii] - predicted);
@@ -459,7 +459,7 @@ impl BlackboxContext {
         }
 
         #[cfg(feature = "dshot_telemetry")]
-        if BlackboxContext::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR_RPM) {
+        if Blackbox::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR_RPM) {
             for ii in 0..self.motor_count {
                 encoder.write_signed_vb_16(current.erpm[ii] - previous.erpm[ii]);
             }
@@ -485,7 +485,7 @@ mod tests {
     #[test]
     fn i_encodings() {
         assert_i_field_encoding!("loopIteration", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
-        let mut blackbox = BlackboxContext::default();
+        let mut blackbox = Blackbox::default();
         assert_eq!(0, blackbox.main_state_index_current);
         assert_eq!(1, blackbox.main_state_index_previous);
         assert_eq!(2, blackbox.main_state_index_pre_previous);
@@ -499,7 +499,7 @@ mod tests {
     #[test]
     fn p_encodings() {
         assert_p_field_encoding!("loopIteration", FieldPredictor::INC, FieldEncoding::ZERO);
-        let mut blackbox = BlackboxContext::default();
+        let mut blackbox = Blackbox::default();
         assert_eq!(0, blackbox.main_state_index_current);
         assert_eq!(1, blackbox.main_state_index_previous);
         assert_eq!(2, blackbox.main_state_index_pre_previous);
