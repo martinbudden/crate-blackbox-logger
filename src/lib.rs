@@ -18,6 +18,7 @@ pub mod features;
 mod field_arrays;
 mod field_definitions;
 mod log_frames;
+mod log_headers;
 mod logger;
 pub mod state_machine;
 mod states;
