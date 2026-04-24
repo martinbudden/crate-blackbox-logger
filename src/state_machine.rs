@@ -52,10 +52,10 @@ impl StateMachine {
             }
             StateMachine::SendHeader => {
                 *self = StateMachine::SendMainFieldHeader(0);
-                Logger::log_header(writer)
+                Logger::log_file_header(writer)
             }
             StateMachine::SendMainFieldHeader(index) => {
-                let len = logger.log_main_field_header(writer, index);
+                let len = logger.log_main_fields_header(writer, index);
                 if len == 0 {
                     *self = if logger.features.is_set(Features::GPS) {
                         StateMachine::SendGpsHHeader
@@ -79,20 +79,22 @@ impl StateMachine {
             }
             StateMachine::SendSlowHeader => {
                 *self = StateMachine::SendSysinfo(0);
-                logger.log_slow_header(writer)
+                logger.log_slow_fields_header(writer)
             }
             StateMachine::SendSysinfo(index) => {
-                let len = logger.log_sys_header(writer, index);
+                let len = logger.log_sys_info(writer, index);
                 *self = if len == 0 { StateMachine::Running } else { StateMachine::SendSysinfo(index + 1) };
                 len
             }
             StateMachine::Paused => {
                 *self = StateMachine::Running;
+                logger.advance_iteration_timers();
                 0
             }
             StateMachine::Running => {
                 //*self = State::Paused;
                 logger.log_iteration(current_time_us, writer);
+                logger.advance_iteration_timers();
                 0
             }
             StateMachine::ShuttingDown => {

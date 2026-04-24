@@ -45,7 +45,8 @@
         "Unfilt",
         "vbat",
         "vbatcellvoltage",
-        "VBATREF",
+        "vbatref",
+        "vbatscale",
         "velned"
     ]
 }

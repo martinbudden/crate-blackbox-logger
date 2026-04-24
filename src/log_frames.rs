@@ -105,8 +105,9 @@ impl Logger {
         encoder.end_frame()
     }
 
+    /// Write an Intra frame (i_frame).
+    /// Also known as a key frame.
     #[allow(clippy::too_many_lines)]
-    /// Intra frame: i_frame.
     pub fn log_i_frame(&mut self, encoder: &mut SliceWriter) -> usize {
         self.logged_any_frames = true;
 
@@ -266,6 +267,7 @@ impl Logger {
     }
 
     /// Write a Predictor frame (p_frame).
+    /// Also known as an inter frame.
     /// Note: the predictions are hard coded to match the values defined in BLACKBOX_MAIN_FIELDS:
     /// the code is made safe by asserting the p_encoding values.
     /// So this code and those definitions must be changed in tandem with each other.
