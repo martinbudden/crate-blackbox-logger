@@ -26,15 +26,29 @@ impl SlowState {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
+pub struct GpsPosition {
+    pub longitude_degrees_1e7: i32, // longitude in degrees * 1e+7
+    pub latitude_degrees_1e7: i32,  // latitude in degrees * 1e+7
+    pub altitude_cm: i32,           // altitude in cm
+}
+impl Default for GpsPosition {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl GpsPosition {
+    pub fn new() -> Self {
+        Self { longitude_degrees_1e7: 0, latitude_degrees_1e7: 0, altitude_cm: 0 }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GpsState {
-    pub time_of_week_ms: u32,            // GPS time of week in ms
-    pub interval_ms: u32,                // interval between GPS solutions in ms
-    pub home_longitude_degrees_1e7: i32, // home longitude in degrees * 1e+7
-    pub home_latitude_degrees_1e7: i32,  // home latitude in degrees * 1e+7
-    pub home_altitude_cm: i32,           // home altitude in cm
-    pub longitude_degrees_1e7: i32,      // longitude in degrees * 1e+7
-    pub latitude_degrees_1e7: i32,       // latitude in degrees * 1e+7
-    pub altitude_cm: i32,                // altitude in cm
+    pub time_of_week_ms: u32, // GPS time of week in ms
+    pub interval_ms: u32,     // interval between GPS solutions in ms
+    pub home: GpsPosition,    // home position
+    pub position: GpsPosition,
     pub velocity_north_cmps: i16,        // north velocity, cm/s
     pub velocity_east_cmps: i16,         // east velocity, cm/s
     pub velocity_down_cmps: i16,         // down velocity, cm/s
@@ -55,12 +69,8 @@ impl GpsState {
         Self {
             time_of_week_ms: 0,
             interval_ms: 0,
-            home_longitude_degrees_1e7: 0,
-            home_latitude_degrees_1e7: 0,
-            home_altitude_cm: 0,
-            longitude_degrees_1e7: 0,
-            latitude_degrees_1e7: 0,
-            altitude_cm: 0,
+            home: GpsPosition::default(),
+            position: GpsPosition::default(),
             velocity_north_cmps: 0,
             velocity_east_cmps: 0,
             velocity_down_cmps: 0,
@@ -70,12 +80,15 @@ impl GpsState {
             satellite_count: 0,
         }
     }
+}
+
+impl GpsState {
     #[allow(unused)]
     pub fn state_changed(&self, new_state: Self) -> bool {
         //We could check for velocity changes as well but I doubt it changes independent of position
         new_state.satellite_count != self.satellite_count
-            || new_state.latitude_degrees_1e7 != self.latitude_degrees_1e7
-            || new_state.longitude_degrees_1e7 != self.longitude_degrees_1e7
+            || new_state.position.latitude_degrees_1e7 != self.position.latitude_degrees_1e7
+            || new_state.position.longitude_degrees_1e7 != self.position.longitude_degrees_1e7
     }
 }
 
@@ -170,6 +183,7 @@ mod tests {
     fn normal_types() {
         is_full::<SlowState>();
         is_full::<GpsState>();
+        is_full::<GpsPosition>();
         is_full::<MainState>();
     }
     #[test]

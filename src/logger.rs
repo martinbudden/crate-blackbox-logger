@@ -2,7 +2,7 @@ use crate::Features;
 use crate::SliceWriter;
 use crate::field_definitions::{FieldCondition, LogFieldSelect};
 use crate::state_machine::StateMachine;
-use crate::states::{GpsState, MainState, SlowState};
+use crate::states::{GpsPosition, GpsState, MainState, SlowState};
 use crate::{BlackboxSlowTelemetry, BlackboxTelemetry};
 use vqm::BitSet64;
 
@@ -34,9 +34,7 @@ pub struct Logger {
 
     pub(crate) slow_state: SlowState,
     pub(crate) gps_state: GpsState,
-    pub(crate) home_longitude_degrees_1e7: i32, // home longitude in degrees * 1e7
-    pub(crate) home_latitude_degrees_1e7: i32,  // home latitude in degrees * 1e7
-    pub(crate) home_altitude_cm: i32,           // home altitude in cm
+    pub(crate) gps_home: GpsPosition,
 
     pub(crate) main_states: [MainState; 3],
     pub(crate) main_state_index_current: usize,
@@ -86,9 +84,7 @@ impl Logger {
             slow_state: SlowState::default(),
 
             gps_state: GpsState::default(),
-            home_longitude_degrees_1e7: 0,
-            home_latitude_degrees_1e7: 0,
-            home_altitude_cm: 0,
+            gps_home: GpsPosition::default(),
 
             main_states: <[MainState; 3]>::default(),
             main_state_index_current: 0,
@@ -212,9 +208,7 @@ impl Logger {
             #[cfg(feature = "gps")]
             if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::GPS) {
                 if self.should_log_h_frame() {
-                    self.home_latitude_degrees_1e7 = self.gps_state.home_latitude_degrees_1e7;
-                    self.home_longitude_degrees_1e7 = self.gps_state.home_longitude_degrees_1e7;
-                    self.home_altitude_cm = self.gps_state.home_altitude_cm;
+                    self.gps_home = self.gps_state.home;
                     let _len = self.log_h_frame(encoder);
                     let _len = self.log_g_frame(current_time_us, encoder);
                 } else if self.should_log_g_frame() {

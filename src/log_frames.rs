@@ -59,10 +59,10 @@ impl Logger {
 
         encoder.begin_frame(b'H');
 
-        encoder.write_signed_vb(self.gps_state.home_latitude_degrees_1e7);
-        encoder.write_signed_vb(self.gps_state.home_longitude_degrees_1e7);
-
-        encoder.write_signed_vb(self.gps_state.home_altitude_cm / 10);
+        encoder.write_signed_vb(self.gps_state.home.latitude_degrees_1e7);
+        encoder.write_signed_vb(self.gps_state.home.longitude_degrees_1e7);
+        // log altitude in increments of 0.1m
+        encoder.write_signed_vb(self.gps_state.home.altitude_cm / 10);
 
         encoder.end_frame()
     }
@@ -83,10 +83,10 @@ impl Logger {
         }
 
         encoder.write_unsigned_vb(u32::from(self.gps_state.satellite_count));
-        encoder.write_signed_vb(self.gps_state.latitude_degrees_1e7 - self.home_latitude_degrees_1e7);
-        encoder.write_signed_vb(self.gps_state.longitude_degrees_1e7 - self.home_longitude_degrees_1e7);
+        encoder.write_signed_vb(self.gps_state.position.latitude_degrees_1e7 - self.gps_home.latitude_degrees_1e7);
+        encoder.write_signed_vb(self.gps_state.position.longitude_degrees_1e7 - self.gps_home.longitude_degrees_1e7);
         // log altitude in increments of 0.1m
-        encoder.write_signed_vb(self.gps_state.altitude_cm / 10);
+        encoder.write_signed_vb(self.gps_state.position.altitude_cm / 10);
 
         #[allow(clippy::cast_sign_loss)]
         //if self.config.gps_use_3d_speed {
