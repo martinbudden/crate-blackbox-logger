@@ -122,7 +122,7 @@ impl SliceWriter<'_> {
         while value > 127 {
             // Set high bit (continuation) and take 7 bits
             #[allow(clippy::cast_possible_truncation)]
-            self.write_byte((value as u8) | 0x80);
+            self.write_byte(((value & 0x7F) | 0x80) as u8);
             value >>= 7;
         }
         // Last byte has high bit 0

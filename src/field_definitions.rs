@@ -65,7 +65,8 @@ impl FieldEncoding {
     pub const TAG8_8SVB: u8 = 6;
     pub const TAG2_3S32: u8 = 7;
     pub const TAG8_4S16: u8 = 8;
-    pub const ZERO: u8 = 9;
+    #[allow(unused)]
+    pub const NULL: u8 = 9;
     #[allow(unused)]
     pub const TAG2_3SVARIABLE: u8 = 10;
 }

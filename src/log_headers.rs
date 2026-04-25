@@ -123,42 +123,44 @@ impl Logger {
             }
             1 => {
                 writer.write_h_str("Firmware revision:Betaflight 4.2.11\n");
-                writer.write_h_str("Firmware date:Mar 9 2021 00:00:00\n");
+                //writer.write_h_str("Firmware date:Mar 9 2021 00:00:00\n");
             }
             2 => {
-                writer.write_h_str("Board information:\n");
+                //writer.write_h_str("Board information:\n");
                 writer.write_h_str("Log start datetime:0000-01-01T00:00:00.000+00:00\n");
-                writer.write_h_str("Craft name:\n");
+                //writer.write_h_str("Craft name:\n");
             }
             3 => {
                 writer.write_h_str_u32_ascii("I interval:", self.i_interval);
                 writer.write_h_str_u32_ascii("P interval:1/", self.p_interval);
             }
             4 => {
-                writer.write_h_str_u32_ascii("minthrottle:", 1070);
-                writer.write_h_str_u32_ascii("maxthrottle:", 2000);
+                writer.write_h_str_u32_ascii("looptime:", self.looptime);
+                writer.write_h_str_u32_ascii("gyro_sync_denom:", 1);
+                writer.write_h_str_u32_ascii("pid_process_denom:", 1);
             }
             5 => {
+                // "P denom" ignored by blackbox-log-view
+                writer.write_h_str("P denom:32\n");
+                writer.write_h_str_u32_ascii("debug_mode:", 0);
+                writer.write_h_str("features:541130760\n");
+            }
+            6 => {
                 writer.write_h_str("gyro_scale:0x3f800000\n");
                 writer.write_h_str("motorOutput:158,2047\n");
                 writer.write_h_str_u32_ascii("acc_1G:", 4096);
+            }
+            /*4 => {
+                writer.write_h_str_u32_ascii("minthrottle:", 1070);
+                writer.write_h_str_u32_ascii("maxthrottle:", 2000);
             }
             6 => {
                 writer.write_h_str_u32_ascii("vbatscale:", 110);
                 writer.write_h_str("vbatcellvoltage:330,350,430\n");
                 writer.write_h_str_u32_ascii("vbatref:", 2466);
                 writer.write_h_str("currentSensor:0,250\n");
-            }
-            7 => {
-                writer.write_h_str_u32_ascii("looptime:", self.looptime);
-                writer.write_h_str_u32_ascii("gyro_sync_denom:", 1);
-                writer.write_h_str_u32_ascii("pid_process_denom:", 1);
-            }
-            8 => {
-                // "P denom" ignored by blackbox-log-view
-                writer.write_h_str("P denom:32\n");
-            }
-            9 => {
+            }*/
+            /*9 => {
                 writer.write_h_str("thr_mid:50\n");
                 writer.write_h_str("thr_expo:0\n");
                 writer.write_h_str("tpa_rate:65\n");
@@ -225,11 +227,7 @@ impl Logger {
                 writer.write_h_str("motor_pwm_protocol:6\n");
                 writer.write_h_str("motor_pwm_rate:480\n");
                 writer.write_h_str("dshot_idle_value:550\n");
-            }
-            18 => {
-                writer.write_h_str_u32_ascii("debug_mode:", 0);
-                writer.write_h_str("features:541130760\n");
-            }
+            }*/
             _ => {
                 return 0;
             }
@@ -264,7 +262,7 @@ mod tests {
     }
 
     #[test]
-    fn log_header() {
+    fn log_file_header() {
         let mut buffer = [0u8; 2048];
         //let mut sd_card = MockSdCard::new("state_machine_log.bbl");
         let pos = {
@@ -289,7 +287,7 @@ mod tests {
         let mut buffer = [0u8; 2048];
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
         let mut ctx = Logger::new();
-        ctx.init(3);
+        ctx.init(0);
 
         let mut index: usize = 0;
         loop {
@@ -310,7 +308,7 @@ mod tests {
         let mut buffer = [0u8; 2048];
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
         let mut ctx = Logger::new();
-        ctx.init(3);
+        ctx.init(0);
 
         let len = ctx.log_slow_fields_header(&mut writer);
         assert_eq!(writer.pos, len);
@@ -347,7 +345,7 @@ mod tests {
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
         let mut ctx = Logger::new();
         //let mut _sd_card = MockSdCard::new("state_machine_log.bbl");
-        ctx.init(3);
+        ctx.init(0);
 
         let start = BlackboxStartParameters::new();
         let mut state = StateMachine::default();
@@ -375,7 +373,7 @@ mod tests {
         let mut buffer = [0u8; 4096];
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
         let mut ctx = Blackbox::new();
-        ctx.init(3);
+        ctx.init(0);
 
         let start = BlackboxStartParameters::new();
         let mut state = State::default();

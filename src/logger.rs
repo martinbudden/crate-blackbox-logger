@@ -61,7 +61,7 @@ impl Logger {
 
             looptime: 125, // 125us = 8kHz gyro/pid loop
             p_interval: 8, // 8*125us = 1000us = 1kHz logging
-            i_interval: 256,
+            i_interval: 4,//256,
             s_interval: 0,
             loop_index: 0,
             i_frame_index: 0,
@@ -97,8 +97,9 @@ impl Logger {
 
 impl Logger {
     pub fn init(&mut self, sample_rate: u8) {
-        self.log_select_enabled = LogFieldSelect::PID
-        //| LogFieldSelect::DEBUG
+        self.log_select_enabled = 0;
+        //| LogFieldSelect::GYRO;
+        /*//| LogFieldSelect::DEBUG
         | LogFieldSelect::PID_KTERM
         | LogFieldSelect::PID_DTERM_ROLL
         | LogFieldSelect::PID_DTERM_PITCH
@@ -108,17 +109,17 @@ impl Logger {
         | LogFieldSelect::SETPOINT
         | LogFieldSelect::PID_KTERM
         | LogFieldSelect::RC_COMMANDS
-        | LogFieldSelect::RSSI
+        //| LogFieldSelect::RSSI
         | LogFieldSelect::GYRO
         //| LogFieldSelect::GYRO_UNFILTERED
         //| LogFieldSelect::ATTITUDE
         | LogFieldSelect::MOTOR
         | LogFieldSelect::MOTOR_RPM
-        | LogFieldSelect::BATTERY_VOLTAGE
-        | LogFieldSelect::BATTERY_CURRENT
-        | LogFieldSelect::BAROMETER
+        //| LogFieldSelect::BATTERY_VOLTAGE
+        //| LogFieldSelect::BATTERY_CURRENT
+        //| LogFieldSelect::BAROMETER
         //| LogFieldSelect::RANGEFINDER
-        | LogFieldSelect::ACCELEROMETER;
+        | LogFieldSelect::ACCELEROMETER;*/
 
         self.build_field_condition_cache();
         //self.conditions &= !BitSet64::from(config.fields_disabled_mask);
@@ -257,6 +258,7 @@ impl Logger {
     /// Called when the flight controller signals it has new data.
     #[allow(unused_results, unused)]
     pub fn log_iteration(&mut self, current_time_us: u32, encoder: &mut SliceWriter) -> usize {
+        self.main_data[self.main_data_index_current].time_us = current_time_us;
         let mut len = 0_usize;
         // Write a keyframe every i_interval frames so we can resynchronise upon missing frames
         if self.should_log_i_frame() {
@@ -304,7 +306,7 @@ impl Logger {
         false //self.features.is_set(Features::GPS) && self.new_gps_data
     }
     pub fn should_log_p_frame(&self) -> bool {
-        self.p_frame_index == 0 && self.p_interval != 0
+        self.p_frame_index == 0 && !self.is_only_logging_i_frames()
     }
     /// If the data in the slow frame has changed, log a slow frame.
     ///

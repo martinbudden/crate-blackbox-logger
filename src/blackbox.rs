@@ -37,7 +37,7 @@ impl Default for BlackboxConfig {
 impl BlackboxConfig {
     pub fn new() -> Self {
         Self {
-            sample_rate: 3,
+            sample_rate: 0,
             device: BlackboxDevice::NONE,
             mode: BlackboxMode::NORMAL,
             gps_use_3d_speed: false,

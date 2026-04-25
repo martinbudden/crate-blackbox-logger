@@ -24,21 +24,21 @@ pub static BLACKBOX_SLOW_FIELDS: [SimpleFieldDefinition; SLOW_FIELD_COUNT] = [
         field_name_index: -1,
         is_signed: FieldSign::UNSIGNED,
         predict: FieldPredictor::ZERO,
-        encode: FieldEncoding::TAG2_3S32,
+        encode: FieldEncoding::UNSIGNED_VB,//TAG2_3S32,
     },
     SimpleFieldDefinition {
         name: "rx_signal_received",
         field_name_index: -1,
         is_signed: FieldSign::UNSIGNED,
         predict: FieldPredictor::ZERO,
-        encode: FieldEncoding::TAG2_3S32,
+        encode: FieldEncoding::UNSIGNED_VB,//TAG2_3S32,
     },
     SimpleFieldDefinition {
         name: "rx_flight_channel_is_valid",
         field_name_index: -1,
         is_signed: FieldSign::UNSIGNED,
         predict: FieldPredictor::ZERO,
-        encode: FieldEncoding::TAG2_3S32,
+        encode: FieldEncoding::UNSIGNED_VB,//TAG2_3S32,
     },
 ];
 
@@ -181,8 +181,8 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         is_signed: FieldSign::UNSIGNED,
         i_predict: FieldPredictor::ZERO,
         i_encode: FieldEncoding::UNSIGNED_VB,
-        p_predict: FieldPredictor::INC,
-        p_encode: FieldEncoding::ZERO,
+        p_predict: FieldPredictor::ZERO,//INC
+        p_encode: FieldEncoding::UNSIGNED_VB,//ZERO
         condition: FieldCondition::ALWAYS,
     },
     // Time advances pretty steadily so the p_frame prediction is a straight line
@@ -192,8 +192,8 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         is_signed: FieldSign::UNSIGNED,
         i_predict: FieldPredictor::ZERO,
         i_encode: FieldEncoding::UNSIGNED_VB,
-        p_predict: FieldPredictor::STRAIGHT_LINE,
-        p_encode: FieldEncoding::SIGNED_VB,
+        p_predict: FieldPredictor::PREVIOUS,//STRAIGHT_LINE
+        p_encode: FieldEncoding::UNSIGNED_VB,//SIGNED_VB
         condition: FieldCondition::ALWAYS,
     },
     MainFieldDefinition {
