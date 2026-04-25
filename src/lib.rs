@@ -31,4 +31,4 @@ pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, Black
 pub use encoding::{BlackboxWriter, SliceWriter};
 pub use logger::Logger;
 pub use state_machine::StateMachine;
-pub use telemetry::{BlackboxGpsTelemetry, BlackboxSlowTelemetry, BlackboxTelemetry};
+pub use telemetry::{GpsMessage, GyroPidMessage, SetpointMessage};

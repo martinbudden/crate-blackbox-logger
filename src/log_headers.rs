@@ -153,8 +153,6 @@ impl Logger {
                 writer.write_h_str_u32_ascii("looptime:", self.looptime);
                 writer.write_h_str_u32_ascii("gyro_sync_denom:", 1);
                 writer.write_h_str_u32_ascii("pid_process_denom:", 1);
-                // "P denom" ignored by blackbox-log-view
-                writer.write_h_str("P denom:32\n");
             }
             8 => {
                 // "P denom" ignored by blackbox-log-view
@@ -246,7 +244,7 @@ mod tests {
     #![allow(unused_results)]
     #![allow(clippy::unwrap_used)]
     use crate::state_machine::StateMachine;
-    use crate::{BlackboxStartParameters, BlackboxTelemetry};
+    use crate::{BlackboxStartParameters, GyroPidMessage};
 
     #[allow(unused)]
     use super::*;
@@ -354,7 +352,7 @@ mod tests {
         let start = BlackboxStartParameters::new();
         let mut state = StateMachine::default();
         let mut current_time_us: u32 = 0;
-        let telemetry = BlackboxTelemetry::new();
+        let telemetry = GyroPidMessage::new();
         println!("\nSTATE MACHINE HEADERS\n");
         state.start(start);
         loop {

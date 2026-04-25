@@ -1,7 +1,7 @@
 use crate::SliceWriter;
 use crate::logger::Logger;
 use crate::state_machine::StateMachine;
-use crate::{BlackboxSlowTelemetry, BlackboxTelemetry};
+use crate::{GyroPidMessage, SetpointMessage};
 use serde::{Deserialize, Serialize};
 
 pub struct BlackboxDevice {}
@@ -94,10 +94,10 @@ impl Blackbox {
 }
 
 impl Blackbox {
-    pub fn load_telemetry(&mut self, current_time_us: u32, telemetry: BlackboxTelemetry) {
+    pub fn load_telemetry(&mut self, current_time_us: u32, telemetry: GyroPidMessage) {
         self.logger.load_telemetry(current_time_us, telemetry);
     }
-    pub fn load_slow_telemetry(&mut self, telemetry: BlackboxSlowTelemetry) {
+    pub fn load_slow_telemetry(&mut self, telemetry: SetpointMessage) {
         self.logger.load_slow_telemetry(telemetry);
     }
     pub fn update(&mut self, writer: &mut SliceWriter, current_time_us: u32) -> usize {

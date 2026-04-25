@@ -3,7 +3,7 @@ use crate::SliceWriter;
 use crate::data::{GpsData, GpsPosition, MainData, SlowData};
 use crate::field_definitions::{FieldCondition, LogFieldSelect};
 use crate::state_machine::StateMachine;
-use crate::{BlackboxGpsTelemetry, BlackboxSlowTelemetry, BlackboxTelemetry};
+use crate::{GpsMessage, GyroPidMessage, SetpointMessage};
 use vqm::BitSet64;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -155,24 +155,19 @@ impl Logger {
         // This calculates (a - b) mod 2^32
         a.wrapping_sub(b) < (u32::MAX / 2)
     }
-    pub fn load_telemetry(&mut self, _current_time_us: u32, telemetry: BlackboxTelemetry) {
+    pub fn load_telemetry(&mut self, _current_time_us: u32, telemetry: GyroPidMessage) {
         self.main_data[self.main_data_index_current] = MainData::from(telemetry);
         let current = &mut self.main_data[self.main_data_index_current];
-        // debug doubles up as pid_s when it is not being used
-        current.pid_s = [i32::from(current.debug[0]), i32::from(current.debug[1]), i32::from(current.debug[2])];
-        current.debug[3] = self.slow_data.debug[0];
-        current.debug[4] = self.slow_data.debug[1];
-        current.debug[5] = self.slow_data.debug[2];
-        current.debug[6] = self.slow_data.debug[3];
-        current.debug[7] = self.slow_data.debug[4];
+        current.debug[6] = self.slow_data.debug[0];
+        current.debug[7] = self.slow_data.debug[1];
     }
 
-    pub fn load_slow_telemetry(&mut self, telemetry: BlackboxSlowTelemetry) {
+    pub fn load_slow_telemetry(&mut self, telemetry: SetpointMessage) {
         self.new_slow_data = true;
         self.slow_data = SlowData::from(telemetry);
     }
 
-    pub fn load_gps_data(&mut self, telemetry: BlackboxGpsTelemetry) {
+    pub fn load_gps_data(&mut self, telemetry: GpsMessage) {
         self.new_gps_data = true;
         self.gps_data = GpsData::from(telemetry);
     }
