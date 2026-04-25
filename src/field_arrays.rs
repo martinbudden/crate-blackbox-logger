@@ -181,8 +181,8 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         is_signed: FieldSign::UNSIGNED,
         i_predict: FieldPredictor::ZERO,
         i_encode: FieldEncoding::UNSIGNED_VB,
-        p_predict: FieldPredictor::ZERO,//INC
-        p_encode: FieldEncoding::UNSIGNED_VB,//ZERO
+        p_predict: FieldPredictor::INC,
+        p_encode: FieldEncoding::NULL,
         condition: FieldCondition::ALWAYS,
     },
     // Time advances pretty steadily so the p_frame prediction is a straight line
@@ -192,8 +192,8 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         is_signed: FieldSign::UNSIGNED,
         i_predict: FieldPredictor::ZERO,
         i_encode: FieldEncoding::UNSIGNED_VB,
-        p_predict: FieldPredictor::PREVIOUS,//STRAIGHT_LINE
-        p_encode: FieldEncoding::UNSIGNED_VB,//SIGNED_VB
+        p_predict: FieldPredictor::STRAIGHT_LINE,
+        p_encode: FieldEncoding::SIGNED_VB,
         condition: FieldCondition::ALWAYS,
     },
     MainFieldDefinition {

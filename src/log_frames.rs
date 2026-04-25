@@ -330,25 +330,16 @@ impl Logger {
 
         
         // Don't store store iteration when using FieldEncoding::NULL
-        assert_p_field_encoding!("loopIteration", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
-        encoder.write_unsigned_vb(self.iteration);
+        assert_p_field_encoding!("loopIteration", FieldPredictor::INC, FieldEncoding::NULL);
+        //encoder.write_unsigned_vb(self.iteration);
 
-        assert_p_field_encoding!("time", FieldPredictor::PREVIOUS, FieldEncoding::UNSIGNED_VB);
-        //blackboxWriteSignedVB((int32_t) (blackboxHistory[0]->time - 2 * blackboxHistory[1]->time + blackboxHistory[2]->time));
+        assert_p_field_encoding!("time", FieldPredictor::STRAIGHT_LINE, FieldEncoding::SIGNED_VB);
         //let term2 = (2u32).wrapping_mul(previous.time_us);
         //let time = current.time_us.wrapping_sub(term2).wrapping_add(pre_previous.time_us);
-        //let time:i64 = 1000_i64;//i64::from(current.time_us) - 2*i64::from(previous.time_us) + i64::from(pre_previous.time_us);
-        //#[allow(clippy::cast_possible_truncation)]
-        let time = current.time_us.wrapping_sub(previous.time_us);
-        println!("time:{time}");
-        encoder.write_unsigned_vb(current.time_us.wrapping_sub(previous.time_us));
-
-        /*assert_p_field_encoding!("loopIteration", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
-        encoder.write_unsigned_vb(self.iteration);
-        assert_p_field_encoding!("time", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
-        encoder.write_unsigned_vb(current.time_us);*/
-
-
+        let time:i64 = i64::from(current.time_us) - 2*i64::from(previous.time_us) + i64::from(pre_previous.time_us);
+        #[allow(clippy::cast_possible_truncation)]
+        encoder.write_signed_vb(time as i32);
+        //encoder.write_unsigned_vb(current.time_us.wrapping_sub(previous.time_us));
 
         // if self.conditions.test(FieldCondition::GYRO_UNFILTERED) {
         assert_p_field_encoding!("axisP", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
@@ -588,9 +579,10 @@ mod tests {
     }
     #[test]
     fn p_encodings() {
-        assert_p_field_encoding!("loopIteration", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
         //assert_p_field_encoding!("loopIteration", FieldPredictor::INC, FieldEncoding::NULL);
-        assert_p_field_encoding!("time", FieldPredictor::PREVIOUS, FieldEncoding::UNSIGNED_VB);
+        assert_p_field_encoding!("loopIteration", FieldPredictor::INC, FieldEncoding::NULL);
+        //assert_p_field_encoding!("time", FieldPredictor::PREVIOUS, FieldEncoding::UNSIGNED_VB);
+        assert_p_field_encoding!("time", FieldPredictor::STRAIGHT_LINE, FieldEncoding::SIGNED_VB);
 
         let mut blackbox = Logger::default();
         blackbox.main_data[blackbox.main_data_index_current].time_us = 3;
