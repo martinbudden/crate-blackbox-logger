@@ -10,9 +10,11 @@ use vqm::BitSet64;
 pub struct Logger {
     pub(crate) motor_count: usize,
     pub(crate) servo_count: usize,
-    pub(crate) debug_mode: u32,
+    pub(crate) debug_mode: u16,
     pub(crate) motor_output_min: i16,
+    pub(crate) motor_output_max: i16,
     pub(crate) min_throttle: i16,
+    pub(crate) max_throttle: i16,
     pub(crate) vbat_reference: u16,
     pub(crate) conditions: BitSet64,
     pub(crate) features: Features,
@@ -54,14 +56,16 @@ impl Logger {
             motor_count: 4,
             servo_count: 0,
             debug_mode: 0,
-            motor_output_min: 750,
-            min_throttle: 700,
-            vbat_reference: 0,
+            motor_output_min: 158,
+            motor_output_max: 2047,
+            min_throttle: 1070,
+            max_throttle: 2000,
+            vbat_reference: 2466,
             conditions: BitSet64::default(),
 
             looptime: 125, // 125us = 8kHz gyro/pid loop
             p_interval: 8, // 8*125us = 1000us = 1kHz logging
-            i_interval: 4,//256,
+            i_interval: 2, //256,
             s_interval: 0,
             loop_index: 0,
             i_frame_index: 0,
@@ -97,29 +101,30 @@ impl Logger {
 
 impl Logger {
     pub fn init(&mut self, sample_rate: u8) {
-        self.log_select_enabled = 0;
-        //| LogFieldSelect::GYRO;
-        /*//| LogFieldSelect::DEBUG
+        self.log_select_enabled = 
+        LogFieldSelect::GYRO
+        | LogFieldSelect::PID
         | LogFieldSelect::PID_KTERM
         | LogFieldSelect::PID_DTERM_ROLL
         | LogFieldSelect::PID_DTERM_PITCH
-        //| LogFieldSelect::PID_STERM_ROLL
-        //| LogFieldSelect::PID_STERM_PITCH
-        //| LogFieldSelect::PID_STERM_YAW
+        | LogFieldSelect::PID_STERM_ROLL
+        | LogFieldSelect::PID_STERM_PITCH
+        | LogFieldSelect::PID_STERM_YAW
         | LogFieldSelect::SETPOINT
         | LogFieldSelect::PID_KTERM
         | LogFieldSelect::RC_COMMANDS
-        //| LogFieldSelect::RSSI
-        | LogFieldSelect::GYRO
-        //| LogFieldSelect::GYRO_UNFILTERED
-        //| LogFieldSelect::ATTITUDE
-        | LogFieldSelect::MOTOR
-        | LogFieldSelect::MOTOR_RPM
-        //| LogFieldSelect::BATTERY_VOLTAGE
-        //| LogFieldSelect::BATTERY_CURRENT
-        //| LogFieldSelect::BAROMETER
-        //| LogFieldSelect::RANGEFINDER
-        | LogFieldSelect::ACCELEROMETER;*/
+        | LogFieldSelect::RSSI
+        //| LogFieldSelect::GYRO
+        | LogFieldSelect::GYRO_UNFILTERED
+        | LogFieldSelect::ATTITUDE
+        //| LogFieldSelect::MOTOR // not working
+        //| LogFieldSelect::MOTOR_RPM
+        | LogFieldSelect::BATTERY_VOLTAGE
+        | LogFieldSelect::BATTERY_CURRENT
+        | LogFieldSelect::BAROMETER
+        | LogFieldSelect::RANGEFINDER
+        | LogFieldSelect::ACCELEROMETER
+        | LogFieldSelect::DEBUG;
 
         self.build_field_condition_cache();
         //self.conditions &= !BitSet64::from(config.fields_disabled_mask);
@@ -216,7 +221,7 @@ impl Logger {
                     (-gyro_pid_msg.orientation.z * TO_I16) as i16,
                 ]
             },
-            motor: <[i16; MainData::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
+            motor: [1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100],
             #[cfg(feature = "dshot_telemetry")]
             erpm: <[i16; MainData::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
             debug: [

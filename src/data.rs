@@ -116,7 +116,7 @@ pub struct MainData {
     pub baro_altitude: i32,
     #[cfg(feature = "rangefinder")]
     pub range_raw: i32,
-    pub amperage: u16,
+    pub amperage: i16,
     pub battery_voltage: u16,
     pub rssi: u16,
     pub pid_p: [i32; Self::RPY_AXIS_COUNT],

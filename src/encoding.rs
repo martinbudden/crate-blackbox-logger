@@ -50,10 +50,29 @@ pub trait BlackboxWriter {
             self.write_char(buf[j] as char);
         }
     }
+    fn write_i32_ascii(&mut self, mut n: i32) {
+        if n < 0 {
+            self.write_char('-');
+            n = -n;
+
+        }
+        self.write_u32_ascii(n.cast_unsigned());
+    }
     fn write_h_str_u32_ascii(&mut self, s: &str, n: u32) {
         self.write_h_str(s);
         self.write_u32_ascii(n);
         self.write_char('\n');
+    }
+    fn write_h_str_i32_ascii(&mut self, s: &str, n: i32) {
+        self.write_h_str(s);
+        self.write_i32_ascii(n);
+        self.write_char('\n');
+    }
+    fn write_h_str_u16_ascii(&mut self, s: &str, n: u16) {
+        self.write_h_str_u32_ascii(s, u32::from(n));
+    }
+    fn write_h_str_i16_ascii(&mut self, s: &str, n: i16) {
+        self.write_h_str_i32_ascii(s, i32::from(n));
     }
 }
 

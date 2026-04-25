@@ -147,19 +147,24 @@ impl Logger {
             }
             6 => {
                 writer.write_h_str("gyro_scale:0x3f800000\n");
-                writer.write_h_str("motorOutput:158,2047\n");
+                writer.write_h_str("motorOutput:");
+                writer.write_i32_ascii(i32::from(self.motor_output_min));
+                writer.write_byte(b',');
+                writer.write_i32_ascii(i32::from(self.motor_output_max));
+                writer.write_char('\n');
+
                 writer.write_h_str_u32_ascii("acc_1G:", 4096);
             }
-            /*4 => {
-                writer.write_h_str_u32_ascii("minthrottle:", 1070);
-                writer.write_h_str_u32_ascii("maxthrottle:", 2000);
+            7 => {
+                writer.write_h_str_i16_ascii("minthrottle:", self.min_throttle);
+                writer.write_h_str_i16_ascii("maxthrottle:", self.max_throttle);
             }
-            6 => {
+            8 => {
                 writer.write_h_str_u32_ascii("vbatscale:", 110);
                 writer.write_h_str("vbatcellvoltage:330,350,430\n");
-                writer.write_h_str_u32_ascii("vbatref:", 2466);
+                writer.write_h_str_u16_ascii("vbatref:", self.vbat_reference);
                 writer.write_h_str("currentSensor:0,250\n");
-            }*/
+            }
             /*9 => {
                 writer.write_h_str("thr_mid:50\n");
                 writer.write_h_str("thr_expo:0\n");
