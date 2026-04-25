@@ -21,8 +21,8 @@ mod field_definitions;
 mod log_frames;
 mod log_headers;
 mod logger;
+mod messages;
 pub mod state_machine;
-mod telemetry;
 
 pub use crate::drivers::sd_card;
 pub use features::Features;
@@ -30,5 +30,5 @@ pub use features::Features;
 pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStartParameters};
 pub use encoding::{BlackboxWriter, SliceWriter};
 pub use logger::Logger;
+pub use messages::{GpsMessage, GyroPidMessage, SetpointMessage};
 pub use state_machine::StateMachine;
-pub use telemetry::{GpsMessage, GyroPidMessage, SetpointMessage};
