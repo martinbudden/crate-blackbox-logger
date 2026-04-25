@@ -1,5 +1,3 @@
-use crate::{GpsMessage, GyroPidMessage, SetpointMessage};
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Event {}
 impl Event {
@@ -24,11 +22,6 @@ pub struct SlowData {
     pub failsafe_phase: u8,
     pub rx_signal_received: bool,
     pub rx_flight_channel_is_valid: bool,
-    pub debug: [i16; Self::SLOW_DEBUG_COUNT],
-}
-
-impl SlowData {
-    pub const SLOW_DEBUG_COUNT: usize = SetpointMessage::SETPOINT_DEBUG_COUNT;
 }
 
 impl Default for SlowData {
@@ -45,20 +38,6 @@ impl SlowData {
             failsafe_phase: 0,
             rx_signal_received: false,
             rx_flight_channel_is_valid: false,
-            debug: <[i16; Self::SLOW_DEBUG_COUNT]>::default(),
-        }
-    }
-}
-
-impl From<SetpointMessage> for SlowData {
-    fn from(telemetry: SetpointMessage) -> Self {
-        Self {
-            flight_mode_flags: telemetry.flight_mode_flags,
-            state_flags: telemetry.state_flags,
-            failsafe_phase: telemetry.failsafe_phase,
-            rx_signal_received: telemetry.rx_signal_received,
-            rx_flight_channel_is_valid: telemetry.rx_flight_channel_is_valid,
-            debug: telemetry.debug,
         }
     }
 }
@@ -104,24 +83,6 @@ impl Default for GpsData {
 
 impl GpsData {
     pub fn new() -> Self {
-        Self {
-            time_of_week_ms: 0,
-            interval_ms: 0,
-            home: GpsPosition::default(),
-            position: GpsPosition::default(),
-            velocity_north_cmps: 0,
-            velocity_east_cmps: 0,
-            velocity_down_cmps: 0,
-            speed3d_cmps: 0,
-            ground_speed_cmps: 0,
-            ground_course_deci_degrees: 0,
-            satellite_count: 0,
-        }
-    }
-}
-
-impl From<GpsMessage> for GpsData {
-    fn from(_telemetry: GpsMessage) -> Self {
         Self {
             time_of_week_ms: 0,
             interval_ms: 0,
@@ -185,12 +146,11 @@ impl MainData {
     pub const RP_AXIS_COUNT: usize = 2;
     pub const XYZ_AXIS_COUNT: usize = 3;
     pub const RC_COMMAND_COUNT: usize = 4;
-    pub const MAX_SUPPORTED_MOTOR_COUNT: usize = SetpointMessage::MAX_SUPPORTED_MOTOR_COUNT;
-    #[cfg(feature = "servos")]
-    pub const MAX_SUPPORTED_SERVO_COUNT: usize = SetpointMessage::MAX_SUPPORTED_SERVO_COUNT;
+    pub const MAX_SUPPORTED_MOTOR_COUNT: usize =8;
+    #[allow(unused)]
+    pub const MAX_SUPPORTED_SERVO_COUNT: usize= 8;
     pub const DEBUG_COUNT: usize = 8;
     pub const SETPOINT_COUNT: usize = 4;
-    //pub const PID_ERROR_COUNT: usize = BlackboxTelemetry::PID_ERROR_COUNT;
     pub const THROTTLE: usize = 3;
 }
 
@@ -227,69 +187,6 @@ impl MainData {
             #[cfg(feature = "dshot_telemetry")]
             erpm: <[i16; Self::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
             debug: <[i16; Self::DEBUG_COUNT]>::default(),
-            #[cfg(feature = "servos")]
-            servos: <[i16; Self::MAX_SUPPORTED_SERVO_COUNT]>::default(),
-        }
-    }
-}
-
-impl From<GyroPidMessage> for MainData {
-    fn from(telemetry: GyroPidMessage) -> Self {
-        const TO_I16: f32 = 32_757.0;
-        let motor_commands = telemetry.motor_commands * 2.0;
-        Self {
-            time_us: telemetry.time_us,
-            baro_altitude: 0,
-            #[cfg(feature = "rangefinder")]
-            range_raw: 0,
-            amperage: 0,
-            battery_voltage: 0,
-            rssi: 0,
-            // todo, add scaling to below
-            #[allow(clippy::cast_possible_truncation)]
-            pid_p: telemetry.pid_errors_p.map(|x| x as i32),
-            #[allow(clippy::cast_possible_truncation)]
-            pid_i: telemetry.pid_errors_i.map(|x| x as i32),
-            #[allow(clippy::cast_possible_truncation)]
-            pid_d: [telemetry.pid_errors_d[0] as i32, telemetry.pid_errors_d[1] as i32, 0],
-            pid_s: <[i32; Self::RPY_AXIS_COUNT]>::default(),
-            pid_k: <[i32; Self::RPY_AXIS_COUNT]>::default(),
-            rc_commands: <[i16; 4]>::default(),
-            setpoints: <[i16; 4]>::default(),
-            gyro: (telemetry.gyro_rps.to_degrees()).into(),
-            gyro_unfiltered: (telemetry.gyro_rps_unfiltered.to_degrees()).into(),
-            acc: (telemetry.acc * 4096.0).into(),
-            #[cfg(feature = "magnetometer")]
-            mag: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
-            #[allow(clippy::cast_possible_truncation)]
-            orientation: if telemetry.orientation.w > 0.0 {
-                [
-                    (telemetry.orientation.x * TO_I16) as i16,
-                    (telemetry.orientation.y * TO_I16) as i16,
-                    (telemetry.orientation.z * TO_I16) as i16,
-                ]
-            } else {
-                [
-                    (-telemetry.orientation.x * TO_I16) as i16,
-                    (-telemetry.orientation.y * TO_I16) as i16,
-                    (-telemetry.orientation.z * TO_I16) as i16,
-                ]
-            },
-            // TODO: need to scale these
-            #[allow(clippy::cast_possible_truncation)]
-            motor: [motor_commands.x as i16, motor_commands.y as i16, motor_commands.z as i16, motor_commands.t as i16],
-            #[cfg(feature = "dshot_telemetry")]
-            erpm: <[i16; Self::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
-            debug: [
-                telemetry.debug[0],
-                telemetry.debug[1],
-                telemetry.debug[2],
-                telemetry.debug[3],
-                telemetry.debug[4],
-                telemetry.debug[5],
-                0,
-                0,
-            ],
             #[cfg(feature = "servos")]
             servos: <[i16; Self::MAX_SUPPORTED_SERVO_COUNT]>::default(),
         }

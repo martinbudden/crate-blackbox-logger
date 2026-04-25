@@ -350,7 +350,7 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
     },
     // rc_commands are encoded together as a group in p_frames:
     MainFieldDefinition {
-        name: "rc_command",
+        name: "rcCommand",
         field_name_index: 0,
         is_signed: FieldSign::SIGNED,
         i_predict: FieldPredictor::ZERO,
@@ -360,7 +360,7 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         condition: FieldCondition::RC_COMMANDS,
     },
     MainFieldDefinition {
-        name: "rc_command",
+        name: "rcCommand",
         field_name_index: 1,
         is_signed: FieldSign::SIGNED,
         i_predict: FieldPredictor::ZERO,
@@ -370,7 +370,7 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         condition: FieldCondition::RC_COMMANDS,
     },
     MainFieldDefinition {
-        name: "rc_command",
+        name: "rcCommand",
         field_name_index: 2,
         is_signed: FieldSign::SIGNED,
         i_predict: FieldPredictor::ZERO,
@@ -380,10 +380,10 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         condition: FieldCondition::RC_COMMANDS,
     },
     MainFieldDefinition {
-        name: "rc_command",
+        name: "rcCommand",
         field_name_index: 3,
         is_signed: FieldSign::UNSIGNED,
-        i_predict: FieldPredictor::MIN_THROTTLE,
+        i_predict: FieldPredictor::ZERO, // was MIN_THROTTLE,
         i_encode: FieldEncoding::UNSIGNED_VB,
         p_predict: FieldPredictor::PREVIOUS,
         p_encode: FieldEncoding::TAG8_4S16,
@@ -431,7 +431,7 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         condition: FieldCondition::SETPOINT,
     },
     MainFieldDefinition {
-        name: "vbat_latest",
+        name: "vbatLatest",
         field_name_index: -1,
         is_signed: FieldSign::UNSIGNED,
         i_predict: FieldPredictor::VBATREF,
@@ -441,18 +441,18 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         condition: FieldCondition::BATTERY_VOLTAGE,
     },
     MainFieldDefinition {
-        name: "amperage_latest",
+        name: "amperageLatest",
         field_name_index: -1,
-        is_signed: FieldSign::UNSIGNED,
+        is_signed: FieldSign::SIGNED,
         i_predict: FieldPredictor::ZERO,
-        i_encode: FieldEncoding::UNSIGNED_VB,
+        i_encode: FieldEncoding::SIGNED_VB,
         p_predict: FieldPredictor::PREVIOUS,
         p_encode: FieldEncoding::TAG8_8SVB,
         condition: FieldCondition::BATTERY_CURRENT,
     },
     #[cfg(feature = "barometer")]
     MainFieldDefinition {
-        name: "baro_altitude",
+        name: "BaroAlt",
         field_name_index: -1,
         is_signed: FieldSign::SIGNED,
         i_predict: FieldPredictor::ZERO,
@@ -461,8 +461,29 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         p_encode: FieldEncoding::TAG8_8SVB,
         condition: FieldCondition::BAROMETER,
     },
+    #[cfg(feature = "rangefinder")]
     MainFieldDefinition {
-        name: "gyro_adc",
+        name: "surfaceRaw",
+        field_name_index: -1,
+        is_signed: FieldSign::SIGNED,
+        i_predict: FieldPredictor::ZERO,
+        i_encode: FieldEncoding::SIGNED_VB,
+        p_predict: FieldPredictor::PREVIOUS,
+        p_encode: FieldEncoding::TAG8_8SVB,
+        condition: FieldCondition::RANGEFINDER,
+    },
+    MainFieldDefinition {
+        name: "rssi",
+        field_name_index: -1,
+        is_signed: FieldSign::UNSIGNED,
+        i_predict: FieldPredictor::ZERO,
+        i_encode: FieldEncoding::UNSIGNED_VB,
+        p_predict: FieldPredictor::PREVIOUS,
+        p_encode: FieldEncoding::TAG8_8SVB,
+        condition: FieldCondition::RSSI,
+    },
+    MainFieldDefinition {
+        name: "gyroADC",
         field_name_index: 0,
         is_signed: FieldSign::SIGNED,
         i_predict: FieldPredictor::ZERO,
@@ -472,7 +493,7 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         condition: FieldCondition::GYRO,
     },
     MainFieldDefinition {
-        name: "gyro_adc",
+        name: "gyroADC",
         field_name_index: 1,
         is_signed: FieldSign::SIGNED,
         i_predict: FieldPredictor::ZERO,
@@ -482,7 +503,7 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         condition: FieldCondition::GYRO,
     },
     MainFieldDefinition {
-        name: "gyro_adc",
+        name: "gyroADC",
         field_name_index: 2,
         is_signed: FieldSign::SIGNED,
         i_predict: FieldPredictor::ZERO,

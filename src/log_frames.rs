@@ -382,7 +382,7 @@ impl Logger {
         }
 
         // RC tends to stay the same or fairly small for many frames at a time, so use an encoding that
-        assert_p_field_encoding!("rc_command", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_4S16);
+        assert_p_field_encoding!("rcCommand", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_4S16);
         if self.conditions.test(FieldCondition::RC_COMMANDS) {
             let deltas = [
                 current.rc_commands[0].wrapping_sub(previous.rc_commands[0]),
@@ -441,12 +441,12 @@ impl Logger {
             deltas[optional_field_count] = i32::from(current.rssi.wrapping_sub(previous.rssi));
         }
 
-        assert_p_field_encoding!("vbat_latest", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
-        assert_p_field_encoding!("amperage_latest", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
+        assert_p_field_encoding!("vbatLatest", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
+        assert_p_field_encoding!("amperageLatest", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
         encoder.write_tag8_8svb(&deltas);
 
         // Since gyros, accelerometers and motors are noisy, base their predictions on the average of the history:
-        assert_p_field_encoding!("gyro_adc", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
+        assert_p_field_encoding!("gyroADC", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::GYRO) {
             for ii in 0..MainData::XYZ_AXIS_COUNT {
                 let predicted = i16::midpoint(previous.gyro[ii], pre_previous.gyro[ii]);

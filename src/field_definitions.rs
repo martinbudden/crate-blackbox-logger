@@ -41,6 +41,7 @@ impl FieldSign {
 }
 
 pub struct FieldPredictor;
+#[allow(unused)]
 impl FieldPredictor {
     pub const ZERO: u8 = 0;
     pub const PREVIOUS: u8 = 1;
@@ -49,13 +50,9 @@ impl FieldPredictor {
     pub const MIN_THROTTLE: u8 = 4;
     pub const MOTOR_0: u8 = 5;
     pub const INC: u8 = 6;
-    #[allow(unused)]
     pub const HOME_COORD: u8 = 7;
-    #[allow(unused)]
     pub const S_1500: i32 = 8;
-    #[allow(unused)]
     pub const VBATREF: u8 = 9;
-    #[allow(unused)]
     pub const LAST_MAIN_FRAME_TIME: u8 = 10;
     pub const MIN_MOTOR: u8 = 11;
 }

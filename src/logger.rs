@@ -78,6 +78,7 @@ impl Logger {
                 flags: Features::VBAT
                     | Features::INFLIGHT_ACC_CAL
                     | Features::RX_SERIAL
+                    | Features::RSSI_ADC
                     | Features::BLACKBOX
                     | Features::FAILSAFE,
             },
@@ -97,6 +98,7 @@ impl Logger {
 impl Logger {
     pub fn init(&mut self, sample_rate: u8) {
         self.log_select_enabled = LogFieldSelect::PID
+        //| LogFieldSelect::DEBUG
         | LogFieldSelect::PID_KTERM
         | LogFieldSelect::PID_DTERM_ROLL
         | LogFieldSelect::PID_DTERM_PITCH
@@ -104,15 +106,19 @@ impl Logger {
         //| LogFieldSelect::PID_STERM_PITCH
         //| LogFieldSelect::PID_STERM_YAW
         | LogFieldSelect::SETPOINT
+        | LogFieldSelect::PID_KTERM
         | LogFieldSelect::RC_COMMANDS
+        | LogFieldSelect::RSSI
         | LogFieldSelect::GYRO
-        | LogFieldSelect::GYRO_UNFILTERED
-        | LogFieldSelect::ACCELEROMETER
-        | LogFieldSelect::ATTITUDE
+        //| LogFieldSelect::GYRO_UNFILTERED
+        //| LogFieldSelect::ATTITUDE
         | LogFieldSelect::MOTOR
         | LogFieldSelect::MOTOR_RPM
         | LogFieldSelect::BATTERY_VOLTAGE
-        | LogFieldSelect::BATTERY_CURRENT;
+        | LogFieldSelect::BATTERY_CURRENT
+        | LogFieldSelect::BAROMETER
+        //| LogFieldSelect::RANGEFINDER
+        | LogFieldSelect::ACCELEROMETER;
 
         self.build_field_condition_cache();
         //self.conditions &= !BitSet64::from(config.fields_disabled_mask);
@@ -155,21 +161,93 @@ impl Logger {
         // This calculates (a - b) mod 2^32
         a.wrapping_sub(b) < (u32::MAX / 2)
     }
-    pub fn load_telemetry(&mut self, _current_time_us: u32, telemetry: GyroPidMessage) {
-        self.main_data[self.main_data_index_current] = MainData::from(telemetry);
-        let current = &mut self.main_data[self.main_data_index_current];
-        current.debug[6] = self.slow_data.debug[0];
-        current.debug[7] = self.slow_data.debug[1];
+    // Some of the main data comes from the GyroPidMessage, some comes from teh SetpointMessage
+    pub fn load_telemetry(
+        &mut self,
+        _current_time_us: u32,
+        gyro_pid_msg: GyroPidMessage,
+        setpoint_msg: SetpointMessage,
+    ) {
+        const TO_I16: f32 = 32_757.0;
+        let motor_commands = gyro_pid_msg.motor_commands * 2.0;
+        self.main_data[self.main_data_index_current] = MainData {
+            time_us: gyro_pid_msg.time_us,
+            baro_altitude: 0,
+            #[cfg(feature = "rangefinder")]
+            range_raw: 0,
+            amperage: 0,
+            battery_voltage: 0,
+            rssi: 0,
+            // todo, add scaling to below
+            #[allow(clippy::cast_possible_truncation)]
+            pid_p: gyro_pid_msg.pid_errors_p.map(|x| x as i32),
+            #[allow(clippy::cast_possible_truncation)]
+            pid_i: gyro_pid_msg.pid_errors_i.map(|x| x as i32),
+            #[allow(clippy::cast_possible_truncation)]
+            pid_d: [gyro_pid_msg.pid_errors_d[0] as i32, gyro_pid_msg.pid_errors_d[1] as i32, 0],
+            pid_s: <[i32; MainData::RPY_AXIS_COUNT]>::default(),
+            pid_k: <[i32; MainData::RPY_AXIS_COUNT]>::default(),
+            rc_commands: <[i16; 4]>::default(),
+            // TODO: need to scale these
+            #[allow(clippy::cast_possible_truncation)]
+            setpoints: [
+                motor_commands.x as i16,
+                motor_commands.y as i16,
+                motor_commands.z as i16,
+                motor_commands.t as i16,
+            ],
+            gyro: (gyro_pid_msg.gyro_rps.to_degrees()).into(),
+            gyro_unfiltered: (gyro_pid_msg.gyro_rps_unfiltered.to_degrees()).into(),
+            acc: (gyro_pid_msg.acc * 4096.0).into(),
+            #[cfg(feature = "magnetometer")]
+            mag: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
+            #[allow(clippy::cast_possible_truncation)]
+            orientation: if gyro_pid_msg.orientation.w > 0.0 {
+                [
+                    (gyro_pid_msg.orientation.x * TO_I16) as i16,
+                    (gyro_pid_msg.orientation.y * TO_I16) as i16,
+                    (gyro_pid_msg.orientation.z * TO_I16) as i16,
+                ]
+            } else {
+                [
+                    (-gyro_pid_msg.orientation.x * TO_I16) as i16,
+                    (-gyro_pid_msg.orientation.y * TO_I16) as i16,
+                    (-gyro_pid_msg.orientation.z * TO_I16) as i16,
+                ]
+            },
+            motor: <[i16; MainData::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
+            #[cfg(feature = "dshot_telemetry")]
+            erpm: <[i16; MainData::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
+            debug: [
+                gyro_pid_msg.debug[0],
+                gyro_pid_msg.debug[1],
+                gyro_pid_msg.debug[2],
+                gyro_pid_msg.debug[3],
+                gyro_pid_msg.debug[4],
+                gyro_pid_msg.debug[5],
+                setpoint_msg.debug[0],
+                setpoint_msg.debug[1],
+            ],
+            #[cfg(feature = "servos")]
+            servos: <[i16; Self::MAX_SUPPORTED_SERVO_COUNT]>::default(),
+        };
     }
 
-    pub fn load_slow_telemetry(&mut self, telemetry: SetpointMessage) {
+    pub fn load_slow_telemetry(&mut self, setpoint: SetpointMessage) {
+        // todo, need to check time
         self.new_slow_data = true;
-        self.slow_data = SlowData::from(telemetry);
+        self.slow_data = SlowData {
+            flight_mode_flags: setpoint.flight_mode_flags,
+            state_flags: setpoint.state_flags,
+            failsafe_phase: setpoint.failsafe_phase,
+            rx_signal_received: setpoint.rx_signal_received,
+            rx_flight_channel_is_valid: setpoint.rx_flight_channel_is_valid,
+        }
     }
 
     pub fn load_gps_data(&mut self, telemetry: GpsMessage) {
         self.new_gps_data = true;
-        self.gps_data = GpsData::from(telemetry);
+        self.gps_data.satellite_count = telemetry.satellite_count;
     }
 
     pub fn update(&mut self, state: &mut StateMachine, writer: &mut SliceWriter, current_time_us: u32) -> usize {

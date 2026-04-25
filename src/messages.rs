@@ -131,16 +131,12 @@ impl Default for SetpointMessage {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct GpsMessage {
-    pub flags: u32,
-}
-
-impl GpsMessage {
-    pub const COUNT: usize = 1;
+    pub satellite_count:u8,
 }
 
 impl GpsMessage {
     pub fn new() -> Self {
-        Self { flags: 0 }
+        Self { satellite_count: 0 }
     }
 }
 
@@ -169,7 +165,7 @@ mod tests {
         assert_eq!(128, core::mem::size_of::<GyroPidMessage>());
         #[cfg(not(any(feature = "servos", feature = "eight_motors")))]
         assert_eq!(72, core::mem::size_of::<SetpointMessage>());
-        assert_eq!(4, core::mem::size_of::<GpsMessage>());
+        assert_eq!(1, core::mem::size_of::<GpsMessage>());
     }
     #[test]
     fn gyro_pid_message_new() {

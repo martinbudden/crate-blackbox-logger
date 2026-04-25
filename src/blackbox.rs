@@ -94,11 +94,11 @@ impl Blackbox {
 }
 
 impl Blackbox {
-    pub fn load_telemetry(&mut self, current_time_us: u32, telemetry: GyroPidMessage) {
-        self.logger.load_telemetry(current_time_us, telemetry);
+    pub fn load_telemetry(&mut self, current_time_us: u32, gyro_pid: GyroPidMessage, setpoint: SetpointMessage) {
+        self.logger.load_telemetry(current_time_us,gyro_pid, setpoint);
     }
-    pub fn load_slow_telemetry(&mut self, telemetry: SetpointMessage) {
-        self.logger.load_slow_telemetry(telemetry);
+    pub fn load_slow_telemetry(&mut self, setpoint: SetpointMessage) {
+        self.logger.load_slow_telemetry(setpoint);
     }
     pub fn update(&mut self, writer: &mut SliceWriter, current_time_us: u32) -> usize {
         self.state.update(&mut self.logger, writer, current_time_us)

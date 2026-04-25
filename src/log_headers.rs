@@ -244,7 +244,7 @@ mod tests {
     #![allow(unused_results)]
     #![allow(clippy::unwrap_used)]
     use crate::state_machine::StateMachine;
-    use crate::{BlackboxStartParameters, GyroPidMessage};
+    use crate::{BlackboxStartParameters, GyroPidMessage, SetpointMessage};
 
     #[allow(unused)]
     use super::*;
@@ -352,11 +352,12 @@ mod tests {
         let start = BlackboxStartParameters::new();
         let mut state = StateMachine::default();
         let mut current_time_us: u32 = 0;
-        let telemetry = GyroPidMessage::new();
+        let gyro_pid_msg = GyroPidMessage::new();
+        let setpoint_msg = SetpointMessage::new();
         println!("\nSTATE MACHINE HEADERS\n");
         state.start(start);
         loop {
-            ctx.load_telemetry(current_time_us, telemetry);
+            ctx.load_telemetry(current_time_us, gyro_pid_msg, setpoint_msg);
             _ = state.update(&mut ctx, &mut writer, current_time_us);
             if state == StateMachine::Running {
                 if writer.pos != 0 {
