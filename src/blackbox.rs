@@ -37,7 +37,7 @@ impl Default for BlackboxConfig {
 impl BlackboxConfig {
     pub fn new() -> Self {
         Self {
-            sample_rate: 0,
+            sample_rate: 3,
             device: BlackboxDevice::NONE,
             mode: BlackboxMode::NORMAL,
             gps_use_3d_speed: false,
@@ -102,6 +102,12 @@ impl Blackbox {
     }
     pub fn update(&mut self, writer: &mut SliceWriter, current_time_us: u32) -> usize {
         self.state.update(&mut self.logger, writer, current_time_us)
+    }
+    pub fn set_state(&mut self, state: StateMachine) {
+        self.state.set_state(state);
+    }
+    pub fn state(&self) -> StateMachine {
+        self.state
     }
 }
 #[cfg(test)]

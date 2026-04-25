@@ -17,6 +17,9 @@ impl MockSdCard {
 
 impl SdStorage for MockSdCard {
     async fn write_all(&mut self, data: &[u8]) -> Result<(), ()> {
+        if data.is_empty() {
+            return Ok(());
+        }
         self.file.write_all(data).map_err(|_| ())?;
         _ = self.file.flush().ok();
         yield_now().await;

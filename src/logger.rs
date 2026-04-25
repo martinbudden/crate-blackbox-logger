@@ -143,6 +143,18 @@ impl Logger {
 }
 
 impl Logger {
+    /// Returns true if `a` is after `b`, taking account of wrapping at u32::MAX.
+    /// ```
+    /// # use blackbox_logger::Logger;
+    /// assert!(Logger::is_after(10, 9));
+    /// assert!(Logger::is_after(0, u32::MAX));
+    /// assert!(Logger::is_after(1, u32::MAX));
+    /// ```
+    #[allow(unused)]
+    pub fn is_after(a: u32, b: u32) -> bool {
+        // This calculates (a - b) mod 2^32
+        a.wrapping_sub(b) < (u32::MAX / 2)
+    }
     pub fn load_telemetry(&mut self, _current_time_us: u32, telemetry: BlackboxTelemetry) {
         self.main_data[self.main_data_index_current] = MainData::from(telemetry);
         let current = &mut self.main_data[self.main_data_index_current];
@@ -171,16 +183,17 @@ impl Logger {
 
     /// Called when the flight controller signals it has new data.
     #[allow(unused_results, unused)]
-    pub fn log_iteration(&mut self, current_time_us: u32, encoder: &mut SliceWriter) {
+    pub fn log_iteration(&mut self, current_time_us: u32, encoder: &mut SliceWriter) -> usize {
+        let mut len = 0_usize;
         // Write a keyframe every i_interval frames so we can resynchronise upon missing frames
         if self.should_log_i_frame() {
             // Don't log a slow frame if the slow data didn't change.
             // i_frames are already large enough without adding an additional item to write at the same time.
             // Unless we're *only* logging i_frames, then we have no choice.
             if self.is_only_logging_i_frames() && self.should_log_s_frame() {
-                self.log_s_frame(encoder);
+                len += self.log_s_frame(encoder);
             }
-            self.log_i_frame(encoder);
+            len += self.log_i_frame(encoder);
         } else {
             self.log_event_arming_beep_if_needed();
             self.log_event_flight_mode_if_needed(); // Check for FlightMode status change event
@@ -189,32 +202,33 @@ impl Logger {
                 // ie p_frame_index == 0 && p_interval != 0
                 // We assume that slow frames are only interesting in that they aid the interpretation of the main data stream.
                 // So only log slow frames during loop iterations where we log a main frame.
-                if self.should_log_p_frame() {
-                    self.log_s_frame(encoder);
+                if self.should_log_s_frame() {
+                    len += self.log_s_frame(encoder);
                 }
-                self.log_p_frame(encoder);
+                len += self.log_p_frame(encoder);
             }
             #[cfg(feature = "gps")]
             if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::GPS) {
                 if self.should_log_h_frame() {
                     self.gps_home = self.gps_data.home;
-                    let _len = self.log_h_frame(encoder);
-                    let _len = self.log_g_frame(current_time_us, encoder);
+                    len += self.log_h_frame(encoder);
+                    len += self.log_g_frame(current_time_us, encoder);
                 } else if self.should_log_g_frame() {
-                    let _len = self.log_g_frame(current_time_us, encoder);
+                    len = self.log_g_frame(current_time_us, encoder);
                 }
             }
         }
+        len
     }
 
     pub fn should_log_i_frame(&self) -> bool {
         self.loop_index == 0
     }
     pub fn should_log_h_frame(&self) -> bool {
-        self.features.is_set(Features::GPS)
+        false //self.features.is_set(Features::GPS)
     }
     pub fn should_log_g_frame(&self) -> bool {
-        self.features.is_set(Features::GPS) && self.new_gps_data
+        false //self.features.is_set(Features::GPS) && self.new_gps_data
     }
     pub fn should_log_p_frame(&self) -> bool {
         self.p_frame_index == 0 && self.p_interval != 0

@@ -7,12 +7,12 @@ pub enum StateMachine {
     Disabled = 0,
     Stopped,
     PrepareLogFile,
-    SendHeader,
-    SendMainFieldHeader(usize),
-    SendGpsHHeader,
-    SendGpsGHeader,
-    SendSlowHeader,
-    SendSysinfo(usize),
+    LogFileHeader,
+    LogMainFieldsHeader(usize),
+    LogGpsHFieldsHeader,
+    LogGpsGFieldsHeader,
+    LogSlowFieldsHeader,
+    LogSysinfo(usize),
     Paused,
     Running,
     ShuttingDown,
@@ -47,55 +47,55 @@ impl StateMachine {
             }
             StateMachine::PrepareLogFile => {
                 logger.logged_any_frames = false;
-                *self = StateMachine::SendHeader;
+                *self = StateMachine::LogFileHeader;
                 0
             }
-            StateMachine::SendHeader => {
-                *self = StateMachine::SendMainFieldHeader(0);
+            StateMachine::LogFileHeader => {
+                *self = StateMachine::LogMainFieldsHeader(0);
                 Logger::log_file_header(writer)
             }
-            StateMachine::SendMainFieldHeader(index) => {
+            StateMachine::LogMainFieldsHeader(index) => {
                 let len = logger.log_main_fields_header(writer, index);
                 if len == 0 {
                     *self = if logger.features.is_set(Features::GPS) {
-                        StateMachine::SendGpsHHeader
+                        StateMachine::LogGpsHFieldsHeader
                     } else {
-                        StateMachine::SendSlowHeader
+                        StateMachine::LogSlowFieldsHeader
                     }
                 } else {
-                    *self = StateMachine::SendMainFieldHeader(index + 1);
+                    *self = StateMachine::LogMainFieldsHeader(index + 1);
                 }
                 len
             }
-            StateMachine::SendGpsHHeader => {
-                *self = StateMachine::SendGpsGHeader;
+            StateMachine::LogGpsHFieldsHeader => {
+                *self = StateMachine::LogGpsGFieldsHeader;
                 //logger.log_gps_g_header(writer)
                 0
             }
-            StateMachine::SendGpsGHeader => {
-                *self = StateMachine::SendSlowHeader;
+            StateMachine::LogGpsGFieldsHeader => {
+                *self = StateMachine::LogSlowFieldsHeader;
                 //logger.log_gps_h_header(writer)
                 0
             }
-            StateMachine::SendSlowHeader => {
-                *self = StateMachine::SendSysinfo(0);
+            StateMachine::LogSlowFieldsHeader => {
+                *self = StateMachine::LogSysinfo(0);
                 logger.log_slow_fields_header(writer)
             }
-            StateMachine::SendSysinfo(index) => {
+            StateMachine::LogSysinfo(index) => {
                 let len = logger.log_sys_info(writer, index);
-                *self = if len == 0 { StateMachine::Running } else { StateMachine::SendSysinfo(index + 1) };
+                *self = if len == 0 { StateMachine::Running } else { StateMachine::LogSysinfo(index + 1) };
                 len
             }
             StateMachine::Paused => {
-                *self = StateMachine::Running;
+                *self = StateMachine::Paused;
                 logger.advance_iteration_timers();
                 0
             }
             StateMachine::Running => {
-                //*self = State::Paused;
-                logger.log_iteration(current_time_us, writer);
+                *self = StateMachine::Running;
+                let len = logger.log_iteration(current_time_us, writer);
                 logger.advance_iteration_timers();
-                0
+                len
             }
             StateMachine::ShuttingDown => {
                 *self = StateMachine::Stopped;
