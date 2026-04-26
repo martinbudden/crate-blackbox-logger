@@ -65,8 +65,8 @@ impl Logger {
 
             looptime: 125, // 125us = 8kHz gyro/pid loop
             p_interval: 8, // 8*125us = 1000us = 1kHz logging
-            i_interval: 256, //256,
-            s_interval: 0,
+            i_interval: 256, // 256*p_interval = 256ms
+            s_interval: 0, // set to 256*i_interval in init. 256*256ms = 65.536s, or approximately one a minute
             loop_index: 0,
             i_frame_index: 0,
             p_frame_index: 0,
