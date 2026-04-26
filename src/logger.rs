@@ -65,7 +65,7 @@ impl Logger {
 
             looptime: 125, // 125us = 8kHz gyro/pid loop
             p_interval: 8, // 8*125us = 1000us = 1kHz logging
-            i_interval: 2, //256,
+            i_interval: 256, //256,
             s_interval: 0,
             loop_index: 0,
             i_frame_index: 0,
@@ -101,8 +101,7 @@ impl Logger {
 
 impl Logger {
     pub fn init(&mut self, sample_rate: u8) {
-        self.log_select_enabled = LogFieldSelect::MOTOR;
-        /*self.log_select_enabled = LogFieldSelect::GYRO
+        self.log_select_enabled = LogFieldSelect::GYRO
         | LogFieldSelect::PID
         | LogFieldSelect::PID_KTERM
         | LogFieldSelect::PID_DTERM_ROLL
@@ -117,14 +116,14 @@ impl Logger {
         //| LogFieldSelect::GYRO
         | LogFieldSelect::GYRO_UNFILTERED
         | LogFieldSelect::ATTITUDE
-        //| LogFieldSelect::MOTOR // not working
+        | LogFieldSelect::MOTOR
         //| LogFieldSelect::MOTOR_RPM
         | LogFieldSelect::BATTERY_VOLTAGE
         | LogFieldSelect::BATTERY_CURRENT
         | LogFieldSelect::BAROMETER
         | LogFieldSelect::RANGEFINDER
         | LogFieldSelect::ACCELEROMETER
-        | LogFieldSelect::DEBUG;*/
+        | LogFieldSelect::DEBUG;
 
         self.build_field_condition_cache();
         //self.conditions &= !BitSet64::from(config.fields_disabled_mask);

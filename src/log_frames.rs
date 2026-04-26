@@ -155,7 +155,7 @@ impl Logger {
         //assert_i_field_encoding!("time", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
         encoder.write_unsigned_vb(current.time_us);
 
-        /*if self.conditions.test(FieldCondition::PID) {
+        if self.conditions.test(FieldCondition::PID) {
             assert_i_field_encoding!("axisP", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
             encoder.write_signed_vb_array(&current.pid_p);
             assert_i_field_encoding!("axisI", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
@@ -265,7 +265,7 @@ impl Logger {
         assert_i_field_encoding!("debug", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::DEBUG) {
             encoder.write_signed_vb_16_array(&current.debug);
-        }*/
+        }
 
         assert_i_field_encoding!("motor", FieldPredictor::MIN_MOTOR, FieldEncoding::SIGNED_VB);
         if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
@@ -273,7 +273,7 @@ impl Logger {
             encoder.write_signed_vb_16(current.motor[0].wrapping_sub(self.min_throttle).cast_signed());
 
             //Motors tend to be similar to each other so use the first motor's value as a predicted of the others
-            for ii in 1..4 {
+            for ii in 1..self.motor_count {
                 encoder.write_signed_vb_16(current.motor[ii].wrapping_sub(current.motor[0]).cast_signed());
             }
         }
@@ -501,24 +501,11 @@ impl Logger {
                     encoder.write_signed_vb_16(current.debug[ii].wrapping_sub(predicted));
                 }
             }
-            /*
-            assert_i_field_encoding!("motor", FieldPredictor::MIN_MOTOR, FieldEncoding::SIGNED_VB);
-            if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
-                //Motors can be below minimum output when disarmed, but that doesn't happen much
-                encoder.write_signed_vb_16(current.motor[0].wrapping_sub(self.min_throttle).cast_signed());
-
-                //Motors tend to be similar to each other so use the first motor's value as a predicted of the others
-                for ii in 1..self.motor_count {
-                    encoder.write_signed_vb_16(current.motor[ii].wrapping_sub(current.motor[0]).cast_signed());
-                }
-            }
-                 */
             assert_p_field_encoding!("motor", FieldPredictor::MIN_MOTOR, FieldEncoding::SIGNED_VB);
             if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
-                encoder.write_signed_vb_16(current.motor[0].wrapping_sub(self.min_throttle).cast_signed());
-
-                for ii in 1..self.motor_count {
-                    encoder.write_signed_vb_16(current.motor[ii].wrapping_sub(current.motor[0]).cast_signed());
+                for ii in 0..self.motor_count {
+                    let predicted = u16::midpoint(previous.motor[ii], pre_previous.motor[ii]);
+                    encoder.write_signed_vb_16(current.motor[ii].wrapping_sub(predicted).cast_signed());
                 }
             }
             #[cfg(feature = "dshot_telemetry")]
