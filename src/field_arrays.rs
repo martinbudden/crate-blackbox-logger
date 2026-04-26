@@ -24,21 +24,21 @@ pub static BLACKBOX_SLOW_FIELDS: [SimpleFieldDefinition; SLOW_FIELD_COUNT] = [
         field_name_index: -1,
         is_signed: FieldSign::UNSIGNED,
         predict: FieldPredictor::ZERO,
-        encode: FieldEncoding::UNSIGNED_VB,//TAG2_3S32,
+        encode: FieldEncoding::UNSIGNED_VB, //TAG2_3S32,
     },
     SimpleFieldDefinition {
         name: "rx_signal_received",
         field_name_index: -1,
         is_signed: FieldSign::UNSIGNED,
         predict: FieldPredictor::ZERO,
-        encode: FieldEncoding::UNSIGNED_VB,//TAG2_3S32,
+        encode: FieldEncoding::UNSIGNED_VB, //TAG2_3S32,
     },
     SimpleFieldDefinition {
         name: "rx_flight_channel_is_valid",
         field_name_index: -1,
         is_signed: FieldSign::UNSIGNED,
         predict: FieldPredictor::ZERO,
-        encode: FieldEncoding::UNSIGNED_VB,//TAG2_3S32,
+        encode: FieldEncoding::UNSIGNED_VB, //TAG2_3S32,
     },
 ];
 

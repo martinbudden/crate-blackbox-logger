@@ -188,15 +188,15 @@ impl Logger {
                 encoder.write_signed_vb(current.pid_s[2]);
             }
         }
-        //assert_i_field_encoding!("rc_command", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("rc_command", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::RC_COMMANDS) {
             // Write roll, pitch and yaw first, these are signed values in the range [-500,500]
-            let rc_commands = [current.rc_commands[0], current.rc_commands[1], current.rc_commands[2]];
+            let rc_commands = [current.rc_commands[0].cast_signed(), current.rc_commands[1].cast_signed(), current.rc_commands[2].cast_signed()];
             encoder.write_signed_vb_16_array(&rc_commands);
 
             // Write the throttle separately from the rest of the RC data as it's UNSIGNED.
             // Throttle lies in range [PWM_RANGE_MIN, PWM_RANGE_MAX], ie [1000, 2000]
-            encoder.write_signed_vb(i32::from(current.rc_commands[MainData::THROTTLE] - self.min_throttle));
+            encoder.write_unsigned_vb(u32::from(current.rc_commands[3].wrapping_sub(self.min_throttle)));
         }
 
         assert_i_field_encoding!("setpoint", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
@@ -266,11 +266,11 @@ impl Logger {
         assert_i_field_encoding!("motor", FieldPredictor::MIN_MOTOR, FieldEncoding::SIGNED_VB);
         if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
             //Motors can be below minimum output when disarmed, but that doesn't happen much
-            encoder.write_signed_vb_16(current.motor[0].wrapping_sub(self.min_throttle));
+            encoder.write_signed_vb_16(current.motor[0].wrapping_sub(self.min_throttle).cast_signed());
 
             //Motors tend to be similar to each other so use the first motor's value as a predicted of the others
             for ii in 1..self.motor_count {
-                encoder.write_signed_vb_16(current.motor[ii].wrapping_sub(current.motor[0]));
+                encoder.write_signed_vb_16(current.motor[ii].wrapping_sub(current.motor[0]).cast_signed());
             }
         }
         #[cfg(feature = "servos")]
@@ -396,10 +396,10 @@ impl Logger {
             assert_p_field_encoding!("rcCommand", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_4S16);
             if self.conditions.test(FieldCondition::RC_COMMANDS) {
                 let deltas = [
-                    current.rc_commands[0].wrapping_sub(previous.rc_commands[0]),
-                    current.rc_commands[1].wrapping_sub(previous.rc_commands[1]),
-                    current.rc_commands[2].wrapping_sub(previous.rc_commands[2]),
-                    current.rc_commands[3].wrapping_sub(previous.rc_commands[3]),
+                    current.rc_commands[0].wrapping_sub(previous.rc_commands[0]).cast_signed(),
+                    current.rc_commands[1].wrapping_sub(previous.rc_commands[1]).cast_signed(),
+                    current.rc_commands[2].wrapping_sub(previous.rc_commands[2]).cast_signed(),
+                    current.rc_commands[3].wrapping_sub(previous.rc_commands[3]).cast_signed(),
                 ];
                 encoder.write_tag8_4s16(deltas);
             }
@@ -497,17 +497,16 @@ impl Logger {
                     encoder.write_signed_vb_16(current.debug[ii].wrapping_sub(predicted));
                 }
             }
-
-            assert_p_field_encoding!("motor", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
+            assert_p_field_encoding!("motor", FieldPredictor::MIN_MOTOR, FieldEncoding::SIGNED_VB);
             if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
                 for ii in 0..self.motor_count {
-                    let predicted = i16::midpoint(previous.motor[ii], pre_previous.motor[ii]);
+                    let predicted = u16::midpoint(previous.motor[ii], pre_previous.motor[ii]);
 
                     let m0 = current.motor[0];
                     let diff = current.motor[ii].wrapping_sub(predicted);
                     println!("M0:{m0},{predicted},{diff}");
 
-                    encoder.write_signed_vb_16(current.motor[ii].wrapping_sub(predicted));
+                    encoder.write_signed_vb_16(current.motor[ii].wrapping_sub(predicted).cast_signed());
                 }
             }
 

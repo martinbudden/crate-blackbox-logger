@@ -131,7 +131,7 @@ impl Default for SetpointMessage {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct GpsMessage {
-    pub satellite_count:u8,
+    pub satellite_count: u8,
 }
 
 impl GpsMessage {

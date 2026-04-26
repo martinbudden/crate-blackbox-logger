@@ -13,8 +13,8 @@ pub struct Logger {
     pub(crate) debug_mode: u16,
     pub(crate) motor_output_min: i16,
     pub(crate) motor_output_max: i16,
-    pub(crate) min_throttle: i16,
-    pub(crate) max_throttle: i16,
+    pub(crate) min_throttle: u16,
+    pub(crate) max_throttle: u16,
     pub(crate) vbat_reference: u16,
     pub(crate) conditions: BitSet64,
     pub(crate) features: Features,
@@ -101,8 +101,7 @@ impl Logger {
 
 impl Logger {
     pub fn init(&mut self, sample_rate: u8) {
-        self.log_select_enabled = 
-        LogFieldSelect::GYRO
+        self.log_select_enabled = LogFieldSelect::GYRO
         | LogFieldSelect::PID
         | LogFieldSelect::PID_KTERM
         | LogFieldSelect::PID_DTERM_ROLL
@@ -193,7 +192,7 @@ impl Logger {
             pid_d: [gyro_pid_msg.pid_errors_d[0] as i32, gyro_pid_msg.pid_errors_d[1] as i32, 0],
             pid_s: <[i32; MainData::RPY_AXIS_COUNT]>::default(),
             pid_k: <[i32; MainData::RPY_AXIS_COUNT]>::default(),
-            rc_commands: <[i16; 4]>::default(),
+            rc_commands: [1500, 1500, 1500, 1100],
             // TODO: need to scale these
             #[allow(clippy::cast_possible_truncation)]
             setpoints: [

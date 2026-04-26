@@ -54,7 +54,6 @@ pub trait BlackboxWriter {
         if n < 0 {
             self.write_char('-');
             n = -n;
-
         }
         self.write_u32_ascii(n.cast_unsigned());
     }

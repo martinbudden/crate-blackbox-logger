@@ -156,8 +156,8 @@ impl Logger {
                 writer.write_h_str_u32_ascii("acc_1G:", 4096);
             }
             7 => {
-                writer.write_h_str_i16_ascii("minthrottle:", self.min_throttle);
-                writer.write_h_str_i16_ascii("maxthrottle:", self.max_throttle);
+                writer.write_h_str_u16_ascii("minthrottle:", self.min_throttle);
+                writer.write_h_str_u16_ascii("maxthrottle:", self.max_throttle);
             }
             8 => {
                 writer.write_h_str_u32_ascii("vbatscale:", 110);

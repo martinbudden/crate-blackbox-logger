@@ -124,7 +124,7 @@ pub struct MainData {
     pub pid_d: [i32; Self::RPY_AXIS_COUNT],
     pub pid_s: [i32; Self::RPY_AXIS_COUNT],
     pub pid_k: [i32; Self::RPY_AXIS_COUNT],
-    pub rc_commands: [i16; 4],
+    pub rc_commands: [u16; 4],
     pub setpoints: [i16; 4],
     pub gyro: [i16; Self::XYZ_AXIS_COUNT],
     pub gyro_unfiltered: [i16; Self::XYZ_AXIS_COUNT],
@@ -132,7 +132,7 @@ pub struct MainData {
     #[cfg(feature = "magnetometer")]
     pub mag: [i16; Self::XYZ_AXIS_COUNT],
     pub orientation: [i16; Self::XYZ_AXIS_COUNT], // only x,y,z from orientation quaternion are stored; w is always positive
-    pub motor: [i16; Self::MAX_SUPPORTED_MOTOR_COUNT],
+    pub motor: [u16; Self::MAX_SUPPORTED_MOTOR_COUNT],
     #[cfg(feature = "dshot_telemetry")]
     pub erpm: [i16; Self::MAX_SUPPORTED_MOTOR_COUNT],
     pub debug: [i16; Self::DEBUG_COUNT],
@@ -145,13 +145,11 @@ impl MainData {
     #[allow(unused)]
     pub const RP_AXIS_COUNT: usize = 2;
     pub const XYZ_AXIS_COUNT: usize = 3;
-    pub const RC_COMMAND_COUNT: usize = 4;
-    pub const MAX_SUPPORTED_MOTOR_COUNT: usize =8;
+    pub const MAX_SUPPORTED_MOTOR_COUNT: usize = 8;
     #[allow(unused)]
-    pub const MAX_SUPPORTED_SERVO_COUNT: usize= 8;
+    pub const MAX_SUPPORTED_SERVO_COUNT: usize = 8;
     pub const DEBUG_COUNT: usize = 8;
     pub const SETPOINT_COUNT: usize = 4;
-    pub const THROTTLE: usize = 3;
 }
 
 impl Default for MainData {
@@ -175,7 +173,7 @@ impl MainData {
             pid_d: <[i32; Self::RPY_AXIS_COUNT]>::default(),
             pid_s: <[i32; Self::RPY_AXIS_COUNT]>::default(),
             pid_k: <[i32; Self::RPY_AXIS_COUNT]>::default(),
-            rc_commands: <[i16; Self::RC_COMMAND_COUNT]>::default(),
+            rc_commands: [1500, 1500, 1500, 1100],
             setpoints: <[i16; Self::SETPOINT_COUNT]>::default(),
             gyro: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
             gyro_unfiltered: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
@@ -183,7 +181,7 @@ impl MainData {
             #[cfg(feature = "magnetometer")]
             mag: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
             orientation: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
-            motor: <[i16; Self::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
+            motor: [1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100],
             #[cfg(feature = "dshot_telemetry")]
             erpm: <[i16; Self::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
             debug: <[i16; Self::DEBUG_COUNT]>::default(),
