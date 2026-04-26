@@ -8,31 +8,31 @@ use vqm::BitSet64;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Logger {
-    pub(crate) motor_count: usize,
-    pub(crate) servo_count: usize,
-    pub(crate) debug_mode: u16,
-    pub(crate) motor_output_min: i16,
-    pub(crate) motor_output_max: i16,
-    pub(crate) min_throttle: u16,
-    pub(crate) max_throttle: u16,
-    pub(crate) vbat_reference: u16,
     pub(crate) conditions: BitSet64,
     pub(crate) features: Features,
+    pub(crate) enabled_fields: u32,
 
     pub(crate) looptime: u32,
     pub(crate) i_interval: u32,
     pub(crate) p_interval: u32,
     s_interval: u32,
-    loop_index: u32,
     i_frame_index: u32,
     p_frame_index: u32,
     pub(crate) s_frame_index: u32,
     pub(crate) iteration: u32,
 
-    pub(crate) log_select_enabled: u32,
     pub(crate) logged_any_frames: bool,
     pub(crate) new_slow_data: bool,
     pub(crate) new_gps_data: bool,
+
+    pub(crate) motor_count: usize,
+    pub(crate) servo_count: usize,
+    pub(crate) debug_mode: u16,
+    pub(crate) motor_output_min: u16,
+    pub(crate) motor_output_max: u16,
+    pub(crate) min_throttle: u16,
+    pub(crate) max_throttle: u16,
+    pub(crate) vbat_reference: u16,
 
     pub(crate) slow_data: SlowData,
     pub(crate) gps_data: GpsData,
@@ -67,13 +67,12 @@ impl Logger {
             p_interval: 8, // 8*125us = 1000us = 1kHz logging
             i_interval: 256, // 256*p_interval = 256ms
             s_interval: 0, // set to 256*i_interval in init. 256*256ms = 65.536s, or approximately one a minute
-            loop_index: 0,
             i_frame_index: 0,
             p_frame_index: 0,
             s_frame_index: 0,
             iteration: 0,
 
-            log_select_enabled: 0,
+            enabled_fields: 0,
             logged_any_frames: false,
             new_slow_data: false,
             new_gps_data: false,
@@ -101,7 +100,7 @@ impl Logger {
 
 impl Logger {
     pub fn init(&mut self, sample_rate: u8) {
-        self.log_select_enabled = LogFieldSelect::GYRO
+        self.enabled_fields = LogFieldSelect::DEBUG
         | LogFieldSelect::PID
         | LogFieldSelect::PID_KTERM
         | LogFieldSelect::PID_DTERM_ROLL
@@ -113,17 +112,17 @@ impl Logger {
         | LogFieldSelect::PID_KTERM
         | LogFieldSelect::RC_COMMANDS
         | LogFieldSelect::RSSI
-        //| LogFieldSelect::GYRO
+        | LogFieldSelect::GYRO
         | LogFieldSelect::GYRO_UNFILTERED
         | LogFieldSelect::ATTITUDE
         | LogFieldSelect::MOTOR
-        //| LogFieldSelect::MOTOR_RPM
+        //| LogFieldSelect::MOTOR_RPM not working
         | LogFieldSelect::BATTERY_VOLTAGE
         | LogFieldSelect::BATTERY_CURRENT
         | LogFieldSelect::BAROMETER
         | LogFieldSelect::RANGEFINDER
-        | LogFieldSelect::ACCELEROMETER
-        | LogFieldSelect::DEBUG;
+        | LogFieldSelect::MAGNETOMETER
+        | LogFieldSelect::ACCELEROMETER;
 
         self.build_field_condition_cache();
         //self.conditions &= !BitSet64::from(config.fields_disabled_mask);
@@ -178,7 +177,6 @@ impl Logger {
         self.main_data[self.main_data_index_current] = MainData {
             time_us: gyro_pid_msg.time_us,
             baro_altitude: 0,
-            #[cfg(feature = "rangefinder")]
             range_raw: 0,
             amperage: 0,
             battery_voltage: 0,
@@ -204,8 +202,7 @@ impl Logger {
             gyro: (gyro_pid_msg.gyro_rps.to_degrees()).into(),
             gyro_unfiltered: (gyro_pid_msg.gyro_rps_unfiltered.to_degrees()).into(),
             acc: (gyro_pid_msg.acc * 4096.0).into(),
-            #[cfg(feature = "magnetometer")]
-            mag: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
+            mag: <[i16; MainData::XYZ_AXIS_COUNT]>::default(),
             #[allow(clippy::cast_possible_truncation)]
             orientation: if gyro_pid_msg.orientation.w > 0.0 {
                 [
@@ -220,7 +217,10 @@ impl Logger {
                     (-gyro_pid_msg.orientation.z * TO_I16) as i16,
                 ]
             },
+            #[cfg(feature = "eight_motors")]
             motor: [1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100],
+            #[cfg(not(feature = "eight_motors"))]
+            motor: [1100, 1100, 1100, 1100],
             #[cfg(feature = "dshot_telemetry")]
             erpm: <[i16; MainData::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
             debug: [
@@ -234,7 +234,7 @@ impl Logger {
                 setpoint_msg.debug[1],
             ],
             #[cfg(feature = "servos")]
-            servos: <[i16; Self::MAX_SUPPORTED_SERVO_COUNT]>::default(),
+            servos: <[i16; MainData::MAX_SUPPORTED_SERVO_COUNT]>::default(),
         };
     }
 
@@ -287,7 +287,7 @@ impl Logger {
                 len += self.log_p_frame(encoder);
             }
             #[cfg(feature = "gps")]
-            if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::GPS) {
+            if Logger::field_enabled(self.enabled_fields, LogFieldSelect::GPS) {
                 if self.should_log_h_frame() {
                     self.gps_home = self.gps_data.home;
                     len += self.log_h_frame(encoder);
@@ -301,7 +301,7 @@ impl Logger {
     }
 
     pub fn should_log_i_frame(&self) -> bool {
-        self.loop_index == 0
+        self.i_frame_index == 0
     }
     pub fn should_log_h_frame(&self) -> bool {
         false //self.features.is_set(Features::GPS)
@@ -333,7 +333,6 @@ impl Logger {
 impl Logger {
     pub fn reset_iteration_timers(&mut self) {
         self.iteration = 0;
-        self.loop_index = 0;
         self.i_frame_index = 0;
         self.p_frame_index = 0;
         self.s_frame_index = 0;
@@ -341,13 +340,12 @@ impl Logger {
 
     /// Called once every FC loop in order to keep track of how many FC loop iterations have passed.
     pub fn advance_iteration_timers(&mut self) {
-        self.s_frame_index += 1;
         self.iteration += 1;
-        self.loop_index += 1;
+        self.s_frame_index += 1;
+        self.i_frame_index += 1;
 
-        if self.loop_index >= self.i_interval {
-            self.loop_index = 0; // value of zero means i_frame will be written on next update
-            self.i_frame_index += 1;
+        if self.i_frame_index >= self.i_interval {
+            self.i_frame_index = 0; // value of zero means i_frame will be written on next update
             self.p_frame_index = 0;
         } else {
             self.p_frame_index += 1;
@@ -367,8 +365,6 @@ impl Logger {
         }
     }
 
-    //fn field_enabled(enabled_mask:u32, field:LogFieldSelect) -> bool { enabled_mask & (field as u32) }
-    //pub fn is_field_enabled(&self, field:LogFieldSelect) ->bool { field_enabled(self.log_select_enabled, field) }
     // Helper function to check if a field is enabled
     pub fn field_enabled(enabled_mask: u32, field: u32) -> bool {
         enabled_mask & field != 0
@@ -376,7 +372,7 @@ impl Logger {
 
     // Public method to check if a log field is enabled
     pub fn is_field_enabled(&self, field: u32) -> bool {
-        Self::field_enabled(self.log_select_enabled, field)
+        Self::field_enabled(self.enabled_fields, field)
     }
 
     // Called from build_field_condition_cache(), which is called from start()

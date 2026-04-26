@@ -6,8 +6,6 @@ use crate::{BlackboxWriter, SliceWriter};
 #[cfg(test)]
 use crate::field_definitions::{FieldEncoding, FieldPredictor, MainFieldDefinition};
 
-/// Write the contents of slow_data to the log as an s_frame.
-/// Returns the length written.
 macro_rules! assert_i_field_encoding {
     ($name:expr, $expected_predict:expr, $expected_encode:expr) => {
         #[cfg(test)]
@@ -188,7 +186,7 @@ impl Logger {
                 encoder.write_signed_vb(current.pid_s[2]);
             }
         }
-        assert_i_field_encoding!("rc_command", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("rcCommand", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::RC_COMMANDS) {
             // Write roll, pitch and yaw first, these are signed values in the range [-500,500]
             let rc_commands = [
@@ -223,23 +221,24 @@ impl Logger {
             encoder.write_signed_vb_16(current.amperage);
         }
 
-        #[cfg(feature = "magnetometer")]
-        if self.conditions.test(FieldCondition::MAGNETOMETER) {
-            encoder.write_signed_vb_16_array(&current.mag);
-        }
-
-        #[cfg(feature = "barometer")]
+        assert_i_field_encoding!("BaroAlt", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::BAROMETER) {
             encoder.write_signed_vb(current.baro_altitude);
         }
 
-        #[cfg(feature = "rangefinder")]
+        assert_i_field_encoding!("surfaceRaw", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::RANGEFINDER) {
             encoder.write_signed_vb(current.range_raw);
         }
 
+        assert_i_field_encoding!("rssi", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
         if self.conditions.test(FieldCondition::RSSI) {
             encoder.write_unsigned_vb_16(current.rssi);
+        }
+
+        assert_i_field_encoding!("magADC", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        if self.conditions.test(FieldCondition::MAGNETOMETER) {
+            encoder.write_signed_vb_16_array(&current.mag);
         }
 
         assert_i_field_encoding!("gyroADC", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
@@ -268,7 +267,7 @@ impl Logger {
         }
 
         assert_i_field_encoding!("motor", FieldPredictor::MIN_MOTOR, FieldEncoding::SIGNED_VB);
-        if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
+        if Logger::field_enabled(self.enabled_fields, LogFieldSelect::MOTOR) {
             //Motors can be below minimum output when disarmed, but that doesn't happen much
             encoder.write_signed_vb_16(current.motor[0].wrapping_sub(self.min_throttle).cast_signed());
 
@@ -278,7 +277,7 @@ impl Logger {
             }
         }
         #[cfg(feature = "dshot_telemetry")]
-        if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR_RPM) {
+        if Logger::field_enabled(self.enabled_fields, LogFieldSelect::MOTOR_RPM) {
             for erpm in current.erpm {
                 encoder.write_signed_vb_16(erpm);
             }
@@ -322,26 +321,18 @@ impl Logger {
 
             encoder.begin_frame(b'P');
 
-            // Since the difference between the difference between successive times will be nearly zero (due to consistent
-            // loop time spacing), use second-order differences.
-            //assert_p_field_encoding!("loopIteration", FieldPredictor::INC, FieldEncoding::ZERO);
-            //let term2 = (2u32).wrapping_mul(previous.time_us);
-            //encoder.write_unsigned_vb(current.time_us.wrapping_sub(term2).wrapping_add(pre_previous.time_us));
-
             // Don't store store iteration when using FieldEncoding::NULL
             assert_p_field_encoding!("loopIteration", FieldPredictor::INC, FieldEncoding::NULL);
             //encoder.write_unsigned_vb(self.iteration);
 
+            // Since the difference between the difference between successive times will be nearly zero (due to consistent
+            // loop time spacing), use second-order differences.
             assert_p_field_encoding!("time", FieldPredictor::STRAIGHT_LINE, FieldEncoding::SIGNED_VB);
-            //let term2 = (2u32).wrapping_mul(previous.time_us);
-            //let time = current.time_us.wrapping_sub(term2).wrapping_add(pre_previous.time_us);
             let time: i64 =
                 i64::from(current.time_us) - 2 * i64::from(previous.time_us) + i64::from(pre_previous.time_us);
             #[allow(clippy::cast_possible_truncation)]
             encoder.write_signed_vb(time as i32);
-            //encoder.write_unsigned_vb(current.time_us.wrapping_sub(previous.time_us));
 
-            // if self.conditions.test(FieldCondition::GYRO_UNFILTERED) {
             assert_p_field_encoding!("axisP", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
             assert_p_field_encoding!("axisI", FieldPredictor::PREVIOUS, FieldEncoding::TAG2_3S32);
             assert_p_field_encoding!("axisD", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
@@ -364,8 +355,8 @@ impl Logger {
                 ];
                 encoder.write_tag2_3s32(deltas);
 
-                // The PID D term is frequently set to zero for yaw, which makes the result from the calculation
-                // always zero. So don't bother recording D results when PID D terms are zero.
+                // The PID D term is frequently set to zero for yaw, which makes the result from the calculation always zero.
+                // So only record D values when explicitly asked to do so.
                 if self.conditions.test(FieldCondition::PID_D_ROLL) {
                     encoder.write_signed_vb(current.pid_d[0].wrapping_sub(previous.pid_d[0]));
                 }
@@ -376,6 +367,7 @@ impl Logger {
                     encoder.write_signed_vb(current.pid_d[2].wrapping_sub(previous.pid_d[2]));
                 }
 
+                // K 'kick' terms, known as feedforward in Betaflight.
                 if self.conditions.test(FieldCondition::PID_K) {
                     let deltas = [
                         current.pid_k[0].wrapping_sub(previous.pid_k[0]),
@@ -418,49 +410,45 @@ impl Logger {
                 encoder.write_tag8_4s16(deltas);
             }
 
+            // Check for sensors that are updated periodically (so deltas are normally zero)
             let mut deltas = <[i32; 8]>::default();
-            //Check for sensors that are updated periodically (so deltas are normally zero)
-            let mut optional_field_count = 0_usize;
+            let mut tag8_field_count = 0_usize;
 
+            assert_p_field_encoding!("vbatLatest", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
             if self.conditions.test(FieldCondition::BATTERY_VOLTAGE) {
-                deltas[optional_field_count] =
+                deltas[tag8_field_count] =
                     i32::from(current.battery_voltage.wrapping_sub(previous.battery_voltage));
-                optional_field_count += 1;
+                tag8_field_count += 1;
             }
-
+            assert_p_field_encoding!("amperageLatest", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
             if self.conditions.test(FieldCondition::BATTERY_CURRENT) {
-                deltas[optional_field_count] = i32::from(current.amperage.wrapping_sub(previous.amperage));
-                optional_field_count += 1;
+                deltas[tag8_field_count] = i32::from(current.amperage.wrapping_sub(previous.amperage));
+                tag8_field_count += 1;
             }
-
-            #[cfg(feature = "magnetometer")]
+            assert_p_field_encoding!("BaroAlt", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
+            if self.conditions.test(FieldCondition::BAROMETER) {
+                deltas[tag8_field_count] = current.baro_altitude.wrapping_sub(previous.baro_altitude);
+                tag8_field_count += 1;
+            }
+            assert_p_field_encoding!("surfaceRaw", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
+            if self.conditions.test(FieldCondition::RANGEFINDER) {
+                deltas[tag8_field_count] = current.range_raw.wrapping_sub(previous.range_raw);
+                tag8_field_count += 1;
+            }
+            assert_p_field_encoding!("rssi", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
+            if self.conditions.test(FieldCondition::RSSI) {
+                deltas[tag8_field_count] = i32::from(current.rssi.wrapping_sub(previous.rssi));
+                tag8_field_count += 1;
+            }
+            assert_p_field_encoding!("magADC", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
             if self.conditions.test(FieldCondition::MAGNETOMETER) {
                 for ii in 0..MainData::XYZ_AXIS_COUNT {
-                    deltas[optional_field_count] = i32::from(current.mag[ii].wrapping_sub(previous.mag[ii]));
-                    optional_field_count += 1;
+                    deltas[tag8_field_count] = i32::from(current.mag[ii].wrapping_sub(previous.mag[ii]));
+                    tag8_field_count += 1;
                 }
             }
 
-            #[cfg(feature = "barometer")]
-            if self.conditions.test(FieldCondition::BAROMETER) {
-                deltas[optional_field_count] = current.baro_altitude.wrapping_sub(previous.baro_altitude);
-                optional_field_count += 1;
-            }
-
-            #[cfg(feature = "rangefinder")]
-            if self.conditions.test(FieldCondition::RANGEFINDER) {
-                deltas[optional_field_count] = current.range_raw.wrapping_sub(previous.range_raw);
-                optional_field_count += 1;
-            }
-
-            if self.conditions.test(FieldCondition::RSSI) {
-                deltas[optional_field_count] = i32::from(current.rssi.wrapping_sub(previous.rssi));
-                optional_field_count += 1;
-            }
-
-            assert_p_field_encoding!("vbatLatest", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
-            assert_p_field_encoding!("amperageLatest", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
-            if optional_field_count > 0 {
+            if tag8_field_count > 0 {
                 encoder.write_tag8_8svb(&deltas);
             }
 
@@ -501,15 +489,16 @@ impl Logger {
                     encoder.write_signed_vb_16(current.debug[ii].wrapping_sub(predicted));
                 }
             }
-            assert_p_field_encoding!("motor", FieldPredictor::MIN_MOTOR, FieldEncoding::SIGNED_VB);
-            if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
+            assert_p_field_encoding!("motor", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
+            if Logger::field_enabled(self.enabled_fields, LogFieldSelect::MOTOR) {
                 for ii in 0..self.motor_count {
                     let predicted = u16::midpoint(previous.motor[ii], pre_previous.motor[ii]);
                     encoder.write_signed_vb_16(current.motor[ii].wrapping_sub(predicted).cast_signed());
                 }
             }
             #[cfg(feature = "dshot_telemetry")]
-            if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR_RPM) {
+            assert_p_field_encoding!("motor", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
+            if Logger::field_enabled(self.enabled_fields, LogFieldSelect::MOTOR_RPM) {
                 for ii in 0..self.motor_count {
                     encoder.write_signed_vb_16(current.erpm[ii].wrapping_sub(previous.erpm[ii]));
                 }
@@ -525,7 +514,7 @@ impl Logger {
         }
         let ret = encoder.end_frame();
 
-        // Rotate the state indices
+        // Rotate the saved states
         self.main_data[self.main_data_index_pre_previous] = self.main_data[self.main_data_index_previous];
         self.main_data[self.main_data_index_previous] = self.main_data[self.main_data_index_current];
         /*let new_current = self.main_data_index_pre_previous;

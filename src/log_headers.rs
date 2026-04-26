@@ -148,9 +148,9 @@ impl Logger {
             6 => {
                 writer.write_h_str("gyro_scale:0x3f800000\n");
                 writer.write_h_str("motorOutput:");
-                writer.write_i32_ascii(i32::from(self.motor_output_min));
+                writer.write_u32_ascii(u32::from(self.motor_output_min));
                 writer.write_byte(b',');
-                writer.write_i32_ascii(i32::from(self.motor_output_max));
+                writer.write_u32_ascii(u32::from(self.motor_output_max));
                 writer.write_char('\n');
 
                 writer.write_h_str_u32_ascii("acc_1G:", 4096);

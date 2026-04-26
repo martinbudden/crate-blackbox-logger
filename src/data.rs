@@ -113,23 +113,16 @@ impl GpsData {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MainData {
     pub time_us: u32,
-    pub baro_altitude: i32,
-    #[cfg(feature = "rangefinder")]
-    pub range_raw: i32,
-    pub amperage: i16,
-    pub battery_voltage: u16,
-    pub rssi: u16,
     pub pid_p: [i32; Self::RPY_AXIS_COUNT],
     pub pid_i: [i32; Self::RPY_AXIS_COUNT],
     pub pid_d: [i32; Self::RPY_AXIS_COUNT],
     pub pid_s: [i32; Self::RPY_AXIS_COUNT],
     pub pid_k: [i32; Self::RPY_AXIS_COUNT],
     pub rc_commands: [u16; 4],
-    pub setpoints: [i16; 4],
+    pub setpoints: [i16; Self::SETPOINT_COUNT],
     pub gyro: [i16; Self::XYZ_AXIS_COUNT],
     pub gyro_unfiltered: [i16; Self::XYZ_AXIS_COUNT],
     pub acc: [i16; Self::XYZ_AXIS_COUNT],
-    #[cfg(feature = "magnetometer")]
     pub mag: [i16; Self::XYZ_AXIS_COUNT],
     pub orientation: [i16; Self::XYZ_AXIS_COUNT], // only x,y,z from orientation quaternion are stored; w is always positive
     pub motor: [u16; Self::MAX_SUPPORTED_MOTOR_COUNT],
@@ -138,6 +131,11 @@ pub struct MainData {
     pub debug: [i16; Self::DEBUG_COUNT],
     #[cfg(feature = "servos")]
     pub servos: [i16; Self::MAX_SUPPORTED_SERVO_COUNT],
+    pub baro_altitude: i32,
+    pub range_raw: i32,
+    pub amperage: i16,
+    pub battery_voltage: u16,
+    pub rssi: u16,
 }
 
 impl MainData {
@@ -145,8 +143,11 @@ impl MainData {
     #[allow(unused)]
     pub const RP_AXIS_COUNT: usize = 2;
     pub const XYZ_AXIS_COUNT: usize = 3;
+    #[cfg(feature = "eight_motors")]
     pub const MAX_SUPPORTED_MOTOR_COUNT: usize = 8;
-    #[allow(unused)]
+    #[cfg(not(feature = "eight_motors"))]
+    pub const MAX_SUPPORTED_MOTOR_COUNT: usize = 4;
+    #[cfg(feature = "servos")]
     pub const MAX_SUPPORTED_SERVO_COUNT: usize = 8;
     pub const DEBUG_COUNT: usize = 8;
     pub const SETPOINT_COUNT: usize = 4;
@@ -162,31 +163,33 @@ impl MainData {
     pub fn new() -> Self {
         Self {
             time_us: 0,
-            baro_altitude: 0,
-            #[cfg(feature = "rangefinder")]
-            range_raw: 0,
-            amperage: 0,
-            battery_voltage: 0,
-            rssi: 0,
             pid_p: <[i32; Self::RPY_AXIS_COUNT]>::default(),
             pid_i: <[i32; Self::RPY_AXIS_COUNT]>::default(),
             pid_d: <[i32; Self::RPY_AXIS_COUNT]>::default(),
             pid_s: <[i32; Self::RPY_AXIS_COUNT]>::default(),
             pid_k: <[i32; Self::RPY_AXIS_COUNT]>::default(),
-            rc_commands: [1500, 1500, 1500, 1100],
+            rc_commands: [1500, 1500, 1500, 1000],
             setpoints: <[i16; Self::SETPOINT_COUNT]>::default(),
             gyro: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
             gyro_unfiltered: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
             acc: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
-            #[cfg(feature = "magnetometer")]
             mag: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
             orientation: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
+            #[cfg(feature = "eight_motors")]
             motor: [1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100],
+            #[cfg(not(feature = "eight_motors"))]
+            motor: [1100, 1100, 1100, 1100],
+
             #[cfg(feature = "dshot_telemetry")]
             erpm: <[i16; Self::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
             debug: <[i16; Self::DEBUG_COUNT]>::default(),
             #[cfg(feature = "servos")]
             servos: <[i16; Self::MAX_SUPPORTED_SERVO_COUNT]>::default(),
+            baro_altitude: 0,
+            range_raw: 0,
+            amperage: 0,
+            battery_voltage: 0,
+            rssi: 0,
         }
     }
 }

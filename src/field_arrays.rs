@@ -450,7 +450,6 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         p_encode: FieldEncoding::TAG8_8SVB,
         condition: FieldCondition::BATTERY_CURRENT,
     },
-    #[cfg(feature = "barometer")]
     MainFieldDefinition {
         name: "BaroAlt",
         field_name_index: -1,
@@ -461,7 +460,6 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         p_encode: FieldEncoding::TAG8_8SVB,
         condition: FieldCondition::BAROMETER,
     },
-    #[cfg(feature = "rangefinder")]
     MainFieldDefinition {
         name: "surfaceRaw",
         field_name_index: -1,
@@ -481,6 +479,36 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         p_predict: FieldPredictor::PREVIOUS,
         p_encode: FieldEncoding::TAG8_8SVB,
         condition: FieldCondition::RSSI,
+    },
+    MainFieldDefinition {
+        name: "magADC",
+        field_name_index: 0,
+        is_signed: FieldSign::SIGNED,
+        i_predict: FieldPredictor::ZERO,
+        i_encode: FieldEncoding::SIGNED_VB,
+        p_predict: FieldPredictor::PREVIOUS,
+        p_encode: FieldEncoding::TAG8_8SVB,
+        condition: FieldCondition::MAGNETOMETER,
+    },
+    MainFieldDefinition {
+        name: "magADC",
+        field_name_index: 1,
+        is_signed: FieldSign::SIGNED,
+        i_predict: FieldPredictor::ZERO,
+        i_encode: FieldEncoding::SIGNED_VB,
+        p_predict: FieldPredictor::PREVIOUS,
+        p_encode: FieldEncoding::TAG8_8SVB,
+        condition: FieldCondition::MAGNETOMETER,
+    },
+    MainFieldDefinition {
+        name: "magADC",
+        field_name_index: 2,
+        is_signed: FieldSign::SIGNED,
+        i_predict: FieldPredictor::ZERO,
+        i_encode: FieldEncoding::SIGNED_VB,
+        p_predict: FieldPredictor::PREVIOUS,
+        p_encode: FieldEncoding::TAG8_8SVB,
+        condition: FieldCondition::MAGNETOMETER,
     },
     MainFieldDefinition {
         name: "gyroADC",
