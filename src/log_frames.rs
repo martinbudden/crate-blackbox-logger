@@ -1,5 +1,5 @@
 use crate::data::{Event, MainData};
-use crate::field_definitions::{FieldCondition, LogFieldSelect};
+use crate::field_definitions::{FieldCondition, FieldSelect};
 use crate::logger::Logger;
 use crate::{BlackboxWriter, SliceWriter};
 
@@ -267,7 +267,7 @@ impl Logger {
         }
 
         assert_i_field_encoding!("motor", FieldPredictor::MIN_MOTOR, FieldEncoding::SIGNED_VB);
-        if Logger::field_enabled(self.enabled_fields, LogFieldSelect::MOTOR) {
+        if Logger::field_enabled(self.enabled_fields, FieldSelect::MOTOR) {
             //Motors can be below minimum output when disarmed, but that doesn't happen much
             encoder.write_signed_vb_16(current.motor[0].wrapping_sub(self.min_throttle).cast_signed());
 
@@ -279,7 +279,7 @@ impl Logger {
         #[cfg(feature = "dshot_telemetry")]
         assert_i_field_encoding!("eRPM", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
         #[cfg(feature = "dshot_telemetry")]
-        if Logger::field_enabled(self.enabled_fields, LogFieldSelect::MOTOR_RPM) {
+        if Logger::field_enabled(self.enabled_fields, FieldSelect::MOTOR_RPM) {
             for erpm in current.erpm {
                 encoder.write_unsigned_vb_16(erpm);
             }
@@ -491,7 +491,7 @@ impl Logger {
                 }
             }
             assert_p_field_encoding!("motor", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
-            if Logger::field_enabled(self.enabled_fields, LogFieldSelect::MOTOR) {
+            if Logger::field_enabled(self.enabled_fields, FieldSelect::MOTOR) {
                 for ii in 0..self.motor_count {
                     let predicted = u16::midpoint(previous.motor[ii], pre_previous.motor[ii]);
                     encoder.write_signed_vb_16(current.motor[ii].wrapping_sub(predicted).cast_signed());
@@ -500,7 +500,7 @@ impl Logger {
             #[cfg(feature = "dshot_telemetry")]
             assert_p_field_encoding!("eRPM", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
             #[cfg(feature = "dshot_telemetry")]
-            if Logger::field_enabled(self.enabled_fields, LogFieldSelect::MOTOR_RPM) {
+            if Logger::field_enabled(self.enabled_fields, FieldSelect::MOTOR_RPM) {
                 for ii in 0..self.motor_count {
                     encoder.write_signed_vb_16(current.erpm[ii].wrapping_sub(previous.erpm[ii]).cast_signed());
                 }

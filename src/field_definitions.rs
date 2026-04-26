@@ -137,8 +137,8 @@ impl FieldCondition {
     pub const LAST: u8 = Self::NEVER;
 }
 
-pub struct LogFieldSelect;
-impl LogFieldSelect {
+pub struct FieldSelect;
+impl FieldSelect {
     pub const DEBUG: u32 = 0x0001;
     pub const PID: u32 = 0x0002;
     pub const PID_DTERM_ROLL: u32 = 0x0004;

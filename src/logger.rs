@@ -1,7 +1,7 @@
 use crate::Features;
 use crate::SliceWriter;
 use crate::data::{GpsData, GpsPosition, MainData, SlowData};
-use crate::field_definitions::{FieldCondition, LogFieldSelect};
+use crate::field_definitions::{FieldCondition, FieldSelect};
 use crate::state_machine::StateMachine;
 use crate::{GpsMessage, GyroPidMessage, SetpointMessage};
 use vqm::BitSet64;
@@ -100,32 +100,32 @@ impl Logger {
 
 impl Logger {
     pub fn init(&mut self, sample_rate: u8) {
-        self.enabled_fields = LogFieldSelect::DEBUG
-            | LogFieldSelect::PID
-            | LogFieldSelect::PID_KTERM
-            | LogFieldSelect::PID_DTERM_ROLL
-            | LogFieldSelect::PID_DTERM_PITCH
-            | LogFieldSelect::PID_STERM_ROLL
-            | LogFieldSelect::PID_STERM_PITCH
-            | LogFieldSelect::PID_STERM_YAW
-            | LogFieldSelect::SETPOINT
-            | LogFieldSelect::PID_KTERM
-            | LogFieldSelect::RC_COMMANDS
-            | LogFieldSelect::RSSI
-            | LogFieldSelect::GYRO
-            | LogFieldSelect::GYRO_UNFILTERED
-            | LogFieldSelect::ATTITUDE
-            | LogFieldSelect::MOTOR
-            | LogFieldSelect::BATTERY_VOLTAGE
-            | LogFieldSelect::BATTERY_CURRENT
-            | LogFieldSelect::BAROMETER
-            | LogFieldSelect::RANGEFINDER
-            | LogFieldSelect::MAGNETOMETER
-            | LogFieldSelect::ACCELEROMETER;
+        self.enabled_fields = FieldSelect::DEBUG
+            | FieldSelect::PID
+            | FieldSelect::PID_KTERM
+            | FieldSelect::PID_DTERM_ROLL
+            | FieldSelect::PID_DTERM_PITCH
+            | FieldSelect::PID_STERM_ROLL
+            | FieldSelect::PID_STERM_PITCH
+            | FieldSelect::PID_STERM_YAW
+            | FieldSelect::SETPOINT
+            | FieldSelect::PID_KTERM
+            | FieldSelect::RC_COMMANDS
+            | FieldSelect::RSSI
+            | FieldSelect::GYRO
+            | FieldSelect::GYRO_UNFILTERED
+            | FieldSelect::ATTITUDE
+            | FieldSelect::MOTOR
+            | FieldSelect::BATTERY_VOLTAGE
+            | FieldSelect::BATTERY_CURRENT
+            | FieldSelect::BAROMETER
+            | FieldSelect::RANGEFINDER
+            | FieldSelect::MAGNETOMETER
+            | FieldSelect::ACCELEROMETER;
 
         #[cfg(feature = "dshot_telemetry")]
         {
-            self.enabled_fields |= LogFieldSelect::MOTOR_RPM; // not working
+            self.enabled_fields |= FieldSelect::MOTOR_RPM; // not working
         }
 
         self.build_field_condition_cache();
@@ -291,7 +291,7 @@ impl Logger {
                 len += self.log_p_frame(encoder);
             }
             #[cfg(feature = "gps")]
-            if Logger::field_enabled(self.enabled_fields, LogFieldSelect::GPS) {
+            if Logger::field_enabled(self.enabled_fields, FieldSelect::GPS) {
                 if self.should_log_h_frame() {
                     self.gps_home = self.gps_data.home;
                     len += self.log_h_frame(encoder);
@@ -393,7 +393,7 @@ impl Logger {
             | FieldCondition::AT_LEAST_MOTORS_6
             | FieldCondition::AT_LEAST_MOTORS_7
             | FieldCondition::AT_LEAST_MOTORS_8 => {
-                self.is_field_enabled(LogFieldSelect::MOTOR)
+                self.is_field_enabled(FieldSelect::MOTOR)
                     && self.motor_count > (condition - FieldCondition::AT_LEAST_MOTORS_1) as usize
             }
 
@@ -406,53 +406,53 @@ impl Logger {
             | FieldCondition::MOTOR_6_HAS_RPM
             | FieldCondition::MOTOR_7_HAS_RPM
             | FieldCondition::MOTOR_8_HAS_RPM => {
-                self.is_field_enabled(LogFieldSelect::MOTOR_RPM)
+                self.is_field_enabled(FieldSelect::MOTOR_RPM)
                     && self.motor_count > (condition - FieldCondition::MOTOR_1_HAS_RPM) as usize
             }
 
-            FieldCondition::SERVOS => self.is_field_enabled(LogFieldSelect::SERVO) && self.servo_count > 0,
+            FieldCondition::SERVOS => self.is_field_enabled(FieldSelect::SERVO) && self.servo_count > 0,
 
-            FieldCondition::PID => self.is_field_enabled(LogFieldSelect::PID),
+            FieldCondition::PID => self.is_field_enabled(FieldSelect::PID),
 
             FieldCondition::PID_K => {
-                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_KTERM)
+                self.is_field_enabled(FieldSelect::PID) && self.is_field_enabled(FieldSelect::PID_KTERM)
             }
             FieldCondition::PID_D_ROLL => {
-                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_DTERM_ROLL)
+                self.is_field_enabled(FieldSelect::PID) && self.is_field_enabled(FieldSelect::PID_DTERM_ROLL)
             }
             FieldCondition::PID_D_PITCH => {
-                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_DTERM_PITCH)
+                self.is_field_enabled(FieldSelect::PID) && self.is_field_enabled(FieldSelect::PID_DTERM_PITCH)
             }
             FieldCondition::PID_D_YAW => {
-                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_DTERM_YAW)
+                self.is_field_enabled(FieldSelect::PID) && self.is_field_enabled(FieldSelect::PID_DTERM_YAW)
             }
             FieldCondition::PID_S_ROLL => {
-                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_STERM_ROLL)
+                self.is_field_enabled(FieldSelect::PID) && self.is_field_enabled(FieldSelect::PID_STERM_ROLL)
             }
             FieldCondition::PID_S_PITCH => {
-                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_STERM_PITCH)
+                self.is_field_enabled(FieldSelect::PID) && self.is_field_enabled(FieldSelect::PID_STERM_PITCH)
             }
             FieldCondition::PID_S_YAW => {
-                self.is_field_enabled(LogFieldSelect::PID) && self.is_field_enabled(LogFieldSelect::PID_STERM_YAW)
+                self.is_field_enabled(FieldSelect::PID) && self.is_field_enabled(FieldSelect::PID_STERM_YAW)
             }
 
-            FieldCondition::RC_COMMANDS => self.is_field_enabled(LogFieldSelect::RC_COMMANDS),
-            FieldCondition::SETPOINT => self.is_field_enabled(LogFieldSelect::SETPOINT),
-            FieldCondition::MAGNETOMETER => self.is_field_enabled(LogFieldSelect::MAGNETOMETER),
-            FieldCondition::BAROMETER => self.is_field_enabled(LogFieldSelect::BAROMETER),
-            FieldCondition::BATTERY_VOLTAGE => self.is_field_enabled(LogFieldSelect::BATTERY_VOLTAGE),
-            FieldCondition::BATTERY_CURRENT => self.is_field_enabled(LogFieldSelect::BATTERY_CURRENT),
-            FieldCondition::RANGEFINDER => self.is_field_enabled(LogFieldSelect::RANGEFINDER),
-            FieldCondition::RSSI => self.is_field_enabled(LogFieldSelect::RSSI),
+            FieldCondition::RC_COMMANDS => self.is_field_enabled(FieldSelect::RC_COMMANDS),
+            FieldCondition::SETPOINT => self.is_field_enabled(FieldSelect::SETPOINT),
+            FieldCondition::MAGNETOMETER => self.is_field_enabled(FieldSelect::MAGNETOMETER),
+            FieldCondition::BAROMETER => self.is_field_enabled(FieldSelect::BAROMETER),
+            FieldCondition::BATTERY_VOLTAGE => self.is_field_enabled(FieldSelect::BATTERY_VOLTAGE),
+            FieldCondition::BATTERY_CURRENT => self.is_field_enabled(FieldSelect::BATTERY_CURRENT),
+            FieldCondition::RANGEFINDER => self.is_field_enabled(FieldSelect::RANGEFINDER),
+            FieldCondition::RSSI => self.is_field_enabled(FieldSelect::RSSI),
 
             FieldCondition::NOT_LOGGING_EVERY_FRAME => self.p_interval != self.i_interval,
 
-            FieldCondition::GYRO => self.is_field_enabled(LogFieldSelect::GYRO),
-            FieldCondition::GYRO_UNFILTERED => self.is_field_enabled(LogFieldSelect::GYRO_UNFILTERED),
-            FieldCondition::ACC => self.is_field_enabled(LogFieldSelect::ACCELEROMETER),
-            FieldCondition::ATTITUDE => self.is_field_enabled(LogFieldSelect::ATTITUDE),
+            FieldCondition::GYRO => self.is_field_enabled(FieldSelect::GYRO),
+            FieldCondition::GYRO_UNFILTERED => self.is_field_enabled(FieldSelect::GYRO_UNFILTERED),
+            FieldCondition::ACC => self.is_field_enabled(FieldSelect::ACCELEROMETER),
+            FieldCondition::ATTITUDE => self.is_field_enabled(FieldSelect::ATTITUDE),
 
-            FieldCondition::DEBUG => self.is_field_enabled(LogFieldSelect::DEBUG) && self.debug_mode != 0,
+            FieldCondition::DEBUG => self.is_field_enabled(FieldSelect::DEBUG) && self.debug_mode != 0,
 
             // Handle any unknown condition
             _ => false,
