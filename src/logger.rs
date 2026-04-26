@@ -344,15 +344,15 @@ impl Logger {
 
     /// Called once every FC loop in order to keep track of how many FC loop iterations have passed.
     pub fn advance_iteration_timers(&mut self) {
-        self.iteration += 1;
-        self.s_frame_index += 1;
-        self.i_frame_index += 1;
+        self.iteration = self.iteration.wrapping_add(1);
+        self.s_frame_index = self.s_frame_index.wrapping_add(1);
+        self.i_frame_index = self.i_frame_index.wrapping_add(1);
 
         if self.i_frame_index >= self.i_interval {
             self.i_frame_index = 0; // value of zero means i_frame will be written on next update
             self.p_frame_index = 0;
         } else {
-            self.p_frame_index += 1;
+            self.p_frame_index = self.p_frame_index.wrapping_add(1);
             if self.p_frame_index >= self.p_interval {
                 self.p_frame_index = 0; // value of zero means p_frame will be written on next update, if i_frame not written
             }

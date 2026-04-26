@@ -148,18 +148,22 @@ impl Logger {
 
         encoder.begin_frame(b'I');
 
-        //assert_i_field_encoding!("loopIteration", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
+        assert_i_field_encoding!("loopIteration", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
         encoder.write_unsigned_vb(self.iteration);
-        //assert_i_field_encoding!("time", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
+
+        assert_i_field_encoding!("time", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
         encoder.write_unsigned_vb(current.time_us);
 
-        if self.conditions.test(FieldCondition::PID) {
-            assert_i_field_encoding!("axisP", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("axisP", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("axisI", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("axisD", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("axisF", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("axisS", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+         if self.conditions.test(FieldCondition::PID) {
             encoder.write_signed_vb_array(&current.pid_p);
             assert_i_field_encoding!("axisI", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
             encoder.write_signed_vb_array(&current.pid_i);
 
-            assert_i_field_encoding!("axisD", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
             if self.conditions.test(FieldCondition::PID_D_ROLL) {
                 encoder.write_signed_vb(current.pid_d[0]);
             }
@@ -170,12 +174,10 @@ impl Logger {
                 encoder.write_signed_vb(current.pid_d[2]);
             }
 
-            assert_i_field_encoding!("axisF", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
             if self.conditions.test(FieldCondition::PID_K) {
                 encoder.write_signed_vb_array(&current.pid_k);
             }
 
-            assert_i_field_encoding!("axisS", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
             if self.conditions.test(FieldCondition::PID_S_ROLL) {
                 encoder.write_signed_vb(current.pid_s[0]);
             }
@@ -457,7 +459,6 @@ impl Logger {
             assert_p_field_encoding!("gyroADC", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
             if self.conditions.test(FieldCondition::GYRO) {
                 for ii in 0..MainData::XYZ_AXIS_COUNT {
-                    //let predicted = i16::midpoint(previous.gyro[ii], pre_previous.gyro[ii]);
                     encoder.write_signed_vb_16(current.gyro[ii] - previous.gyro[ii]);
                 }
             }
@@ -569,9 +570,7 @@ mod tests {
     }
     #[test]
     fn p_encodings() {
-        //assert_p_field_encoding!("loopIteration", FieldPredictor::INC, FieldEncoding::NULL);
         assert_p_field_encoding!("loopIteration", FieldPredictor::INC, FieldEncoding::NULL);
-        //assert_p_field_encoding!("time", FieldPredictor::PREVIOUS, FieldEncoding::UNSIGNED_VB);
         assert_p_field_encoding!("time", FieldPredictor::STRAIGHT_LINE, FieldEncoding::SIGNED_VB);
 
         let mut blackbox = Logger::default();
