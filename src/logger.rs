@@ -101,7 +101,8 @@ impl Logger {
 
 impl Logger {
     pub fn init(&mut self, sample_rate: u8) {
-        self.log_select_enabled = LogFieldSelect::GYRO
+        self.log_select_enabled = LogFieldSelect::MOTOR;
+        /*self.log_select_enabled = LogFieldSelect::GYRO
         | LogFieldSelect::PID
         | LogFieldSelect::PID_KTERM
         | LogFieldSelect::PID_DTERM_ROLL
@@ -123,7 +124,7 @@ impl Logger {
         | LogFieldSelect::BAROMETER
         | LogFieldSelect::RANGEFINDER
         | LogFieldSelect::ACCELEROMETER
-        | LogFieldSelect::DEBUG;
+        | LogFieldSelect::DEBUG;*/
 
         self.build_field_condition_cache();
         //self.conditions &= !BitSet64::from(config.fields_disabled_mask);

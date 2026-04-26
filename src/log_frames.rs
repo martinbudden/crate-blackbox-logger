@@ -155,7 +155,7 @@ impl Logger {
         //assert_i_field_encoding!("time", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
         encoder.write_unsigned_vb(current.time_us);
 
-        if self.conditions.test(FieldCondition::PID) {
+        /*if self.conditions.test(FieldCondition::PID) {
             assert_i_field_encoding!("axisP", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
             encoder.write_signed_vb_array(&current.pid_p);
             assert_i_field_encoding!("axisI", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
@@ -191,7 +191,11 @@ impl Logger {
         assert_i_field_encoding!("rc_command", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::RC_COMMANDS) {
             // Write roll, pitch and yaw first, these are signed values in the range [-500,500]
-            let rc_commands = [current.rc_commands[0].cast_signed(), current.rc_commands[1].cast_signed(), current.rc_commands[2].cast_signed()];
+            let rc_commands = [
+                current.rc_commands[0].cast_signed(),
+                current.rc_commands[1].cast_signed(),
+                current.rc_commands[2].cast_signed(),
+            ];
             encoder.write_signed_vb_16_array(&rc_commands);
 
             // Write the throttle separately from the rest of the RC data as it's UNSIGNED.
@@ -261,7 +265,7 @@ impl Logger {
         assert_i_field_encoding!("debug", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::DEBUG) {
             encoder.write_signed_vb_16_array(&current.debug);
-        }
+        }*/
 
         assert_i_field_encoding!("motor", FieldPredictor::MIN_MOTOR, FieldEncoding::SIGNED_VB);
         if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
@@ -269,8 +273,14 @@ impl Logger {
             encoder.write_signed_vb_16(current.motor[0].wrapping_sub(self.min_throttle).cast_signed());
 
             //Motors tend to be similar to each other so use the first motor's value as a predicted of the others
-            for ii in 1..self.motor_count {
+            for ii in 1..4 {
                 encoder.write_signed_vb_16(current.motor[ii].wrapping_sub(current.motor[0]).cast_signed());
+            }
+        }
+        #[cfg(feature = "dshot_telemetry")]
+        if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR_RPM) {
+            for erpm in current.erpm {
+                encoder.write_signed_vb_16(erpm);
             }
         }
         #[cfg(feature = "servos")]
@@ -279,12 +289,6 @@ impl Logger {
                 i32::from(current.servos[i]) - crate::field_definitions::FieldPredictor::S_1500
             });
             encoder.write_tag8_8svb(&out);
-        }
-        #[cfg(feature = "dshot_telemetry")]
-        if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
-            for erpm in current.erpm {
-                encoder.write_signed_vb_16(erpm);
-            }
         }
 
         let ret = encoder.end_frame();
@@ -497,16 +501,30 @@ impl Logger {
                     encoder.write_signed_vb_16(current.debug[ii].wrapping_sub(predicted));
                 }
             }
+            /*
+            assert_i_field_encoding!("motor", FieldPredictor::MIN_MOTOR, FieldEncoding::SIGNED_VB);
+            if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
+                //Motors can be below minimum output when disarmed, but that doesn't happen much
+                encoder.write_signed_vb_16(current.motor[0].wrapping_sub(self.min_throttle).cast_signed());
+
+                //Motors tend to be similar to each other so use the first motor's value as a predicted of the others
+                for ii in 1..self.motor_count {
+                    encoder.write_signed_vb_16(current.motor[ii].wrapping_sub(current.motor[0]).cast_signed());
+                }
+            }
+                 */
             assert_p_field_encoding!("motor", FieldPredictor::MIN_MOTOR, FieldEncoding::SIGNED_VB);
             if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR) {
+                encoder.write_signed_vb_16(current.motor[0].wrapping_sub(self.min_throttle).cast_signed());
+
+                for ii in 1..self.motor_count {
+                    encoder.write_signed_vb_16(current.motor[ii].wrapping_sub(current.motor[0]).cast_signed());
+                }
+            }
+            #[cfg(feature = "dshot_telemetry")]
+            if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR_RPM) {
                 for ii in 0..self.motor_count {
-                    let predicted = u16::midpoint(previous.motor[ii], pre_previous.motor[ii]);
-
-                    let m0 = current.motor[0];
-                    let diff = current.motor[ii].wrapping_sub(predicted);
-                    println!("M0:{m0},{predicted},{diff}");
-
-                    encoder.write_signed_vb_16(current.motor[ii].wrapping_sub(predicted).cast_signed());
+                    encoder.write_signed_vb_16(current.erpm[ii].wrapping_sub(previous.erpm[ii]));
                 }
             }
 
@@ -516,13 +534,6 @@ impl Logger {
                     i32::from(current.servos[ii]) - crate::field_definitions::FieldPredictor::S_1500
                 });
                 encoder.write_tag8_8svb(&servos);
-            }
-
-            #[cfg(feature = "dshot_telemetry")]
-            if Logger::field_enabled(self.log_select_enabled, LogFieldSelect::MOTOR_RPM) {
-                for ii in 0..self.motor_count {
-                    encoder.write_signed_vb_16(current.erpm[ii].wrapping_sub(previous.erpm[ii]));
-                }
             }
         }
         let ret = encoder.end_frame();
