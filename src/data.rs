@@ -127,7 +127,7 @@ pub struct MainData {
     pub orientation: [i16; Self::XYZ_AXIS_COUNT], // only x,y,z from orientation quaternion are stored; w is always positive
     pub motor: [u16; Self::MAX_SUPPORTED_MOTOR_COUNT],
     #[cfg(feature = "dshot_telemetry")]
-    pub erpm: [i16; Self::MAX_SUPPORTED_MOTOR_COUNT],
+    pub erpm: [u16; Self::MAX_SUPPORTED_MOTOR_COUNT],
     pub debug: [i16; Self::DEBUG_COUNT],
     #[cfg(feature = "servos")]
     pub servos: [i16; Self::MAX_SUPPORTED_SERVO_COUNT],
@@ -181,7 +181,7 @@ impl MainData {
             motor: [1100, 1100, 1100, 1100],
 
             #[cfg(feature = "dshot_telemetry")]
-            erpm: <[i16; Self::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
+            erpm: <[u16; Self::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
             debug: <[i16; Self::DEBUG_COUNT]>::default(),
             #[cfg(feature = "servos")]
             servos: <[i16; Self::MAX_SUPPORTED_SERVO_COUNT]>::default(),

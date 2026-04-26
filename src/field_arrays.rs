@@ -794,6 +794,94 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         p_encode: FieldEncoding::SIGNED_VB,
         condition: FieldCondition::AT_LEAST_MOTORS_8,
     },
+    #[cfg(feature = "dshot_telemetry")]
+    MainFieldDefinition {
+        name: "eRPM",
+        field_name_index: 0,
+        is_signed: FieldSign::UNSIGNED,
+        i_predict: FieldPredictor::ZERO,
+        i_encode: FieldEncoding::UNSIGNED_VB,
+        p_predict: FieldPredictor::PREVIOUS,
+        p_encode: FieldEncoding::SIGNED_VB,
+        condition: FieldCondition::AT_LEAST_MOTORS_1,
+    },
+    #[cfg(feature = "dshot_telemetry")]
+    MainFieldDefinition {
+        name: "eRPM",
+        field_name_index: 1,
+        is_signed: FieldSign::UNSIGNED,
+        i_predict: FieldPredictor::ZERO,
+        i_encode: FieldEncoding::UNSIGNED_VB,
+        p_predict: FieldPredictor::PREVIOUS,
+        p_encode: FieldEncoding::SIGNED_VB,
+        condition: FieldCondition::AT_LEAST_MOTORS_2,
+    },
+    #[cfg(feature = "dshot_telemetry")]
+    MainFieldDefinition {
+        name: "eRPM",
+        field_name_index: 2,
+        is_signed: FieldSign::UNSIGNED,
+        i_predict: FieldPredictor::ZERO,
+        i_encode: FieldEncoding::UNSIGNED_VB,
+        p_predict: FieldPredictor::PREVIOUS,
+        p_encode: FieldEncoding::SIGNED_VB,
+        condition: FieldCondition::AT_LEAST_MOTORS_3,
+    },
+    #[cfg(feature = "dshot_telemetry")]
+    MainFieldDefinition {
+        name: "eRPM",
+        field_name_index: 3,
+        is_signed: FieldSign::UNSIGNED,
+        i_predict: FieldPredictor::ZERO,
+        i_encode: FieldEncoding::UNSIGNED_VB,
+        p_predict: FieldPredictor::PREVIOUS,
+        p_encode: FieldEncoding::SIGNED_VB,
+        condition: FieldCondition::AT_LEAST_MOTORS_4,
+    },
+    #[cfg(all(feature = "dshot_telemetry", feature = "eight_motors"))]
+    MainFieldDefinition {
+        name: "eRPM",
+        field_name_index: 4,
+        is_signed: FieldSign::UNSIGNED,
+        i_predict: FieldPredictor::ZERO,
+        i_encode: FieldEncoding::UNSIGNED_VB,
+        p_predict: FieldPredictor::PREVIOUS,
+        p_encode: FieldEncoding::SIGNED_VB,
+        condition: FieldCondition::AT_LEAST_MOTORS_5,
+    },
+    #[cfg(all(feature = "dshot_telemetry", feature = "eight_motors"))]
+    MainFieldDefinition {
+        name: "eRPM",
+        field_name_index: 5,
+        is_signed: FieldSign::UNSIGNED,
+        i_predict: FieldPredictor::ZERO,
+        i_encode: FieldEncoding::UNSIGNED_VB,
+        p_predict: FieldPredictor::PREVIOUS,
+        p_encode: FieldEncoding::SIGNED_VB,
+        condition: FieldCondition::AT_LEAST_MOTORS_6,
+    },
+    #[cfg(all(feature = "dshot_telemetry", feature = "eight_motors"))]
+    MainFieldDefinition {
+        name: "eRPM",
+        field_name_index: 6,
+        is_signed: FieldSign::UNSIGNED,
+        i_predict: FieldPredictor::ZERO,
+        i_encode: FieldEncoding::UNSIGNED_VB,
+        p_predict: FieldPredictor::PREVIOUS,
+        p_encode: FieldEncoding::SIGNED_VB,
+        condition: FieldCondition::AT_LEAST_MOTORS_7,
+    },
+    #[cfg(all(feature = "dshot_telemetry", feature = "eight_motors"))]
+    MainFieldDefinition {
+        name: "eRPM",
+        field_name_index: 7,
+        is_signed: FieldSign::UNSIGNED,
+        i_predict: FieldPredictor::ZERO,
+        i_encode: FieldEncoding::UNSIGNED_VB,
+        p_predict: FieldPredictor::PREVIOUS,
+        p_encode: FieldEncoding::SIGNED_VB,
+        condition: FieldCondition::AT_LEAST_MOTORS_8,
+    },
 ];
 
 impl MainFieldDefinition {

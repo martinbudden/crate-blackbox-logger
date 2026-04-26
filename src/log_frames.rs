@@ -277,9 +277,11 @@ impl Logger {
             }
         }
         #[cfg(feature = "dshot_telemetry")]
+        assert_i_field_encoding!("eRPM", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
+        #[cfg(feature = "dshot_telemetry")]
         if Logger::field_enabled(self.enabled_fields, LogFieldSelect::MOTOR_RPM) {
             for erpm in current.erpm {
-                encoder.write_signed_vb_16(erpm);
+                encoder.write_unsigned_vb_16(erpm);
             }
         }
         #[cfg(feature = "servos")]
@@ -416,8 +418,7 @@ impl Logger {
 
             assert_p_field_encoding!("vbatLatest", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
             if self.conditions.test(FieldCondition::BATTERY_VOLTAGE) {
-                deltas[tag8_field_count] =
-                    i32::from(current.battery_voltage.wrapping_sub(previous.battery_voltage));
+                deltas[tag8_field_count] = i32::from(current.battery_voltage.wrapping_sub(previous.battery_voltage));
                 tag8_field_count += 1;
             }
             assert_p_field_encoding!("amperageLatest", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
@@ -497,10 +498,11 @@ impl Logger {
                 }
             }
             #[cfg(feature = "dshot_telemetry")]
-            assert_p_field_encoding!("motor", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
+            assert_p_field_encoding!("eRPM", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
+            #[cfg(feature = "dshot_telemetry")]
             if Logger::field_enabled(self.enabled_fields, LogFieldSelect::MOTOR_RPM) {
                 for ii in 0..self.motor_count {
-                    encoder.write_signed_vb_16(current.erpm[ii].wrapping_sub(previous.erpm[ii]));
+                    encoder.write_signed_vb_16(current.erpm[ii].wrapping_sub(previous.erpm[ii]).cast_signed());
                 }
             }
 

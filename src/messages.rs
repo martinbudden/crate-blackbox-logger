@@ -163,7 +163,7 @@ mod tests {
     #[test]
     fn sizeof() {
         assert_eq!(128, core::mem::size_of::<GyroPidMessage>());
-        #[cfg(not(any(feature = "servos", feature = "eight_motors")))]
+        #[cfg(all(feature = "dshot_telemetry", not(any(feature = "servos", feature = "eight_motors"))))]
         assert_eq!(72, core::mem::size_of::<SetpointMessage>());
         assert_eq!(1, core::mem::size_of::<GpsMessage>());
     }

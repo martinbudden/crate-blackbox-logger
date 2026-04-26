@@ -65,7 +65,6 @@ impl FieldEncoding {
     pub const TAG8_8SVB: u8 = 6;
     pub const TAG2_3S32: u8 = 7;
     pub const TAG8_4S16: u8 = 8;
-    #[allow(unused)]
     pub const NULL: u8 = 9;
     #[allow(unused)]
     pub const TAG2_3SVARIABLE: u8 = 10;
@@ -84,13 +83,21 @@ impl FieldCondition {
     pub const AT_LEAST_MOTORS_7: u8 = 7;
     pub const AT_LEAST_MOTORS_8: u8 = 8;
 
+    #[cfg(feature = "dshot_telemetry")]
     pub const MOTOR_1_HAS_RPM: u8 = 9;
+    #[cfg(feature = "dshot_telemetry")]
     pub const MOTOR_2_HAS_RPM: u8 = 10;
+    #[cfg(feature = "dshot_telemetry")]
     pub const MOTOR_3_HAS_RPM: u8 = 11;
+    #[cfg(feature = "dshot_telemetry")]
     pub const MOTOR_4_HAS_RPM: u8 = 12;
+    #[cfg(feature = "dshot_telemetry")]
     pub const MOTOR_5_HAS_RPM: u8 = 13;
+    #[cfg(feature = "dshot_telemetry")]
     pub const MOTOR_6_HAS_RPM: u8 = 14;
+    #[cfg(feature = "dshot_telemetry")]
     pub const MOTOR_7_HAS_RPM: u8 = 15;
+    #[cfg(feature = "dshot_telemetry")]
     pub const MOTOR_8_HAS_RPM: u8 = 16;
 
     pub const SERVOS: u8 = 17;
@@ -150,12 +157,13 @@ impl LogFieldSelect {
     pub const ATTITUDE: u32 = 0x8000;
     pub const MAGNETOMETER: u32 = 0x10000;
     pub const MOTOR: u32 = 0x20000;
+    #[cfg(feature = "dshot_telemetry")]
     pub const MOTOR_RPM: u32 = 0x40000;
     pub const SERVO: u32 = 0x80000;
     pub const BATTERY_VOLTAGE: u32 = 0x10_0000;
     pub const BATTERY_CURRENT: u32 = 0x20_0000;
     pub const BAROMETER: u32 = 0x40_0000;
     pub const RANGEFINDER: u32 = 0x80_0000;
-    #[allow(unused)]
+    #[cfg(feature = "gps")]
     pub const GPS: u32 = 0x100_0000;
 }
