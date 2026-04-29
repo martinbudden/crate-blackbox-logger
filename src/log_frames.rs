@@ -113,7 +113,7 @@ impl Logger {
         // If we're not logging every frame, we need to store the time of this GPS frame.
         if self.conditions.test(FieldCondition::NOT_LOGGING_EVERY_FRAME) {
             // Predict the time of the last frame in the main log
-            encoder.write_unsigned_vb(current_time_us - self.main_data[self.main_data_index_current].time_us);
+            encoder.write_unsigned_vb(current_time_us - self.main_data[0].time_us);
         }
 
         encoder.write_unsigned_vb(u32::from(self.gps_data.satellite_count));
@@ -144,7 +144,7 @@ impl Logger {
     #[allow(clippy::too_many_lines)]
     pub fn log_i_frame(&mut self, encoder: &mut SliceWriter) -> usize {
         self.logged_any_frames = true;
-        let current = &self.main_data[self.main_data_index_current];
+        let current = &self.main_data[0];
 
         encoder.begin_frame(b'I');
 
@@ -159,7 +159,7 @@ impl Logger {
         assert_i_field_encoding!("axisD", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
         assert_i_field_encoding!("axisF", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
         assert_i_field_encoding!("axisS", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
-         if self.conditions.test(FieldCondition::PID) {
+        if self.conditions.test(FieldCondition::PID) {
             encoder.write_signed_vb_array(&current.pid_p);
             assert_i_field_encoding!("axisI", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
             encoder.write_signed_vb_array(&current.pid_i);
@@ -211,8 +211,7 @@ impl Logger {
 
         assert_i_field_encoding!("vbatLatest", FieldPredictor::VBATREF, FieldEncoding::NEG_14BIT);
         if self.conditions.test(FieldCondition::BATTERY_VOLTAGE) {
-            //Our voltage is expected to decrease over the course of the flight, so store our difference from
-            //the reference:
+            // Our voltage is expected to decrease over the course of the flight, so store our difference from the reference.
             // Write 14 bits even if the number is negative (which would otherwise result in 32 bits)
             encoder.write_unsigned_vb(u32::from(self.vbat_reference - current.battery_voltage) & 0x3FFF);
         }
@@ -270,10 +269,10 @@ impl Logger {
 
         assert_i_field_encoding!("motor", FieldPredictor::MIN_MOTOR, FieldEncoding::SIGNED_VB);
         if Logger::field_enabled(self.enabled_fields, FieldSelect::MOTOR) {
-            //Motors can be below minimum output when disarmed, but that doesn't happen much
+            // Motors can be below minimum output when disarmed, but that doesn't happen much
             encoder.write_signed_vb_16(current.motor[0].wrapping_sub(self.min_throttle).cast_signed());
 
-            //Motors tend to be similar to each other so use the first motor's value as a predicted of the others
+            // Motors tend to be similar to each other so use the first motor's value as a predicted of the others
             for ii in 1..self.motor_count {
                 encoder.write_signed_vb_16(current.motor[ii].wrapping_sub(current.motor[0]).cast_signed());
             }
@@ -296,15 +295,9 @@ impl Logger {
 
         let ret = encoder.end_frame();
 
-        // This is an i_frame, so there is no other previous state, so we copy the current state into the pre_previous state
-        self.main_data[self.main_data_index_pre_previous] = self.main_data[self.main_data_index_current];
-        self.main_data[self.main_data_index_previous] = self.main_data[self.main_data_index_current];
-
-        // Rotate the state indices
-        /*let new_current = self.main_data_index_pre_previous;
-        self.main_data_index_pre_previous = self.main_data_index_previous;
-        self.main_data_index_previous = self.main_data_index_current;
-        self.main_data_index_current = new_current;*/
+        // This is an i_frame, so there is no other previous data, so we copy the current data into the pre_previous data.
+        self.main_data[2] = self.main_data[0];
+        self.main_data[1] = self.main_data[0];
 
         ret
     }
@@ -319,15 +312,14 @@ impl Logger {
         self.logged_any_frames = true;
 
         {
-            let current = &self.main_data[self.main_data_index_current];
-            let previous = &self.main_data[self.main_data_index_previous];
-            let pre_previous = &self.main_data[self.main_data_index_pre_previous];
+            let current = &self.main_data[0];
+            let previous = &self.main_data[1];
+            let pre_previous = &self.main_data[2];
 
             encoder.begin_frame(b'P');
 
             // Don't store store iteration when using FieldEncoding::NULL
             assert_p_field_encoding!("loopIteration", FieldPredictor::INC, FieldEncoding::NULL);
-            //encoder.write_unsigned_vb(self.iteration);
 
             // Since the difference between the difference between successive times will be nearly zero (due to consistent
             // loop time spacing), use second-order differences.
@@ -517,13 +509,9 @@ impl Logger {
         }
         let ret = encoder.end_frame();
 
-        // Rotate the saved states
-        self.main_data[self.main_data_index_pre_previous] = self.main_data[self.main_data_index_previous];
-        self.main_data[self.main_data_index_previous] = self.main_data[self.main_data_index_current];
-        /*let new_current = self.main_data_index_pre_previous;
-        self.main_data_index_pre_previous = self.main_data_index_previous;
-        self.main_data_index_previous = self.main_data_index_current;
-        self.main_data_index_current = new_current;*/
+        // Rotate the saved data.
+        self.main_data[2] = self.main_data[1];
+        self.main_data[1] = self.main_data[0];
 
         ret
     }
@@ -541,32 +529,24 @@ mod tests {
         assert_i_field_encoding!("time", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
 
         let mut blackbox = Logger::default();
-        blackbox.main_data[blackbox.main_data_index_current].time_us = 3;
-        blackbox.main_data[blackbox.main_data_index_previous].time_us = 2;
-        blackbox.main_data[blackbox.main_data_index_pre_previous].time_us = 1;
-
-        assert_eq!(0, blackbox.main_data_index_current);
-        assert_eq!(1, blackbox.main_data_index_previous);
-        assert_eq!(2, blackbox.main_data_index_pre_previous);
+        blackbox.main_data[0].time_us = 3;
+        blackbox.main_data[1].time_us = 2;
+        blackbox.main_data[2].time_us = 1;
 
         let mut buffer = [0u8; 512];
         let mut encoder = SliceWriter { buffer: &mut buffer, pos: 0 };
 
         blackbox.log_i_frame(&mut encoder);
 
-        assert_eq!(3, blackbox.main_data[blackbox.main_data_index_current].time_us);
-        assert_eq!(3, blackbox.main_data[blackbox.main_data_index_previous].time_us);
-        assert_eq!(3, blackbox.main_data[blackbox.main_data_index_pre_previous].time_us);
+        assert_eq!(3, blackbox.main_data[0].time_us);
+        assert_eq!(3, blackbox.main_data[1].time_us);
+        assert_eq!(3, blackbox.main_data[2].time_us);
 
-        blackbox.main_data[blackbox.main_data_index_current].time_us = 4;
+        blackbox.main_data[0].time_us = 4;
         blackbox.log_i_frame(&mut encoder);
-        assert_eq!(4, blackbox.main_data[blackbox.main_data_index_current].time_us);
-        assert_eq!(4, blackbox.main_data[blackbox.main_data_index_previous].time_us);
-        assert_eq!(4, blackbox.main_data[blackbox.main_data_index_pre_previous].time_us);
-        // log_i_frame does not change the indices
-        assert_eq!(0, blackbox.main_data_index_current);
-        assert_eq!(1, blackbox.main_data_index_previous);
-        assert_eq!(2, blackbox.main_data_index_pre_previous);
+        assert_eq!(4, blackbox.main_data[0].time_us);
+        assert_eq!(4, blackbox.main_data[1].time_us);
+        assert_eq!(4, blackbox.main_data[2].time_us);
     }
     #[test]
     fn p_encodings() {
@@ -574,40 +554,32 @@ mod tests {
         assert_p_field_encoding!("time", FieldPredictor::STRAIGHT_LINE, FieldEncoding::SIGNED_VB);
 
         let mut blackbox = Logger::default();
-        blackbox.main_data[blackbox.main_data_index_current].time_us = 3;
-        blackbox.main_data[blackbox.main_data_index_previous].time_us = 2;
-        blackbox.main_data[blackbox.main_data_index_pre_previous].time_us = 1;
-        blackbox.main_data[blackbox.main_data_index_current].gyro[0] = 1000;
-
-        assert_eq!(0, blackbox.main_data_index_current);
-        assert_eq!(1, blackbox.main_data_index_previous);
-        assert_eq!(2, blackbox.main_data_index_pre_previous);
+        blackbox.main_data[0].time_us = 3;
+        blackbox.main_data[1].time_us = 2;
+        blackbox.main_data[2].time_us = 1;
+        blackbox.main_data[0].gyro[0] = 1000;
 
         let mut buffer = [0u8; 512];
         let mut encoder = SliceWriter { buffer: &mut buffer, pos: 0 };
 
         blackbox.log_p_frame(&mut encoder);
-        assert_eq!(3, blackbox.main_data[blackbox.main_data_index_current].time_us);
-        assert_eq!(3, blackbox.main_data[blackbox.main_data_index_previous].time_us);
-        assert_eq!(2, blackbox.main_data[blackbox.main_data_index_pre_previous].time_us);
-        assert_eq!(1000, blackbox.main_data[blackbox.main_data_index_previous].gyro[0]);
-        assert_eq!(0, blackbox.main_data[blackbox.main_data_index_pre_previous].gyro[0]);
+        assert_eq!(3, blackbox.main_data[0].time_us);
+        assert_eq!(3, blackbox.main_data[1].time_us);
+        assert_eq!(2, blackbox.main_data[2].time_us);
+        assert_eq!(1000, blackbox.main_data[1].gyro[0]);
+        assert_eq!(0, blackbox.main_data[2].gyro[0]);
 
-        blackbox.main_data[blackbox.main_data_index_current].time_us = 4;
+        blackbox.main_data[0].time_us = 4;
         blackbox.log_p_frame(&mut encoder);
-        assert_eq!(4, blackbox.main_data[blackbox.main_data_index_current].time_us);
-        assert_eq!(4, blackbox.main_data[blackbox.main_data_index_previous].time_us);
-        assert_eq!(3, blackbox.main_data[blackbox.main_data_index_pre_previous].time_us);
-        assert_eq!(1000, blackbox.main_data[blackbox.main_data_index_pre_previous].gyro[0]);
+        assert_eq!(4, blackbox.main_data[0].time_us);
+        assert_eq!(4, blackbox.main_data[1].time_us);
+        assert_eq!(3, blackbox.main_data[2].time_us);
+        assert_eq!(1000, blackbox.main_data[2].gyro[0]);
 
-        blackbox.main_data[blackbox.main_data_index_current].time_us = 5;
+        blackbox.main_data[0].time_us = 5;
         blackbox.log_p_frame(&mut encoder);
-        assert_eq!(5, blackbox.main_data[blackbox.main_data_index_current].time_us);
-        assert_eq!(5, blackbox.main_data[blackbox.main_data_index_previous].time_us);
-        assert_eq!(4, blackbox.main_data[blackbox.main_data_index_pre_previous].time_us);
-
-        assert_eq!(0, blackbox.main_data_index_current);
-        assert_eq!(1, blackbox.main_data_index_previous);
-        assert_eq!(2, blackbox.main_data_index_pre_previous);
+        assert_eq!(5, blackbox.main_data[0].time_us);
+        assert_eq!(5, blackbox.main_data[1].time_us);
+        assert_eq!(4, blackbox.main_data[2].time_us);
     }
 }

@@ -32,7 +32,7 @@ pub struct GyroPidMessage {
 }
 
 //#[cfg(not(any(feature = "servos", feature = "eight_motors")))]
-const _: () = assert!(std::mem::size_of::<GyroPidMessage>() == 128);
+const _: () = assert!(core::mem::size_of::<GyroPidMessage>() == 128);
 
 impl GyroPidMessage {
     pub const RPY_AXIS_COUNT: usize = 3;
@@ -64,6 +64,7 @@ impl Default for GyroPidMessage {
     }
 }
 
+/// Message to send setpoint data between tasks.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct SetpointMessage {
@@ -128,6 +129,7 @@ impl Default for SetpointMessage {
     }
 }
 
+/// Message to send GPS data between tasks.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct GpsMessage {

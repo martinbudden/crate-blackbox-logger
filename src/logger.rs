@@ -6,6 +6,7 @@ use crate::state_machine::StateMachine;
 use crate::{GpsMessage, GyroPidMessage, SetpointMessage};
 use vqm::BitSet64;
 
+/// Blackbox logger.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Logger {
     pub(crate) conditions: BitSet64,
@@ -39,9 +40,6 @@ pub struct Logger {
     pub(crate) gps_home: GpsPosition,
 
     pub(crate) main_data: [MainData; 3],
-    pub(crate) main_data_index_current: usize,
-    pub(crate) main_data_index_previous: usize,
-    pub(crate) main_data_index_pre_previous: usize,
 }
 
 impl Default for Logger {
@@ -91,9 +89,6 @@ impl Logger {
             gps_home: GpsPosition::default(),
 
             main_data: <[MainData; 3]>::default(),
-            main_data_index_current: 0,
-            main_data_index_previous: 1,
-            main_data_index_pre_previous: 2,
         }
     }
 }
@@ -178,7 +173,7 @@ impl Logger {
     ) {
         const TO_I16: f32 = 32_757.0;
         let motor_commands = gyro_pid_msg.motor_commands * 2.0;
-        self.main_data[self.main_data_index_current] = MainData {
+        self.main_data[0] = MainData {
             time_us: gyro_pid_msg.time_us,
             baro_altitude: 0,
             range_raw: 0,
@@ -266,7 +261,7 @@ impl Logger {
     /// Called when the flight controller signals it has new data.
     #[allow(unused_results, unused)]
     pub fn log_iteration(&mut self, current_time_us: u32, encoder: &mut SliceWriter) -> usize {
-        self.main_data[self.main_data_index_current].time_us = current_time_us;
+        self.main_data[0].time_us = current_time_us;
         let mut len = 0_usize;
         // Write a keyframe every i_interval frames so we can resynchronise upon missing frames
         if self.should_log_i_frame() {
