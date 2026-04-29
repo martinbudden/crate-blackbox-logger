@@ -7,13 +7,12 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/martinbudden/crate-blackbox"
 description = "Blackbox flight data recorder."
-keywords = ["blackbox", "no-std"]
+keywords = ["blackbox", "no-std", "betaflight"]
 categories = [
-    "Embedded development",
-    "Mathematics",
-    "No standard library",
-    "Robotics",
-    "Science",
+    "embedded",
+    "mathematics",
+    "no-std",
+    "science::robotics",
 ]
 
 [features]
