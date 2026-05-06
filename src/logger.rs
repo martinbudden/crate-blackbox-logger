@@ -259,7 +259,6 @@ impl Logger {
     }
 
     /// Called when the flight controller signals it has new data.
-    #[allow(unused_results, unused)]
     pub fn log_iteration(&mut self, current_time_us: u32, encoder: &mut SliceWriter) -> usize {
         self.main_data[0].time_us = current_time_us;
         let mut len = 0_usize;
@@ -359,7 +358,7 @@ impl Logger {
         self.conditions.reset_all();
         for condition in FieldCondition::FIRST..FieldCondition::LAST {
             if self.test_field_condition_uncached(condition) {
-                _ = self.conditions.set(condition);
+                self.conditions.set(condition);
             }
         }
     }
@@ -457,7 +456,6 @@ impl Logger {
 
 #[cfg(test)]
 mod tests {
-    #![allow(unused_results)]
     #![allow(clippy::unwrap_used)]
 
     #[allow(unused)]

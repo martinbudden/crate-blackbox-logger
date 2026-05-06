@@ -244,7 +244,6 @@ impl Logger {
 
 #[cfg(test)]
 mod tests {
-    #![allow(unused_results)]
     #![allow(clippy::unwrap_used)]
     use crate::state_machine::StateMachine;
     use crate::{BlackboxStartParameters, GyroPidMessage, SetpointMessage};

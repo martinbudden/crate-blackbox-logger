@@ -519,7 +519,6 @@ impl Logger {
 
 #[cfg(test)]
 mod tests {
-    #![allow(unused_results)]
 
     use super::*;
 
@@ -536,14 +535,14 @@ mod tests {
         let mut buffer = [0u8; 512];
         let mut encoder = SliceWriter { buffer: &mut buffer, pos: 0 };
 
-        blackbox.log_i_frame(&mut encoder);
+        _ = blackbox.log_i_frame(&mut encoder);
 
         assert_eq!(3, blackbox.main_data[0].time_us);
         assert_eq!(3, blackbox.main_data[1].time_us);
         assert_eq!(3, blackbox.main_data[2].time_us);
 
         blackbox.main_data[0].time_us = 4;
-        blackbox.log_i_frame(&mut encoder);
+        _ = blackbox.log_i_frame(&mut encoder);
         assert_eq!(4, blackbox.main_data[0].time_us);
         assert_eq!(4, blackbox.main_data[1].time_us);
         assert_eq!(4, blackbox.main_data[2].time_us);
@@ -562,7 +561,7 @@ mod tests {
         let mut buffer = [0u8; 512];
         let mut encoder = SliceWriter { buffer: &mut buffer, pos: 0 };
 
-        blackbox.log_p_frame(&mut encoder);
+        _ = blackbox.log_p_frame(&mut encoder);
         assert_eq!(3, blackbox.main_data[0].time_us);
         assert_eq!(3, blackbox.main_data[1].time_us);
         assert_eq!(2, blackbox.main_data[2].time_us);
@@ -570,14 +569,14 @@ mod tests {
         assert_eq!(0, blackbox.main_data[2].gyro[0]);
 
         blackbox.main_data[0].time_us = 4;
-        blackbox.log_p_frame(&mut encoder);
+        _ = blackbox.log_p_frame(&mut encoder);
         assert_eq!(4, blackbox.main_data[0].time_us);
         assert_eq!(4, blackbox.main_data[1].time_us);
         assert_eq!(3, blackbox.main_data[2].time_us);
         assert_eq!(1000, blackbox.main_data[2].gyro[0]);
 
         blackbox.main_data[0].time_us = 5;
-        blackbox.log_p_frame(&mut encoder);
+        _ = blackbox.log_p_frame(&mut encoder);
         assert_eq!(5, blackbox.main_data[0].time_us);
         assert_eq!(5, blackbox.main_data[1].time_us);
         assert_eq!(4, blackbox.main_data[2].time_us);

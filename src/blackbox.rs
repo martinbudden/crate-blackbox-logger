@@ -35,7 +35,7 @@ impl Default for BlackboxConfig {
 }
 
 impl BlackboxConfig {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             sample_rate: 0,
             device: BlackboxDevice::NONE,
@@ -75,20 +75,19 @@ pub struct Blackbox {
 
 impl Default for Blackbox {
     fn default() -> Self {
-        Self::new()
+        Self::new(BlackboxConfig::default())
     }
 }
 
 impl Blackbox {
-    pub fn new() -> Self {
-        Self { state: StateMachine::default(), logger: Logger::default(), config: BlackboxConfig::default() }
+    pub fn new(config: BlackboxConfig) -> Self {
+        Self { state: StateMachine::default(), logger: Logger::default(), config }
     }
 }
 
 impl Blackbox {
-    pub fn init(&mut self, config: BlackboxConfig) {
+    pub fn init(&mut self) {
         //_serial_device.init();
-        self.config = config;
         self.logger.init(self.config.sample_rate);
     }
 }
@@ -113,7 +112,6 @@ impl Blackbox {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::float_cmp)]
-    #![allow(unused_results)]
 
     #[allow(unused)]
     use super::*;
