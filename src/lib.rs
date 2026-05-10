@@ -25,10 +25,11 @@ mod messages;
 pub mod state_machine;
 
 pub use crate::drivers::sd_card;
-pub use features::Features;
 
 pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStartParameters};
 pub use encoding::{BlackboxWriter, SliceWriter};
+pub use features::Features;
+pub use field_definitions::FieldSelect;
 pub use logger::Logger;
 pub use messages::{GpsMessage, GyroPidMessage, SetpointMessage};
 pub use state_machine::StateMachine;

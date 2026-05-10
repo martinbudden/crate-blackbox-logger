@@ -70,7 +70,7 @@ pub struct Blackbox {
     state: StateMachine,
     pub logger: Logger,
 
-    pub(crate) config: BlackboxConfig,
+    config: BlackboxConfig,
 }
 
 impl Default for Blackbox {
@@ -81,14 +81,14 @@ impl Default for Blackbox {
 
 impl Blackbox {
     pub fn new(config: BlackboxConfig) -> Self {
-        Self { state: StateMachine::default(), logger: Logger::default(), config }
+        Self { state: StateMachine::default(), logger: Logger::new(), config }
     }
 }
 
 impl Blackbox {
     pub fn init(&mut self) {
         //_serial_device.init();
-        self.logger.init(self.config.sample_rate);
+        self.logger.init(self.config.sample_rate, self.config.fields_disabled_mask);
     }
 }
 

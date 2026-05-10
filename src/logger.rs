@@ -94,17 +94,16 @@ impl Logger {
 }
 
 impl Logger {
-    pub fn init(&mut self, sample_rate: u8) {
+    pub fn init(&mut self, sample_rate: u8, fields_disabled_mask: u32) {
         self.enabled_fields = FieldSelect::DEBUG
             | FieldSelect::PID
-            | FieldSelect::PID_KTERM
             | FieldSelect::PID_DTERM_ROLL
             | FieldSelect::PID_DTERM_PITCH
             | FieldSelect::PID_STERM_ROLL
             | FieldSelect::PID_STERM_PITCH
             | FieldSelect::PID_STERM_YAW
-            | FieldSelect::SETPOINT
             | FieldSelect::PID_KTERM
+            | FieldSelect::SETPOINT
             | FieldSelect::RC_COMMANDS
             | FieldSelect::RSSI
             | FieldSelect::GYRO
@@ -120,8 +119,9 @@ impl Logger {
 
         #[cfg(feature = "dshot_telemetry")]
         {
-            self.enabled_fields |= FieldSelect::MOTOR_RPM; // not working
+            self.enabled_fields |= FieldSelect::MOTOR_RPM;
         }
+        self.enabled_fields &= !fields_disabled_mask;
 
         self.build_field_condition_cache();
         //self.conditions &= !BitSet64::from(config.fields_disabled_mask);
@@ -389,7 +389,7 @@ impl Logger {
             | FieldCondition::AT_LEAST_MOTORS_8 => {
                 self.is_field_enabled(FieldSelect::MOTOR)
                     && self.motor_count > (condition - FieldCondition::AT_LEAST_MOTORS_1) as usize
-            }
+            },
 
             #[cfg(feature = "dshot_telemetry")]
             FieldCondition::MOTOR_1_HAS_RPM
@@ -402,7 +402,7 @@ impl Logger {
             | FieldCondition::MOTOR_8_HAS_RPM => {
                 self.is_field_enabled(FieldSelect::MOTOR_RPM)
                     && self.motor_count > (condition - FieldCondition::MOTOR_1_HAS_RPM) as usize
-            }
+            },
 
             FieldCondition::SERVOS => self.is_field_enabled(FieldSelect::SERVO) && self.servo_count > 0,
 

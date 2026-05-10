@@ -23,13 +23,20 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ### Security
 
-## [0.1.1] - 2023-05-06
+## [0.1.2] - 2026-05-10
+
+### Changed
+
+- Fixed `MainFieldDefinition` for "eRPM" fields.
+- Fixed handling of disabled fields in `Logger::init`.
+
+## [0.1.1] - 2026-05-06
 
 ### Changed
 
 - Updated to vqm version 0.1.3.
-- Made BlackboxConfig::new const.
+- Made `BlackboxConfig::new` const.
 
-## [0.1.0] - 2023-04-25
+## [0.1.0] - 2026-04-25
 
 Initial release.

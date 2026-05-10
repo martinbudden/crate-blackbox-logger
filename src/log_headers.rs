@@ -291,7 +291,7 @@ mod tests {
         let mut buffer = [0u8; 2048];
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
         let mut ctx = Logger::new();
-        ctx.init(0);
+        ctx.init(0, 0);
 
         let mut index: usize = 0;
         loop {
@@ -312,7 +312,7 @@ mod tests {
         let mut buffer = [0u8; 2048];
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
         let mut ctx = Logger::new();
-        ctx.init(0);
+        ctx.init(0, 0);
 
         let len = ctx.log_slow_fields_header(&mut writer);
         assert_eq!(writer.pos, len);
@@ -349,7 +349,7 @@ mod tests {
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
         let mut ctx = Logger::new();
         //let mut _sd_card = MockSdCard::new("state_machine_log.bbl");
-        ctx.init(0);
+        ctx.init(0, 0);
 
         let start = BlackboxStartParameters::new();
         let mut state = StateMachine::default();
@@ -376,27 +376,29 @@ mod tests {
     fn full_run() {
         let mut buffer = [0u8; 4096];
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
-        let mut ctx = Blackbox::new();
-        ctx.init(0);
+        let mut ctx = Logger::new();
+        ctx.init(0, 0);
 
         let start = BlackboxStartParameters::new();
-        let mut state = State::default();
+        let mut state = StateMachine::default();
         let mut current_time_us: u32 = 0;
-        let telemetry = BlackboxTelemetry::new();
+        let gyro_pid_msg = GyroPidMessage::new();
+        let setpoint_msg = SetpointMessage::new();
         state.start(start);
         let mut run_count = 0;
         loop {
-            ctx.load_main_data(current_time_us, telemetry);
+            ctx.load_telemetry(current_time_us, gyro_pid_msg, setpoint_msg);
             _ = state.update(&mut ctx, &mut writer, current_time_us);
             //let state_i:u32 = state.into();
             //println!("state={state_i}");
-            if state == State::Running {
+            if state == StateMachine::Running {
                 if writer.pos != 0 {
                     #[allow(clippy::unwrap_used)]
                     let result = core::str::from_utf8(&writer.buffer[..writer.pos]).unwrap();
                     println!("RR__{result}__RR");
                     run_count += 1;
                 }
+                break;
                 if run_count > 10 {
                     break;
                 }

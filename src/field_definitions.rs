@@ -155,15 +155,13 @@ impl FieldSelect {
     pub const GYRO_UNFILTERED: u32 = 0x2000;
     pub const ACCELEROMETER: u32 = 0x4000;
     pub const ATTITUDE: u32 = 0x8000;
-    pub const MAGNETOMETER: u32 = 0x10000;
-    pub const MOTOR: u32 = 0x20000;
-    #[cfg(feature = "dshot_telemetry")]
-    pub const MOTOR_RPM: u32 = 0x40000;
-    pub const SERVO: u32 = 0x80000;
+    pub const MAGNETOMETER: u32 = 0x1_0000;
+    pub const MOTOR: u32 = 0x2_0000;
+    pub const MOTOR_RPM: u32 = 0x4_0000;
+    pub const SERVO: u32 = 0x8_0000;
     pub const BATTERY_VOLTAGE: u32 = 0x10_0000;
     pub const BATTERY_CURRENT: u32 = 0x20_0000;
     pub const BAROMETER: u32 = 0x40_0000;
     pub const RANGEFINDER: u32 = 0x80_0000;
-    #[cfg(feature = "gps")]
     pub const GPS: u32 = 0x100_0000;
 }

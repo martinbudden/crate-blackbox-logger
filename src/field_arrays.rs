@@ -803,7 +803,7 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         i_encode: FieldEncoding::UNSIGNED_VB,
         p_predict: FieldPredictor::PREVIOUS,
         p_encode: FieldEncoding::SIGNED_VB,
-        condition: FieldCondition::AT_LEAST_MOTORS_1,
+        condition: FieldCondition::MOTOR_1_HAS_RPM,
     },
     #[cfg(feature = "dshot_telemetry")]
     MainFieldDefinition {
@@ -814,7 +814,7 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         i_encode: FieldEncoding::UNSIGNED_VB,
         p_predict: FieldPredictor::PREVIOUS,
         p_encode: FieldEncoding::SIGNED_VB,
-        condition: FieldCondition::AT_LEAST_MOTORS_2,
+        condition: FieldCondition::MOTOR_2_HAS_RPM,
     },
     #[cfg(feature = "dshot_telemetry")]
     MainFieldDefinition {
@@ -825,7 +825,7 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         i_encode: FieldEncoding::UNSIGNED_VB,
         p_predict: FieldPredictor::PREVIOUS,
         p_encode: FieldEncoding::SIGNED_VB,
-        condition: FieldCondition::AT_LEAST_MOTORS_3,
+        condition: FieldCondition::MOTOR_3_HAS_RPM,
     },
     #[cfg(feature = "dshot_telemetry")]
     MainFieldDefinition {
@@ -836,7 +836,7 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         i_encode: FieldEncoding::UNSIGNED_VB,
         p_predict: FieldPredictor::PREVIOUS,
         p_encode: FieldEncoding::SIGNED_VB,
-        condition: FieldCondition::AT_LEAST_MOTORS_4,
+        condition: FieldCondition::MOTOR_4_HAS_RPM,
     },
     #[cfg(all(feature = "dshot_telemetry", feature = "eight_motors"))]
     MainFieldDefinition {
@@ -847,7 +847,7 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         i_encode: FieldEncoding::UNSIGNED_VB,
         p_predict: FieldPredictor::PREVIOUS,
         p_encode: FieldEncoding::SIGNED_VB,
-        condition: FieldCondition::AT_LEAST_MOTORS_5,
+        condition: FieldCondition::MOTOR_5_HAS_RPM,
     },
     #[cfg(all(feature = "dshot_telemetry", feature = "eight_motors"))]
     MainFieldDefinition {
@@ -858,7 +858,7 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         i_encode: FieldEncoding::UNSIGNED_VB,
         p_predict: FieldPredictor::PREVIOUS,
         p_encode: FieldEncoding::SIGNED_VB,
-        condition: FieldCondition::AT_LEAST_MOTORS_6,
+        condition: FieldCondition::MOTOR_6_HAS_RPM,
     },
     #[cfg(all(feature = "dshot_telemetry", feature = "eight_motors"))]
     MainFieldDefinition {
@@ -869,7 +869,7 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         i_encode: FieldEncoding::UNSIGNED_VB,
         p_predict: FieldPredictor::PREVIOUS,
         p_encode: FieldEncoding::SIGNED_VB,
-        condition: FieldCondition::AT_LEAST_MOTORS_7,
+        condition: FieldCondition::MOTOR_7_HAS_RPM,
     },
     #[cfg(all(feature = "dshot_telemetry", feature = "eight_motors"))]
     MainFieldDefinition {
@@ -880,7 +880,7 @@ pub static BLACKBOX_MAIN_FIELDS: &[MainFieldDefinition] = &[
         i_encode: FieldEncoding::UNSIGNED_VB,
         p_predict: FieldPredictor::PREVIOUS,
         p_encode: FieldEncoding::SIGNED_VB,
-        condition: FieldCondition::AT_LEAST_MOTORS_8,
+        condition: FieldCondition::MOTOR_8_HAS_RPM,
     },
 ];
 
