@@ -27,6 +27,7 @@ pub mod state_machine;
 pub use crate::drivers::sd_card;
 
 pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStartParameters};
+pub use data::Event;
 pub use encoding::{BlackboxWriter, SliceWriter};
 pub use features::Features;
 pub use field_definitions::FieldSelect;

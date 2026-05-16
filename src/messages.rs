@@ -42,18 +42,18 @@ impl GyroPidMessage {
 }
 
 impl GyroPidMessage {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
-            acc: Vector3df32::default(),
-            gyro_rps: Vector3df32::default(),
-            gyro_rps_unfiltered: Vector3df32::default(),
-            orientation: Quaternionf32::default(),
-            motor_commands: Vector4df32::default(),
-            pid_errors_p: <[f32; Self::RPY_AXIS_COUNT]>::default(),
-            pid_errors_i: <[f32; Self::RPY_AXIS_COUNT]>::default(),
-            pid_errors_d: <[f32; Self::RP_AXIS_COUNT]>::default(),
+            acc: Vector3df32::new(0.0, 0.0, 0.0),
+            gyro_rps: Vector3df32::new(0.0, 0.0, 0.0),
+            gyro_rps_unfiltered: Vector3df32::new(0.0, 0.0, 0.0),
+            orientation: Quaternionf32::new(0.0, 0.0, 0.0, 0.0),
+            motor_commands: Vector4df32::new(0.0, 0.0, 0.0, 0.0),
+            pid_errors_p: [0f32; Self::RPY_AXIS_COUNT],
+            pid_errors_i: [0f32; Self::RPY_AXIS_COUNT],
+            pid_errors_d: [0f32; Self::RP_AXIS_COUNT],
             time_us: 0,
-            debug: <[i16; Self::DEBUG_COUNT]>::default(),
+            debug: [0i16; Self::DEBUG_COUNT],
         }
     }
 }
@@ -102,17 +102,17 @@ impl SetpointMessage {
 }
 
 impl SetpointMessage {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
-            setpoints: <[f32; Self::SETPOINT_COUNT]>::default(),
-            pid_errors_s: <[f32; Self::RPY_AXIS_COUNT]>::default(),
-            pid_errors_k: <[f32; Self::RPY_AXIS_COUNT]>::default(),
-            rc_commands: <[i16; Self::RC_COMMAND_COUNT]>::default(),
+            setpoints: [0.0; Self::SETPOINT_COUNT],
+            pid_errors_s: [0.0; Self::RPY_AXIS_COUNT],
+            pid_errors_k: [0.0; Self::RPY_AXIS_COUNT],
+            rc_commands: [0i16; Self::RC_COMMAND_COUNT],
             #[cfg(feature = "dshot_telemetry")]
-            motor_rpm_d2: <[i16; Self::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
+            motor_rpm_d2: [0i16; Self::MAX_SUPPORTED_MOTOR_COUNT],
             #[cfg(feature = "servos")]
-            servos: <[i16; Self::MAX_SUPPORTED_SERVO_COUNT]>::default(),
-            debug: <[i16; Self::SETPOINT_DEBUG_COUNT]>::default(),
+            servos: [0i16; Self::MAX_SUPPORTED_SERVO_COUNT],
+            debug: [0i16; Self::SETPOINT_DEBUG_COUNT],
             time_us: 0,
             flight_mode_flags: 0,
             state_flags: 0,
@@ -137,7 +137,7 @@ pub struct GpsMessage {
 }
 
 impl GpsMessage {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self { satellite_count: 0 }
     }
 }
@@ -152,8 +152,7 @@ impl Default for GpsMessage {
 mod tests {
     use super::*;
 
-    #[allow(unused)]
-    fn is_normal<T: Sized + Send + Sync + Unpin>() {}
+    fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
 
     #[test]

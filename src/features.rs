@@ -36,11 +36,9 @@ impl Features {
 
 #[cfg(test)]
 mod tests {
-    #[allow(unused)]
     use super::*;
 
-    #[allow(unused)]
-    fn is_normal<T: Sized + Send + Sync + Unpin>() {}
+    fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
 
     #[test]
@@ -48,7 +46,7 @@ mod tests {
         is_full::<Features>();
     }
     #[test]
-    fn new() {
+    fn test_new() {
         let features = Features::default();
         assert!(!features.is_set(Features::GPS));
     }

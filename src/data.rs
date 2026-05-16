@@ -1,6 +1,6 @@
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Event {}
-impl Event {
+pub struct EventId {}
+impl EventId {
     pub const SYNC_BEEP: u8 = 0;
     #[allow(unused)]
     pub const AUTOTUNE_CYCLE_START: u8 = 10;
@@ -11,8 +11,34 @@ impl Event {
     pub const INFLIGHT_ADJUSTMENT: u8 = 13;
     pub const LOGGING_RESUME: u8 = 14;
     pub const DISARM: u8 = 15;
-    pub const FLIGHT_MODE: u8 = 30; // Add new event type for flight mode status.
+    pub const FLIGHT_MODE: u8 = 30;
     pub const LOG_END: u8 = 255;
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(u8)]
+pub enum Event {
+    SyncBeep(u32) = 0,
+    AutotuneCycleStart = 10,
+    AutotuneCycleResult = 11,
+    AutotuneCycleTargets = 12,
+    InflightAdjustment(i32, f32, u8, bool) = 13,
+    LoggingResume(u32, u32) = 14,
+    Disarm(u32) = 15,
+    FlightMode(u32, u32) = 30,
+    LogEnd = 255,
+}
+
+impl Default for Event {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Event {
+    pub const fn new() -> Self {
+        Self::SyncBeep(0)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -31,7 +57,7 @@ impl Default for SlowData {
 }
 
 impl SlowData {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             flight_mode_flags: 0,
             state_flags: 0,
@@ -44,10 +70,14 @@ impl SlowData {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GpsPosition {
-    pub longitude_degrees_1e7: i32, // longitude in degrees * 1e+7
-    pub latitude_degrees_1e7: i32,  // latitude in degrees * 1e+7
-    pub altitude_cm: i32,           // altitude in cm
+    /// longitude in degrees * 1e+7.
+    pub longitude_degrees_1e7: i32,
+    /// latitude in degrees * 1e+7.
+    pub latitude_degrees_1e7: i32,
+    /// altitude in cm.
+    pub altitude_cm: i32,
 }
+
 impl Default for GpsPosition {
     fn default() -> Self {
         Self::new()
@@ -55,23 +85,33 @@ impl Default for GpsPosition {
 }
 
 impl GpsPosition {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self { longitude_degrees_1e7: 0, latitude_degrees_1e7: 0, altitude_cm: 0 }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GpsData {
-    pub time_of_week_ms: u32, // GPS time of week in ms
-    pub interval_ms: u32,     // interval between GPS solutions in ms
-    pub home: GpsPosition,    // home position
+    /// GPS time of week in ms.
+    pub time_of_week_ms: u32,
+    /// interval between GPS solutions in ms.
+    pub interval_ms: u32,
+    /// home position.
+    pub home: GpsPosition,
+    /// current position.
     pub position: GpsPosition,
-    pub velocity_north_cmps: i16,        // north velocity, cm/s
-    pub velocity_east_cmps: i16,         // east velocity, cm/s
-    pub velocity_down_cmps: i16,         // down velocity, cm/s
-    pub speed3d_cmps: i16,               // speed in cm/s
-    pub ground_speed_cmps: i16,          // speed in cm/s
-    pub ground_course_deci_degrees: i16, // Heading 2D in 10ths of a degree
+    /// north velocity, cm/s.
+    pub velocity_north_cmps: i16,
+    /// east velocity, cm/s.
+    pub velocity_east_cmps: i16,
+    /// down velocity, cm/s.
+    pub velocity_down_cmps: i16,
+    /// speed in cm/s.
+    pub speed3d_cmps: i16,
+    /// speed in cm/s.
+    pub ground_speed_cmps: i16,
+    /// Heading 2D in 10ths of a degree.
+    pub ground_course_deci_degrees: i16,
     pub satellite_count: u8,
 }
 
@@ -82,12 +122,12 @@ impl Default for GpsData {
 }
 
 impl GpsData {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             time_of_week_ms: 0,
             interval_ms: 0,
-            home: GpsPosition::default(),
-            position: GpsPosition::default(),
+            home: GpsPosition::new(),
+            position: GpsPosition::new(),
             velocity_north_cmps: 0,
             velocity_east_cmps: 0,
             velocity_down_cmps: 0,
@@ -102,7 +142,7 @@ impl GpsData {
 impl GpsData {
     #[allow(unused)]
     pub fn state_changed(&self, new_data: Self) -> bool {
-        //We could check for velocity changes as well but I doubt it changes independent of position
+        // We could check for velocity changes as well but I doubt it changes independent of position
         new_data.satellite_count != self.satellite_count
             || new_data.position.latitude_degrees_1e7 != self.position.latitude_degrees_1e7
             || new_data.position.longitude_degrees_1e7 != self.position.longitude_degrees_1e7
@@ -124,7 +164,8 @@ pub struct MainData {
     pub gyro_unfiltered: [i16; Self::XYZ_AXIS_COUNT],
     pub acc: [i16; Self::XYZ_AXIS_COUNT],
     pub mag: [i16; Self::XYZ_AXIS_COUNT],
-    pub orientation: [i16; Self::XYZ_AXIS_COUNT], // only x,y,z from orientation quaternion are stored; w is always positive
+    /// only x,y,z from orientation quaternion are stored; w is always positive.
+    pub orientation: [i16; Self::XYZ_AXIS_COUNT],
     pub motor: [u16; Self::MAX_SUPPORTED_MOTOR_COUNT],
     #[cfg(feature = "dshot_telemetry")]
     pub erpm: [u16; Self::MAX_SUPPORTED_MOTOR_COUNT],
@@ -140,8 +181,6 @@ pub struct MainData {
 
 impl MainData {
     pub const RPY_AXIS_COUNT: usize = 3;
-    #[allow(unused)]
-    pub const RP_AXIS_COUNT: usize = 2;
     pub const XYZ_AXIS_COUNT: usize = 3;
     #[cfg(feature = "eight_motors")]
     pub const MAX_SUPPORTED_MOTOR_COUNT: usize = 8;
@@ -160,31 +199,31 @@ impl Default for MainData {
 }
 
 impl MainData {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             time_us: 0,
-            pid_p: <[i32; Self::RPY_AXIS_COUNT]>::default(),
-            pid_i: <[i32; Self::RPY_AXIS_COUNT]>::default(),
-            pid_d: <[i32; Self::RPY_AXIS_COUNT]>::default(),
-            pid_s: <[i32; Self::RPY_AXIS_COUNT]>::default(),
-            pid_k: <[i32; Self::RPY_AXIS_COUNT]>::default(),
+            pid_p: [0i32; Self::RPY_AXIS_COUNT],
+            pid_i: [0i32; Self::RPY_AXIS_COUNT],
+            pid_d: [0i32; Self::RPY_AXIS_COUNT],
+            pid_s: [0i32; Self::RPY_AXIS_COUNT],
+            pid_k: [0i32; Self::RPY_AXIS_COUNT],
             rc_commands: [1500, 1500, 1500, 1000],
-            setpoints: <[i16; Self::SETPOINT_COUNT]>::default(),
-            gyro: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
-            gyro_unfiltered: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
-            acc: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
-            mag: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
-            orientation: <[i16; Self::XYZ_AXIS_COUNT]>::default(),
+            setpoints: [0i16; Self::SETPOINT_COUNT],
+            gyro: [0i16; Self::XYZ_AXIS_COUNT],
+            gyro_unfiltered: [0i16; Self::XYZ_AXIS_COUNT],
+            acc: [0i16; Self::XYZ_AXIS_COUNT],
+            mag: [0i16; Self::XYZ_AXIS_COUNT],
+            orientation: [0i16; Self::XYZ_AXIS_COUNT],
             #[cfg(feature = "eight_motors")]
             motor: [1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100],
             #[cfg(not(feature = "eight_motors"))]
             motor: [1100, 1100, 1100, 1100],
 
             #[cfg(feature = "dshot_telemetry")]
-            erpm: <[u16; Self::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
-            debug: <[i16; Self::DEBUG_COUNT]>::default(),
+            erpm: [0u16; Self::MAX_SUPPORTED_MOTOR_COUNT],
+            debug: [0i16; Self::DEBUG_COUNT],
             #[cfg(feature = "servos")]
-            servos: <[i16; Self::MAX_SUPPORTED_SERVO_COUNT]>::default(),
+            servos: [0i16; Self::MAX_SUPPORTED_SERVO_COUNT],
             baro_altitude: 0,
             range_raw: 0,
             amperage: 0,
@@ -196,11 +235,9 @@ impl MainData {
 
 #[cfg(test)]
 mod tests {
-    #[allow(unused)]
     use super::*;
 
-    #[allow(unused)]
-    fn is_normal<T: Sized + Send + Sync + Unpin>() {}
+    fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
 
     #[test]

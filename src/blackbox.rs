@@ -59,12 +59,11 @@ impl Default for BlackboxStartParameters {
 }
 
 impl BlackboxStartParameters {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self { debug_mode: 0, motor_count: 4, servo_count: 0 }
     }
 }
 
-#[allow(unused)]
 #[derive(Clone, Copy, Debug)]
 pub struct Blackbox {
     state: StateMachine,
@@ -75,13 +74,13 @@ pub struct Blackbox {
 
 impl Default for Blackbox {
     fn default() -> Self {
-        Self::new(BlackboxConfig::default())
+        Self::new(BlackboxConfig::new())
     }
 }
 
 impl Blackbox {
-    pub fn new(config: BlackboxConfig) -> Self {
-        Self { state: StateMachine::default(), logger: Logger::new(), config }
+    pub const fn new(config: BlackboxConfig) -> Self {
+        Self { state: StateMachine::new(), logger: Logger::new(), config }
     }
 }
 
@@ -111,9 +110,6 @@ impl Blackbox {
 }
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::float_cmp)]
-
-    #[allow(unused)]
     use super::*;
 
     fn is_normal<T: Sized + Send + Sync + Unpin>() {}
@@ -130,7 +126,7 @@ mod tests {
         is_config::<BlackboxConfig>();
     }
     #[test]
-    fn new() {
+    fn test_new() {
         let blackbox = Blackbox::default();
         assert_eq!(0, blackbox.logger.iteration);
     }

@@ -148,6 +148,12 @@ impl SliceWriter<'_> {
         self.write_byte(value as u8);
     }
 
+    /// Write f32 value in integer form.
+    pub fn write_f32(&mut self, value: f32) {
+        let bits = value.to_bits().cast_signed();
+        self.write_unsigned_vb(bits.cast_unsigned());
+    }
+
     pub fn write_unsigned_vb_16(&mut self, value: u16) {
         self.write_unsigned_vb(u32::from(value));
     }

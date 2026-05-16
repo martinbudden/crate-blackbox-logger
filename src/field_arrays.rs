@@ -3,8 +3,7 @@ use crate::field_definitions::ConditionalFieldDefinition;
 use crate::field_definitions::{FieldCondition, FieldEncoding, FieldPredictor, FieldSign};
 use crate::field_definitions::{MainFieldDefinition, SimpleFieldDefinition};
 
-pub const SLOW_FIELD_COUNT: usize = 5;
-pub static BLACKBOX_SLOW_FIELDS: [SimpleFieldDefinition; SLOW_FIELD_COUNT] = [
+pub static BLACKBOX_SLOW_FIELDS: [SimpleFieldDefinition; SimpleFieldDefinition::SLOW_FIELD_COUNT] = [
     SimpleFieldDefinition {
         name: "flight_mode_flags",
         field_name_index: -1,
@@ -43,6 +42,9 @@ pub static BLACKBOX_SLOW_FIELDS: [SimpleFieldDefinition; SLOW_FIELD_COUNT] = [
 ];
 
 impl SimpleFieldDefinition {
+    pub const SLOW_FIELD_COUNT: usize = 5;
+    pub const GPS_H_FIELD_COUNT: usize = 3;
+
     #[allow(unused)]
     pub fn find_by_name(name: &str) -> Option<&'static Self> {
         BLACKBOX_SLOW_FIELDS.iter().find(|field| field.name == name)
@@ -50,10 +52,7 @@ impl SimpleFieldDefinition {
 }
 
 // GPS home frame
-#[allow(unused)]
-pub const GPS_H_FIELD_COUNT: usize = 3;
-#[allow(unused)]
-pub static BLACKBOX_GPS_H_FIELDS: [SimpleFieldDefinition; GPS_H_FIELD_COUNT] = [
+pub static BLACKBOX_GPS_H_FIELDS: [SimpleFieldDefinition; SimpleFieldDefinition::GPS_H_FIELD_COUNT] = [
     SimpleFieldDefinition {
         name: "GPS_home",
         field_name_index: 0,
@@ -78,10 +77,8 @@ pub static BLACKBOX_GPS_H_FIELDS: [SimpleFieldDefinition; GPS_H_FIELD_COUNT] = [
 ];
 
 // GPS position/velocity frame
-#[allow(unused)]
-pub const GPS_G_FIELD_COUNT: usize = 10;
 #[cfg(feature = "gps")]
-pub static BLACKBOX_GPS_G_FIELDS: [ConditionalFieldDefinition; GPS_G_FIELD_COUNT] = [
+pub static BLACKBOX_GPS_G_FIELDS: [ConditionalFieldDefinition; ConditionalFieldDefinition::GPS_G_FIELD_COUNT] = [
     ConditionalFieldDefinition {
         name: "time",
         field_name_index: -1,
@@ -166,6 +163,8 @@ pub static BLACKBOX_GPS_G_FIELDS: [ConditionalFieldDefinition; GPS_G_FIELD_COUNT
 
 #[cfg(feature = "gps")]
 impl ConditionalFieldDefinition {
+    pub const GPS_G_FIELD_COUNT: usize = 10;
+
     #[allow(unused)]
     #[cfg(feature = "gps")]
     pub fn find_by_name(name: &str) -> Option<&'static Self> {

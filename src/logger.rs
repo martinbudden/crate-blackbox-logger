@@ -1,10 +1,11 @@
+use crate::Event;
 use crate::Features;
 use crate::SliceWriter;
 use crate::data::{GpsData, GpsPosition, MainData, SlowData};
 use crate::field_definitions::{FieldCondition, FieldSelect};
 use crate::state_machine::StateMachine;
 use crate::{GpsMessage, GyroPidMessage, SetpointMessage};
-use vqm::BitSet64;
+use simple_bitset::BitSet64;
 
 /// Blackbox logger.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -13,6 +14,8 @@ pub struct Logger {
     pub(crate) features: Features,
     pub(crate) enabled_fields: u32,
 
+    pub(crate) last_arming_beep_time_us: u32,
+    pub(crate) last_flight_mode_flags: u32,
     pub(crate) looptime: u32,
     pub(crate) i_interval: u32,
     pub(crate) p_interval: u32,
@@ -49,7 +52,7 @@ impl Default for Logger {
 }
 
 impl Logger {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             motor_count: 4,
             servo_count: 0,
@@ -59,7 +62,7 @@ impl Logger {
             min_throttle: 1070,
             max_throttle: 2000,
             vbat_reference: 2466,
-            conditions: BitSet64::default(),
+            conditions: BitSet64::new(),
 
             looptime: 125,   // 125us = 8kHz gyro/pid loop
             p_interval: 8,   // 8*125us = 1000us = 1kHz logging
@@ -71,6 +74,8 @@ impl Logger {
             iteration: 0,
 
             enabled_fields: 0,
+            last_arming_beep_time_us: 0,
+            last_flight_mode_flags: 0,
             logged_any_frames: false,
             new_slow_data: false,
             new_gps_data: false,
@@ -83,12 +88,12 @@ impl Logger {
                     | Features::BLACKBOX
                     | Features::FAILSAFE,
             },
-            slow_data: SlowData::default(),
+            slow_data: SlowData::new(),
 
-            gps_data: GpsData::default(),
-            gps_home: GpsPosition::default(),
+            gps_data: GpsData::new(),
+            gps_home: GpsPosition::new(),
 
-            main_data: <[MainData; 3]>::default(),
+            main_data: [MainData::new(); 3],
         }
     }
 }
@@ -159,7 +164,6 @@ impl Logger {
     /// assert!(Logger::is_after(0, u32::MAX));
     /// assert!(Logger::is_after(1, u32::MAX));
     /// ```
-    #[allow(unused)]
     pub fn is_after(a: u32, b: u32) -> bool {
         // This calculates (a - b) mod 2^32
         a.wrapping_sub(b) < (u32::MAX / 2)
@@ -272,8 +276,8 @@ impl Logger {
             }
             len += self.log_i_frame(encoder);
         } else {
-            self.log_event_arming_beep_if_needed();
-            self.log_event_flight_mode_if_needed(); // Check for FlightMode status change event
+            //self.log_event_arming_beep_if_needed(encoder);
+            //self.log_event_flight_mode_if_needed(encoder); // Check for FlightMode status change event
 
             if self.should_log_p_frame() {
                 // ie p_frame_index == 0 && p_interval != 0
@@ -302,10 +306,10 @@ impl Logger {
         self.i_frame_index == 0
     }
     pub fn should_log_h_frame(&self) -> bool {
-        false //self.features.is_set(Features::GPS)
+        self.features.is_set(Features::GPS)
     }
     pub fn should_log_g_frame(&self) -> bool {
-        false //self.features.is_set(Features::GPS) && self.new_gps_data
+        self.features.is_set(Features::GPS) && self.new_gps_data
     }
     pub fn should_log_p_frame(&self) -> bool {
         self.p_frame_index == 0 && !self.is_only_logging_i_frames()
@@ -322,10 +326,21 @@ impl Logger {
         self.p_interval == 0
     }
 
-    #[allow(clippy::unused_self)]
-    pub fn log_event_arming_beep_if_needed(&self) {}
-    #[allow(clippy::unused_self)]
-    pub fn log_event_flight_mode_if_needed(&self) {} // Check for FlightMode status change event
+    /// If an arming beep has played since it was last logged, write the time of the arming beep to the log as a synchronization point.
+    pub fn log_event_arming_beep_if_needed(&mut self, encoder: &mut SliceWriter, arming_beep_time_us: u32) {
+        if arming_beep_time_us != self.last_arming_beep_time_us {
+            self.last_arming_beep_time_us = arming_beep_time_us;
+            let event = Event::SyncBeep(arming_beep_time_us);
+            _ = self.log_e_frame(encoder, event);
+        }
+    }
+    pub fn log_event_flight_mode_if_needed(&mut self, encoder: &mut SliceWriter, rc_mode_activation_mask: u32) {
+        if rc_mode_activation_mask != self.last_flight_mode_flags {
+            let event = Event::FlightMode(rc_mode_activation_mask, self.last_flight_mode_flags);
+            _ = self.log_e_frame(encoder, event);
+            self.last_flight_mode_flags = rc_mode_activation_mask;
+        }
+    }
 }
 
 impl Logger {
@@ -389,7 +404,7 @@ impl Logger {
             | FieldCondition::AT_LEAST_MOTORS_8 => {
                 self.is_field_enabled(FieldSelect::MOTOR)
                     && self.motor_count > (condition - FieldCondition::AT_LEAST_MOTORS_1) as usize
-            },
+            }
 
             #[cfg(feature = "dshot_telemetry")]
             FieldCondition::MOTOR_1_HAS_RPM
@@ -402,7 +417,7 @@ impl Logger {
             | FieldCondition::MOTOR_8_HAS_RPM => {
                 self.is_field_enabled(FieldSelect::MOTOR_RPM)
                     && self.motor_count > (condition - FieldCondition::MOTOR_1_HAS_RPM) as usize
-            },
+            }
 
             FieldCondition::SERVOS => self.is_field_enabled(FieldSelect::SERVO) && self.servo_count > 0,
 
@@ -456,13 +471,9 @@ impl Logger {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
-
-    #[allow(unused)]
     use super::*;
 
-    #[allow(unused)]
-    fn is_normal<T: Sized + Send + Sync + Unpin>() {}
+    fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
 
     #[test]

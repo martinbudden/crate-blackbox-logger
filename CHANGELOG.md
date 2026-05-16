@@ -23,6 +23,19 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ### Security
 
+## [0.1.3] - 2026-05-16
+
+### Added
+
+- `log_gps_h_fields_header` and `log_gps_g_fields_header`.
+
+### Changed
+
+- Updated to vqm 0.1.15.
+- Changed constructors to be `const` where possible.
+- Updated documentation.
+- Improved event logging.
+
 ## [0.1.2] - 2026-05-10
 
 ### Changed

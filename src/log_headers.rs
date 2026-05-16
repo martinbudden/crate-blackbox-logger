@@ -1,5 +1,5 @@
 use crate::encoding::write_field_line;
-use crate::field_definitions::{MainFieldDefinition, SimpleFieldDefinition};
+use crate::field_definitions::{ConditionalFieldDefinition, MainFieldDefinition, SimpleFieldDefinition};
 use crate::logger::Logger;
 use crate::{BlackboxWriter, SliceWriter};
 
@@ -81,7 +81,7 @@ impl Logger {
 
     #[allow(clippy::unused_self)]
     pub fn log_slow_fields_header(&mut self, writer: &mut SliceWriter) -> usize {
-        const SLOW_FIELDS: &[SimpleFieldDefinition; crate::field_arrays::SLOW_FIELD_COUNT] =
+        const SLOW_FIELDS: &[SimpleFieldDefinition; SimpleFieldDefinition::SLOW_FIELD_COUNT] =
             &crate::field_arrays::BLACKBOX_SLOW_FIELDS;
         let filter = |_: &SimpleFieldDefinition| true;
 
@@ -108,6 +108,74 @@ impl Logger {
         // Encoding line
         let filtered = SLOW_FIELDS.iter().filter(|&f| filter(f));
         write_field_line(writer, 'S', "encoding", filtered, |w, f| {
+            w.write_u8_ascii(f.encode);
+        });
+
+        writer.pos
+    }
+
+    pub fn log_gps_h_fields_header(&mut self, writer: &mut SliceWriter) -> usize {
+        const GPS_H_FIELDS: &[SimpleFieldDefinition; SimpleFieldDefinition::GPS_H_FIELD_COUNT] =
+            &crate::field_arrays::BLACKBOX_GPS_H_FIELDS;
+        let filter = |_: &SimpleFieldDefinition| true;
+
+        // Name line.
+        write_field_line(writer, 'H', "name", GPS_H_FIELDS.iter().filter(|&f| filter(f)), |w, f| {
+            w.write_str(f.name);
+            let index = f.field_name_index;
+            if index >= 0 {
+                w.write_char('[');
+                w.write_u8_ascii(index.cast_unsigned());
+                w.write_char(']');
+            }
+        });
+        // Signed line
+        let filtered = GPS_H_FIELDS.iter().filter(|&f| filter(f));
+        write_field_line(writer, 'H', "signed", filtered, |w, f| {
+            w.write_u8_ascii(f.is_signed);
+        });
+        // Predictor line
+        let filtered = GPS_H_FIELDS.iter().filter(|&f| filter(f));
+        write_field_line(writer, 'H', "predictor", filtered, |w, f| {
+            w.write_u8_ascii(f.predict);
+        });
+        // Encoding line
+        let filtered = GPS_H_FIELDS.iter().filter(|&f| filter(f));
+        write_field_line(writer, 'H', "encoding", filtered, |w, f| {
+            w.write_u8_ascii(f.encode);
+        });
+
+        writer.pos
+    }
+
+    pub fn log_gps_g_fields_header(&mut self, writer: &mut SliceWriter) -> usize {
+        const GPS_G_FIELDS: &[ConditionalFieldDefinition; ConditionalFieldDefinition::GPS_G_FIELD_COUNT] =
+            &crate::field_arrays::BLACKBOX_GPS_G_FIELDS;
+        let filter = |_: &ConditionalFieldDefinition| true;
+
+        // Name line.
+        write_field_line(writer, 'G', "name", GPS_G_FIELDS.iter().filter(|&f| filter(f)), |w, f| {
+            w.write_str(f.name);
+            let index = f.field_name_index;
+            if index >= 0 {
+                w.write_char('[');
+                w.write_u8_ascii(index.cast_unsigned());
+                w.write_char(']');
+            }
+        });
+        // Signed line
+        let filtered = GPS_G_FIELDS.iter().filter(|&f| filter(f));
+        write_field_line(writer, 'G', "signed", filtered, |w, f| {
+            w.write_u8_ascii(f.is_signed);
+        });
+        // Predictor line
+        let filtered = GPS_G_FIELDS.iter().filter(|&f| filter(f));
+        write_field_line(writer, 'G', "predictor", filtered, |w, f| {
+            w.write_u8_ascii(f.predict);
+        });
+        // Encoding line
+        let filtered = GPS_G_FIELDS.iter().filter(|&f| filter(f));
+        write_field_line(writer, 'G', "encoding", filtered, |w, f| {
             w.write_u8_ascii(f.encode);
         });
 
@@ -248,11 +316,9 @@ mod tests {
     use crate::state_machine::StateMachine;
     use crate::{BlackboxStartParameters, GyroPidMessage, SetpointMessage};
 
-    #[allow(unused)]
     use super::*;
 
-    #[allow(unused)]
-    fn is_normal<T: Sized + Send + Sync + Unpin>() {}
+    fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
 
     #[test]
@@ -260,7 +326,7 @@ mod tests {
         is_full::<Logger>();
     }
     #[test]
-    fn new() {
+    fn test_new() {
         let ctx = Logger::new();
         assert!(!ctx.logged_any_frames);
     }

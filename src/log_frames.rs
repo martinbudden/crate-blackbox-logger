@@ -1,4 +1,4 @@
-use crate::data::{Event, MainData};
+use crate::data::{Event, EventId, MainData};
 use crate::field_definitions::{FieldCondition, FieldSelect};
 use crate::logger::Logger;
 use crate::{BlackboxWriter, SliceWriter};
@@ -30,31 +30,42 @@ macro_rules! assert_p_field_encoding {
 
 impl Logger {
     /// Log event: e_frame. Written immediately to log when event occurs.
-    pub fn log_e_frame(&mut self, encoder: &mut SliceWriter, event: u8) -> usize {
+    pub fn log_e_frame(&mut self, encoder: &mut SliceWriter, event: Event) -> usize {
         encoder.begin_frame(b'E');
-        encoder.write_byte(event);
 
-        #[allow(clippy::match_same_arms)]
         match event {
-            Event::SYNC_BEEP => {
-                encoder.write_unsigned_vb(0);
+            Event::SyncBeep(time) => {
+                encoder.write_byte(EventId::SYNC_BEEP);
+                encoder.write_unsigned_vb(time);
             }
-            Event::INFLIGHT_ADJUSTMENT => {
-                encoder.write_byte(event);
+            Event::InflightAdjustment(new_value, new_value_f32, adjustment, is_float) => {
+                encoder.write_byte(EventId::INFLIGHT_ADJUSTMENT);
                 encoder.write_signed_vb(0);
+                if is_float {
+                    const IS_F32_FLAG: u8 = 128;
+                    encoder.write_byte(adjustment + IS_F32_FLAG);
+                    encoder.write_f32(new_value_f32);
+                } else {
+                    encoder.write_byte(adjustment);
+                    encoder.write_signed_vb(new_value);
+                }
             }
-            Event::DISARM => {
-                encoder.write_unsigned_vb(0);
+            Event::Disarm(reason) => {
+                encoder.write_byte(EventId::DISARM);
+                encoder.write_unsigned_vb(reason);
             }
-            Event::LOGGING_RESUME => {
-                encoder.write_unsigned_vb(0);
-                encoder.write_unsigned_vb(0);
+            Event::LoggingResume(iteration, time) => {
+                encoder.write_byte(EventId::LOGGING_RESUME);
+                encoder.write_unsigned_vb(iteration);
+                encoder.write_unsigned_vb(time);
             }
-            Event::FLIGHT_MODE => {
-                encoder.write_unsigned_vb(0);
-                encoder.write_unsigned_vb(0);
+            Event::FlightMode(flags, previous_flags) => {
+                encoder.write_byte(EventId::FLIGHT_MODE);
+                encoder.write_unsigned_vb(flags);
+                encoder.write_unsigned_vb(previous_flags);
             }
-            Event::LOG_END => {
+            Event::LogEnd => {
+                encoder.write_byte(EventId::LOG_END);
                 encoder.write_str("End of log");
                 encoder.write_byte(0);
                 // TODO:

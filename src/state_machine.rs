@@ -19,6 +19,12 @@ pub enum StateMachine {
 }
 
 impl StateMachine {
+    pub const fn new() -> Self {
+        Self::Disabled
+    }
+}
+
+impl StateMachine {
     pub fn start(&mut self, _start_params: BlackboxStartParameters) {
         *self = StateMachine::PrepareLogFile;
     }
@@ -69,13 +75,11 @@ impl StateMachine {
             }
             StateMachine::LogGpsHFieldsHeader => {
                 *self = StateMachine::LogGpsGFieldsHeader;
-                //logger.log_gps_g_header(writer)
-                0
+                logger.log_gps_g_fields_header(writer)
             }
             StateMachine::LogGpsGFieldsHeader => {
                 *self = StateMachine::LogSlowFieldsHeader;
-                //logger.log_gps_h_header(writer)
-                0
+                logger.log_gps_h_fields_header(writer)
             }
             StateMachine::LogSlowFieldsHeader => {
                 *self = StateMachine::LogSysinfo(0);
@@ -107,12 +111,9 @@ impl StateMachine {
 
 #[cfg(test)]
 mod tests {
-
-    #[allow(unused)]
     use super::*;
 
-    #[allow(unused)]
-    fn is_normal<T: Sized + Send + Sync + Unpin>() {}
+    fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
 
     #[test]
