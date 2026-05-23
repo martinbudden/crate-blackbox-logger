@@ -15,6 +15,8 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ### Changed
 
+- made `serde` an optional feature.
+
 ### Removed
 
 ### Deprecated
@@ -22,6 +24,13 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 ### Fixed
 
 ### Security
+
+## [0.1.4] - 2026-05-23
+
+### Changed
+
+- Updated to vqm 0.1.8.
+- made `serde` and optional feature.
 
 ## [0.1.3] - 2026-05-16
 
@@ -31,7 +40,7 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ### Changed
 
-- Updated to vqm 0.1.15.
+- Updated to vqm 0.1.5.
 - Changed constructors to be `const` where possible.
 - Updated documentation.
 - Improved event logging.

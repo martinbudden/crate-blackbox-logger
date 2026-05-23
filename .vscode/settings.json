@@ -18,6 +18,7 @@
         "deadband",
         "debuginfo",
         "deci",
+        "defmt",
         "dshot",
         "DTERM",
         "erpm",

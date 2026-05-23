@@ -2,6 +2,7 @@ use crate::SliceWriter;
 use crate::logger::Logger;
 use crate::state_machine::StateMachine;
 use crate::{GyroPidMessage, SetpointMessage};
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 pub struct BlackboxDevice {}
@@ -19,7 +20,8 @@ impl BlackboxMode {
     pub const ALWAYS_ON: u8 = 2;
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct BlackboxConfig {
     pub sample_rate: u8,
     pub device: u8,
@@ -114,6 +116,7 @@ mod tests {
 
     fn is_normal<T: Sized + Send + Sync + Unpin>() {}
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
+    #[cfg(feature = "serde")]
     fn is_config<
         T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq + Serialize + for<'a> Deserialize<'a>,
     >() {
@@ -123,6 +126,8 @@ mod tests {
     fn normal_types() {
         is_normal::<Blackbox>();
         is_full::<BlackboxStartParameters>();
+        is_full::<BlackboxConfig>();
+        #[cfg(feature = "serde")]
         is_config::<BlackboxConfig>();
     }
     #[test]
