@@ -30,7 +30,7 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 ### Changed
 
 - Updated to vqm 0.1.8.
-- made `serde` and optional feature.
+- made `serde` an optional feature.
 
 ## [0.1.3] - 2026-05-16
 
