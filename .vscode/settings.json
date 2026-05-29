@@ -12,6 +12,7 @@
         "bytemuck",
         "byteorder",
         "Cleanflight",
+        "clippy",
         "cmps",
         "codegen",
         "corasick",
