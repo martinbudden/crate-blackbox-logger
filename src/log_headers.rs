@@ -1,5 +1,7 @@
 use crate::encoding::write_field_line;
-use crate::field_definitions::{ConditionalFieldDefinition, MainFieldDefinition, SimpleFieldDefinition};
+#[cfg(feature = "gps")]
+use crate::field_definitions::ConditionalFieldDefinition;
+use crate::field_definitions::{MainFieldDefinition, SimpleFieldDefinition};
 use crate::logger::Logger;
 use crate::{BlackboxWriter, SliceWriter};
 
@@ -114,6 +116,7 @@ impl Logger {
         writer.pos
     }
 
+    #[cfg(feature = "gps")]
     pub fn log_gps_h_fields_header(&mut self, writer: &mut SliceWriter) -> usize {
         const GPS_H_FIELDS: &[SimpleFieldDefinition; SimpleFieldDefinition::GPS_H_FIELD_COUNT] =
             &crate::field_arrays::BLACKBOX_GPS_H_FIELDS;
@@ -148,6 +151,7 @@ impl Logger {
         writer.pos
     }
 
+    #[cfg(feature = "gps")]
     pub fn log_gps_g_fields_header(&mut self, writer: &mut SliceWriter) -> usize {
         const GPS_G_FIELDS: &[ConditionalFieldDefinition; ConditionalFieldDefinition::GPS_G_FIELD_COUNT] =
             &crate::field_arrays::BLACKBOX_GPS_G_FIELDS;

@@ -41,6 +41,8 @@ impl FieldSign {
 }
 
 pub struct FieldPredictor;
+
+#[allow(unused)]
 impl FieldPredictor {
     pub const ZERO: u8 = 0;
     pub const PREVIOUS: u8 = 1;
@@ -50,7 +52,6 @@ impl FieldPredictor {
     pub const MOTOR_0: u8 = 5;
     pub const INC: u8 = 6;
     pub const HOME_COORD: u8 = 7;
-    #[allow(unused)]
     pub const S_1500: i32 = 8;
     pub const VBATREF: u8 = 9;
     pub const LAST_MAIN_FRAME_TIME: u8 = 10;
@@ -58,6 +59,7 @@ impl FieldPredictor {
 }
 
 pub struct FieldEncoding;
+
 impl FieldEncoding {
     pub const SIGNED_VB: u8 = 0;
     pub const UNSIGNED_VB: u8 = 1;
@@ -71,6 +73,8 @@ impl FieldEncoding {
 }
 
 pub struct FieldCondition;
+
+#[allow(unused)]
 impl FieldCondition {
     pub const ALWAYS: u8 = 0;
 
@@ -83,25 +87,16 @@ impl FieldCondition {
     pub const AT_LEAST_MOTORS_7: u8 = 7;
     pub const AT_LEAST_MOTORS_8: u8 = 8;
 
-    #[cfg(feature = "dshot_telemetry")]
     pub const MOTOR_1_HAS_RPM: u8 = 9;
-    #[cfg(feature = "dshot_telemetry")]
     pub const MOTOR_2_HAS_RPM: u8 = 10;
-    #[cfg(feature = "dshot_telemetry")]
     pub const MOTOR_3_HAS_RPM: u8 = 11;
-    #[cfg(feature = "dshot_telemetry")]
     pub const MOTOR_4_HAS_RPM: u8 = 12;
-    #[cfg(feature = "dshot_telemetry")]
     pub const MOTOR_5_HAS_RPM: u8 = 13;
-    #[cfg(feature = "dshot_telemetry")]
     pub const MOTOR_6_HAS_RPM: u8 = 14;
-    #[cfg(feature = "dshot_telemetry")]
     pub const MOTOR_7_HAS_RPM: u8 = 15;
-    #[cfg(feature = "dshot_telemetry")]
     pub const MOTOR_8_HAS_RPM: u8 = 16;
 
     pub const SERVOS: u8 = 17;
-    #[allow(unused)]
     pub const TRICOPTER: u8 = 18;
 
     pub const MAGNETOMETER: u8 = 19;

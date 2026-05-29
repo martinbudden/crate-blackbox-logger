@@ -3,7 +3,10 @@ use crate::logger::Logger;
 use crate::state_machine::StateMachine;
 use crate::{GyroPidMessage, SetpointMessage};
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use {
+    sequential_storage::map::PostcardValue,
+    serde::{Deserialize, Serialize},
+};
 
 pub struct BlackboxDevice {}
 impl BlackboxDevice {
@@ -29,6 +32,9 @@ pub struct BlackboxConfig {
     pub gps_use_3d_speed: bool,
     pub fields_disabled_mask: u32,
 }
+
+#[cfg(feature = "serde")]
+impl PostcardValue<'_> for BlackboxConfig {}
 
 impl Default for BlackboxConfig {
     fn default() -> Self {
@@ -117,10 +123,7 @@ mod tests {
     fn is_normal<T: Sized + Send + Sync + Unpin>() {}
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
     #[cfg(feature = "serde")]
-    fn is_config<
-        T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq + Serialize + for<'a> Deserialize<'a>,
-    >() {
-    }
+    fn is_config<T: Serialize + for<'a> Deserialize<'a> + for<'a> PostcardValue<'a>>() {}
 
     #[test]
     fn normal_types() {

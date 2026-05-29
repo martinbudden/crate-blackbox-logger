@@ -75,11 +75,17 @@ impl StateMachine {
             }
             StateMachine::LogGpsHFieldsHeader => {
                 *self = StateMachine::LogGpsGFieldsHeader;
-                logger.log_gps_g_fields_header(writer)
+                #[cfg(feature = "gps")]
+                return logger.log_gps_g_fields_header(writer);
+                #[cfg(not(feature = "gps"))]
+                return 0;
             }
             StateMachine::LogGpsGFieldsHeader => {
                 *self = StateMachine::LogSlowFieldsHeader;
-                logger.log_gps_h_fields_header(writer)
+                #[cfg(feature = "gps")]
+                return logger.log_gps_h_fields_header(writer);
+                #[cfg(not(feature = "gps"))]
+                return 0;
             }
             StateMachine::LogSlowFieldsHeader => {
                 *self = StateMachine::LogSysinfo(0);

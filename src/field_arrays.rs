@@ -41,17 +41,18 @@ pub static BLACKBOX_SLOW_FIELDS: [SimpleFieldDefinition; SimpleFieldDefinition::
     },
 ];
 
+#[allow(unused)]
 impl SimpleFieldDefinition {
     pub const SLOW_FIELD_COUNT: usize = 5;
     pub const GPS_H_FIELD_COUNT: usize = 3;
 
-    #[allow(unused)]
     pub fn find_by_name(name: &str) -> Option<&'static Self> {
         BLACKBOX_SLOW_FIELDS.iter().find(|field| field.name == name)
     }
 }
 
 // GPS home frame
+#[cfg(feature = "gps")]
 pub static BLACKBOX_GPS_H_FIELDS: [SimpleFieldDefinition; SimpleFieldDefinition::GPS_H_FIELD_COUNT] = [
     SimpleFieldDefinition {
         name: "GPS_home",

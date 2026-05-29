@@ -13,11 +13,16 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ### Added
 
+- support for sequential-storage.
+
 ### Changed
 
-- made `serde` an optional feature.
+- Updated to vqm 0.1.8.
+- improved handling of gps feature.
 
 ### Removed
+
+- katex-header.html.
 
 ### Deprecated
 
