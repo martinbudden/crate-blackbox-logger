@@ -6,6 +6,7 @@
         "AUTOTUNE",
         "baro",
         "Betaflight",
+        "bitflags",
         "blackbox",
         "Budden",
         "bytemuck",

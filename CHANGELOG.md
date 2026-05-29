@@ -13,22 +13,30 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ### Added
 
-- support for sequential-storage.
-
 ### Changed
 
-- Updated to vqm 0.1.8.
-- improved handling of gps feature.
-
 ### Removed
-
-- katex-header.html.
 
 ### Deprecated
 
 ### Fixed
 
 ### Security
+
+## [0.1.5] - 2026-05-29
+
+### Added
+
+- Support for `sequential-storage`.
+
+### Changed
+
+- Updated to vqm 0.1.8.
+- Improved handling of `gps` feature.
+
+### Removed
+
+- `katex-header.html`.
 
 ## [0.1.4] - 2026-05-23
 
