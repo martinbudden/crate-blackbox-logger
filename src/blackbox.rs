@@ -82,13 +82,13 @@ pub struct Blackbox {
 
 impl Default for Blackbox {
     fn default() -> Self {
-        Self::new(BlackboxConfig::new())
+        Self::new(BlackboxConfig::new(), 0)
     }
 }
 
 impl Blackbox {
-    pub const fn new(config: BlackboxConfig) -> Self {
-        Self { state: StateMachine::new(), logger: Logger::new(), config }
+    pub const fn new(config: BlackboxConfig, features: u32) -> Self {
+        Self { state: StateMachine::new(), logger: Logger::new(features), config }
     }
 }
 

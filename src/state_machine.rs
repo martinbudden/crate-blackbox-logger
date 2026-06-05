@@ -1,4 +1,4 @@
-use crate::{BlackboxStartParameters, Features, Logger, SliceWriter};
+use crate::{BlackboxStartParameters, Logger, SliceWriter};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(u8)]
@@ -63,7 +63,7 @@ impl StateMachine {
             StateMachine::LogMainFieldsHeader(index) => {
                 let len = logger.log_main_fields_header(writer, index);
                 if len == 0 {
-                    *self = if logger.features.is_set(Features::GPS) {
+                    *self = if logger.features & Logger::FEATURE_GPS != 0 {
                         StateMachine::LogGpsHFieldsHeader
                     } else {
                         StateMachine::LogSlowFieldsHeader

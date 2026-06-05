@@ -23,6 +23,17 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ### Security
 
+## [0.1.7] - 2026-06-05
+
+### Changed
+
+- Updated to vqm 0.1.11.
+- use `u32` for feature flags in `Logger`.
+
+### Removed
+
+- `features.rs`
+
 ## [0.1.6] - 2026-05-29
 
 ### Added

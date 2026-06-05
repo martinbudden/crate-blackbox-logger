@@ -331,7 +331,7 @@ mod tests {
     }
     #[test]
     fn test_new() {
-        let ctx = Logger::new();
+        let ctx = Logger::new(0);
         assert!(!ctx.logged_any_frames);
     }
 
@@ -360,7 +360,7 @@ mod tests {
     fn log_main_fields_header() {
         let mut buffer = [0u8; 2048];
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
-        let mut ctx = Logger::new();
+        let mut ctx = Logger::new(0);
         ctx.init(0, 0);
 
         let mut index: usize = 0;
@@ -381,7 +381,7 @@ mod tests {
     fn log_slow_fields_header() {
         let mut buffer = [0u8; 2048];
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
-        let mut ctx = Logger::new();
+        let mut ctx = Logger::new(0);
         ctx.init(0, 0);
 
         let len = ctx.log_slow_fields_header(&mut writer);
@@ -397,7 +397,7 @@ mod tests {
     fn log_sys_info() {
         let mut buffer = [0u8; 2048];
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
-        let mut ctx = Logger::new();
+        let mut ctx = Logger::new(0);
 
         let mut index: usize = 0;
         loop {
@@ -417,7 +417,7 @@ mod tests {
     fn state_machine_headers() {
         let mut buffer = [0u8; 4096];
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
-        let mut ctx = Logger::new();
+        let mut ctx = Logger::new(0);
         //let mut _sd_card = MockSdCard::new("state_machine_log.bbl");
         ctx.init(0, 0);
 
@@ -446,7 +446,7 @@ mod tests {
     fn full_run() {
         let mut buffer = [0u8; 4096];
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
-        let mut ctx = Logger::new();
+        let mut ctx = Logger::new(0);
         ctx.init(0, 0);
 
         let start = BlackboxStartParameters::new();

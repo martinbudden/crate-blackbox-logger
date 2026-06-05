@@ -1,5 +1,4 @@
 use crate::Event;
-use crate::Features;
 use crate::SliceWriter;
 use crate::data::{GpsData, GpsPosition, MainData, SlowData};
 use crate::field_definitions::{FieldCondition, FieldSelect};
@@ -11,7 +10,7 @@ use simple_bitset::BitSet64;
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Logger {
     pub(crate) conditions: BitSet64,
-    pub(crate) features: Features,
+    pub(crate) features: u32,
     pub(crate) enabled_fields: u32,
 
     pub(crate) last_arming_beep_time_us: u32,
@@ -47,12 +46,14 @@ pub struct Logger {
 
 impl Default for Logger {
     fn default() -> Self {
-        Self::new()
+        Self::new(0)
     }
 }
 
 impl Logger {
-    pub const fn new() -> Self {
+    pub const FEATURE_GPS: u32 = 1 << 7;
+
+    pub const fn new(features: u32) -> Self {
         Self {
             motor_count: 4,
             servo_count: 0,
@@ -80,14 +81,7 @@ impl Logger {
             new_slow_data: false,
             new_gps_data: false,
 
-            features: Features {
-                flags: Features::VBAT
-                    | Features::INFLIGHT_ACC_CAL
-                    | Features::RX_SERIAL
-                    | Features::RSSI_ADC
-                    | Features::BLACKBOX
-                    | Features::FAILSAFE,
-            },
+            features,
             slow_data: SlowData::new(),
 
             gps_data: GpsData::new(),
@@ -306,10 +300,10 @@ impl Logger {
         self.i_frame_index == 0
     }
     pub fn should_log_h_frame(&self) -> bool {
-        self.features.is_set(Features::GPS)
+        self.features & Self::FEATURE_GPS != 0
     }
     pub fn should_log_g_frame(&self) -> bool {
-        self.features.is_set(Features::GPS) && self.new_gps_data
+        (self.features & Self::FEATURE_GPS != 0) && self.new_gps_data
     }
     pub fn should_log_p_frame(&self) -> bool {
         self.p_frame_index == 0 && !self.is_only_logging_i_frames()
@@ -482,7 +476,7 @@ mod tests {
     }
     #[test]
     fn new() {
-        let ctx = Logger::new();
+        let ctx = Logger::new(0);
         assert!(!ctx.logged_any_frames);
     }
 }
