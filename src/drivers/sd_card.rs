@@ -1,3 +1,5 @@
+#![cfg(feature = "mock_sd_card")]
+
 use crate::drivers::SdStorage;
 use embassy_futures::yield_now;
 use std::fs::File;

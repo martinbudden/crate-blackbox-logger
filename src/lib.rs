@@ -23,6 +23,7 @@ mod logger;
 mod messages;
 pub mod state_machine;
 
+#[cfg(feature = "mock_sd_card")]
 pub use crate::drivers::sd_card;
 
 pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStartParameters};
