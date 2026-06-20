@@ -29,7 +29,7 @@ macro_rules! assert_p_field_encoding {
 }
 
 impl Logger {
-    /// Log event: e_frame. Written immediately to log when event occurs.
+    /// Log event: `e_frame`. Written immediately to log when event occurs.
     pub fn log_e_frame(&mut self, encoder: &mut SliceWriter, event: Event) -> usize {
         encoder.begin_frame(b'E');
 
@@ -75,7 +75,7 @@ impl Logger {
         encoder.end_frame()
     }
 
-    /// Log slow frame: s_frame.
+    /// Log slow frame: `s_frame`.
     pub fn log_s_frame(&mut self, encoder: &mut SliceWriter) -> usize {
         self.logged_any_frames = true;
         self.s_frame_index = 0;
@@ -98,7 +98,7 @@ impl Logger {
         encoder.end_frame()
     }
 
-    /// GPS home frame: h_frame.
+    /// GPS home frame: `h_frame`.
     pub fn log_h_frame(&mut self, encoder: &mut SliceWriter) -> usize {
         self.logged_any_frames = true;
 
@@ -112,7 +112,7 @@ impl Logger {
         encoder.end_frame()
     }
 
-    /// GPS frame: g_frame. Written at a frequency of about 10Hz.
+    /// GPS frame: `g_frame`. Written at a frequency of about 10Hz.
     pub fn log_g_frame(&mut self, current_time_us: u32, encoder: &mut SliceWriter) -> usize {
         self.logged_any_frames = true;
         self.new_gps_data = false;
@@ -150,7 +150,7 @@ impl Logger {
         encoder.end_frame()
     }
 
-    /// Write an Intra frame (i_frame).
+    /// Write an Intra frame (`i_frame`).
     /// Also known as a key frame.
     #[allow(clippy::too_many_lines)]
     pub fn log_i_frame(&mut self, encoder: &mut SliceWriter) -> usize {
@@ -313,10 +313,10 @@ impl Logger {
         ret
     }
 
-    /// Write a Predictor frame (p_frame).
+    /// Write a Predictor frame (`p_frame`).
     /// Also known as an inter frame.
-    /// Note: the predictions are hard coded to match the values defined in BLACKBOX_MAIN_FIELDS:
-    /// the code is made safe by asserting the p_encoding values.
+    /// Note: the predictions are hard coded to match the values defined in `BLACKBOX_MAIN_FIELDS`:
+    /// the code is made safe by asserting the `p_encoding` values.
     /// So this code and those definitions must be changed in tandem with each other.
     #[allow(clippy::too_many_lines)]
     pub fn log_p_frame(&mut self, encoder: &mut SliceWriter) -> usize {

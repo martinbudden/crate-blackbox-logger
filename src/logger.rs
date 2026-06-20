@@ -53,6 +53,7 @@ impl Default for Logger {
 impl Logger {
     pub const FEATURE_GPS: u32 = 1 << 7;
 
+    #[must_use]
     pub const fn new(features: u32) -> Self {
         Self {
             motor_count: 4,
@@ -151,13 +152,14 @@ impl Logger {
 }
 
 impl Logger {
-    /// Returns true if `a` is after `b`, taking account of wrapping at u32::MAX.
+    /// Returns true if `a` is after `b`, taking account of wrapping at `u32::MAX`.
     /// ```
     /// # use blackbox_logger::Logger;
     /// assert!(Logger::is_after(10, 9));
     /// assert!(Logger::is_after(0, u32::MAX));
     /// assert!(Logger::is_after(1, u32::MAX));
     /// ```
+    #[must_use]
     pub fn is_after(a: u32, b: u32) -> bool {
         // This calculates (a - b) mod 2^32
         a.wrapping_sub(b) < (u32::MAX / 2)
@@ -296,26 +298,32 @@ impl Logger {
         len
     }
 
+    #[must_use]
     pub fn should_log_i_frame(&self) -> bool {
         self.i_frame_index == 0
     }
+    #[must_use]
     pub fn should_log_h_frame(&self) -> bool {
         self.features & Self::FEATURE_GPS != 0
     }
+    #[must_use]
     pub fn should_log_g_frame(&self) -> bool {
         (self.features & Self::FEATURE_GPS != 0) && self.new_gps_data
     }
+    #[must_use]
     pub fn should_log_p_frame(&self) -> bool {
         self.p_frame_index == 0 && !self.is_only_logging_i_frames()
     }
     /// If the data in the slow frame has changed, log a slow frame.
     ///
-    /// The frame is also logged if it has been more than s_interval logging iterations
+    /// The frame is also logged if it has been more than `s_interval` logging iterations
     /// since the field was last logged.
     // Write the slow frame periodically so it can be recovered if we ever lose sync
+    #[must_use]
     pub fn should_log_s_frame(&self) -> bool {
         self.s_frame_index >= self.s_interval && self.new_slow_data
     }
+    #[must_use]
     pub fn is_only_logging_i_frames(&self) -> bool {
         self.p_interval == 0
     }
@@ -362,7 +370,7 @@ impl Logger {
         }
     }
 
-    /// Build condition cache, called from start().
+    /// Build condition cache, called from `start()`.
     pub fn build_field_condition_cache(&mut self) {
         self.conditions.reset_all();
         for condition in FieldCondition::FIRST..FieldCondition::LAST {
@@ -373,17 +381,20 @@ impl Logger {
     }
 
     // Helper function to check if a field is enabled
+    #[must_use]
     pub fn field_enabled(enabled_mask: u32, field: u32) -> bool {
         enabled_mask & field != 0
     }
 
     // Public method to check if a log field is enabled
+    #[must_use]
     pub fn is_field_enabled(&self, field: u32) -> bool {
         Self::field_enabled(self.enabled_fields, field)
     }
 
     // Called from build_field_condition_cache(), which is called from start()
     // Test condition without caching
+    #[must_use]
     pub fn test_field_condition_uncached(&self, condition: u8) -> bool {
         match condition {
             FieldCondition::ALWAYS => true,

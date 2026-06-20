@@ -1,5 +1,5 @@
 #![doc = include_str!("../README.md")]
-//#![no_std]
+#![cfg_attr(all(not(test), not(feature = "std")), no_std)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
 #![deny(clippy::panic)]
@@ -7,9 +7,6 @@
 #![warn(unused_results)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::doc_paragraphs_missing_punctuation)]
-#![allow(clippy::return_self_not_must_use)]
-#![allow(clippy::must_use_candidate)]
-#![allow(clippy::doc_markdown)]
 
 mod blackbox;
 mod data;

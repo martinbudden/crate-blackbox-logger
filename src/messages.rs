@@ -42,6 +42,7 @@ impl GyroPidMessage {
 }
 
 impl GyroPidMessage {
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             acc: Vector3df32::new(0.0, 0.0, 0.0),
@@ -102,6 +103,7 @@ impl SetpointMessage {
 }
 
 impl SetpointMessage {
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             setpoints: [0.0; Self::SETPOINT_COUNT],
@@ -137,6 +139,7 @@ pub struct GpsMessage {
 }
 
 impl GpsMessage {
+    #[must_use]
     pub const fn new() -> Self {
         Self { satellite_count: 0 }
     }

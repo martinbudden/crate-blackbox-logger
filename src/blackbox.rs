@@ -43,6 +43,7 @@ impl Default for BlackboxConfig {
 }
 
 impl BlackboxConfig {
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             sample_rate: 0,
@@ -67,6 +68,7 @@ impl Default for BlackboxStartParameters {
 }
 
 impl BlackboxStartParameters {
+    #[must_use]
     pub const fn new() -> Self {
         Self { debug_mode: 0, motor_count: 4, servo_count: 0 }
     }
@@ -87,6 +89,7 @@ impl Default for Blackbox {
 }
 
 impl Blackbox {
+    #[must_use]
     pub const fn new(config: BlackboxConfig, features: u32) -> Self {
         Self { state: StateMachine::new(), logger: Logger::new(features), config }
     }
@@ -112,6 +115,7 @@ impl Blackbox {
     pub fn set_state(&mut self, state: StateMachine) {
         self.state.set_state(state);
     }
+    #[must_use]
     pub fn state(&self) -> StateMachine {
         self.state
     }

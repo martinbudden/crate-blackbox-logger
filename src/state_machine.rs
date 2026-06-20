@@ -19,6 +19,7 @@ pub enum StateMachine {
 }
 
 impl StateMachine {
+    #[must_use]
     pub const fn new() -> Self {
         Self::Disabled
     }

@@ -16,7 +16,7 @@ pub trait BlackboxWriter {
         self.write_str(s);
     }
 
-    /// Minimal no_std u8 to ASCII helper.
+    /// Minimal `no_std` u8 to ASCII helper.
     fn write_u8_ascii(&mut self, mut n: u8) {
         if n == 0 {
             self.write_char('0');
@@ -111,6 +111,7 @@ pub struct SliceWriter<'a> {
 }
 
 impl SliceWriter<'_> {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -131,6 +132,7 @@ impl SliceWriter<'_> {
         self.write_byte(value);
     }
 
+    #[must_use]
     pub fn end_frame(&self) -> usize {
         self.pos
     }
@@ -172,8 +174,9 @@ impl SliceWriter<'_> {
         }
     }
 
-    /// ZigZag encode: maps -1 to 1, 1 to 2, -2 to 3, 2 to 4...
+    /// `ZigZag` encode: maps -1 to 1, 1 to 2, -2 to 3, 2 to 4...
     #[inline]
+    #[must_use]
     pub const fn zigzag_encode(value: i32) -> u32 {
         ((value << 1) ^ (value >> 31)).cast_unsigned()
     }
@@ -202,7 +205,7 @@ impl SliceWriter<'_> {
         }
     }
 
-    /// Encodes a group of up to 8 fields using TAG8_8SVB.
+    /// Encodes a group of up to 8 fields using `TAG8_8SVB`.
     pub fn write_tag8_8svb(&mut self, values: &[i32; 8]) {
         if values.is_empty() {
             return;
@@ -228,7 +231,7 @@ impl SliceWriter<'_> {
         }
     }
 
-    /// Encodes 4 values into TAG8_4S16 format.
+    /// Encodes 4 values into `TAG8_4S16` format.
     /// an 8-bit selector followed by four signed fields of size 0, 4, 8 or 16 bits.
     /// Values are truncated to i16 range as per the format name (4s16).
     /// TODO: this needs checking.

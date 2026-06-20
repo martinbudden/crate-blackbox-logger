@@ -36,6 +36,7 @@ impl Default for Event {
 }
 
 impl Event {
+    #[must_use]
     pub const fn new() -> Self {
         Self::SyncBeep(0)
     }
@@ -149,7 +150,7 @@ impl GpsData {
     }
 }
 
-/// MainData is about 150 bytes when all features enabled, so storing 3 copies for predictive purposes is not over onerous.
+/// `MainData` is about 150 bytes when all features enabled, so storing 3 copies for predictive purposes is not over onerous.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MainData {
     pub time_us: u32,
