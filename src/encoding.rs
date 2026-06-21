@@ -103,21 +103,21 @@ pub fn write_field_line<'a, T, I, F>(
     writer.write_char('\n');
 }
 
-// Simple wrapper for a mutable slice
+/// Encoder to write slice using variable-length encoding.
 #[derive(Debug, Default, PartialEq)]
-pub struct SliceWriter<'a> {
+pub struct SliceEncoder<'a> {
     pub buffer: &'a mut [u8],
     pub pos: usize,
 }
 
-impl SliceWriter<'_> {
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
+impl<'a> SliceEncoder<'a> {
+    /// Creates a new `SliceWriter` from a mutable byte slice.
+    pub fn new(buf: &'a mut [u8]) -> Self {
+        Self { buffer: buf, pos: 0 }
     }
 }
 
-impl BlackboxWriter for SliceWriter<'_> {
+impl BlackboxWriter for SliceEncoder<'_> {
     fn write_byte(&mut self, byte: u8) {
         if self.pos < self.buffer.len() {
             self.buffer[self.pos] = byte;
@@ -126,7 +126,7 @@ impl BlackboxWriter for SliceWriter<'_> {
     }
 }
 
-impl SliceWriter<'_> {
+impl SliceEncoder<'_> {
     // begin_frame and end_frame to support future Huffman compression of frame.
     pub fn begin_frame(&mut self, value: u8) {
         self.write_byte(value);
@@ -315,7 +315,7 @@ impl SliceWriter<'_> {
         }
     }
 
-    pub fn write_tag2_3s32(&mut self, values: [i32; 3]) {
+    pub fn encoder(&mut self, values: [i32; 3]) {
         // Find the required size for the largest value.
         const BITS_2: u8 = 0;
         const BITS_4: u8 = 1;
@@ -384,24 +384,19 @@ mod tests {
     fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
     fn is_full_no_copy_no_clone<T: Sized + Send + Sync + Unpin + Default + PartialEq>() {}
 
-    // Helper to create a writer and a fixed buffer
-    fn create_writer(buf: &mut [u8]) -> SliceWriter<'_> {
-        SliceWriter { buffer: buf, pos: 0 }
-    }
-
     #[test]
     fn normal_types() {
-        is_full_no_copy_no_clone::<SliceWriter>();
+        is_full_no_copy_no_clone::<SliceEncoder>();
     }
     #[test]
     fn write_byte() {
         let mut buf = [0u8; 2];
         {
-            let mut writer = create_writer(&mut buf);
-            writer.write_byte(10);
-            writer.write_byte(20);
-            writer.write_byte(30); // Should be ignored (out of bounds)
-            assert_eq!(writer.pos, 2);
+            let mut encoder = SliceEncoder::new(&mut buf);
+            encoder.write_byte(10);
+            encoder.write_byte(20);
+            encoder.write_byte(30); // Should be ignored (out of bounds)
+            assert_eq!(encoder.pos, 2);
         }
 
         assert_eq!(buf, [10, 20]);
@@ -413,11 +408,11 @@ mod tests {
 
         // Test single byte
         {
-            let mut writer = create_writer(&mut buf);
-            writer.write_unsigned_vb(127);
+            let mut encoder = SliceEncoder::new(&mut buf);
+            encoder.write_unsigned_vb(127);
 
             // Test multi byte (128 = 0x80 0x01 in LE VB)
-            writer.write_unsigned_vb(128);
+            encoder.write_unsigned_vb(128);
         }
         assert_eq!(buf[0], 127);
         assert_eq!(buf[1..3], [0x80, 0x01]);
@@ -426,14 +421,14 @@ mod tests {
     #[test]
     fn signed_vb_zigzag() {
         let mut buf = [0u8; 5];
-        let mut writer = create_writer(&mut buf);
+        let mut encoder = SliceEncoder::new(&mut buf);
 
         // 0 -> 0
-        writer.write_signed_vb(0);
+        encoder.write_signed_vb(0);
         // -1 -> 1
-        writer.write_signed_vb(-1);
+        encoder.write_signed_vb(-1);
         // 1 -> 2
-        writer.write_signed_vb(1);
+        encoder.write_signed_vb(1);
 
         assert_eq!(buf[..3], [0, 1, 2]);
     }
@@ -441,12 +436,12 @@ mod tests {
     #[test]
     fn write_tag8_8svb() {
         let mut buf = [0u8; 10];
-        let mut writer = create_writer(&mut buf);
+        let mut encoder = SliceEncoder::new(&mut buf);
 
         // Only 1st and 3rd values are non-zero
         // Header: (1 << 0) | (1 << 2) = 1 | 4 = 5
         let values = [1, 0, -1, 0, 0, 0, 0, 0];
-        writer.write_tag8_8svb(&values);
+        encoder.write_tag8_8svb(&values);
 
         // Expected: [Header, ZigZag(1), ZigZag(-1)] -> [5, 2, 1]
         assert_eq!(buf[..3], [5, 2, 1]);
@@ -455,12 +450,12 @@ mod tests {
     #[test]
     fn write_tag8_4s16_mixed() {
         let mut buf = [0u8; 10];
-        let mut writer = create_writer(&mut buf);
+        let mut encoder = SliceEncoder::new(&mut buf);
 
         // v0: 0 (00), v1: 3 (4-bit: 01), v2: 200 (8-bit: 10), v3: 500 (16-bit: 11)
         // Tag: 00 | (01 << 2) | (10 << 4) | (11 << 6) = 0x00 | 0x04 | 0x20 | 0xC0 = 0xE4
         let values: [i16; 4] = [0, 3, 200, 500];
-        writer.write_tag8_4s16(values);
+        encoder.write_tag8_4s16(values);
 
         //let expected_tag = 0xE4;
         //let expected_v1_nibble = 3u8;
@@ -477,11 +472,11 @@ mod tests {
     #[test]
     fn write_tag2_3s32_nibbles() {
         let mut buf = [0u8; 10];
-        let mut writer = create_writer(&mut buf);
+        let mut encoder = SliceEncoder::new(&mut buf);
 
         // All fit in 4-bit nibbles (bits_needed = 1)
         let values = [2, -1, 5];
-        writer.write_tag2_3s32(values);
+        encoder.encoder(values);
 
         // Byte 0: Tag (1)
         // Byte 1: (2 & 0xF) | ((-1 as u8 & 0xF) << 4) = 0x02 | 0xF0 = 0xF2
@@ -492,10 +487,10 @@ mod tests {
     #[test]
     fn write_signed_vb_16_array() {
         let mut buf = [0u8; 10];
-        let mut writer = create_writer(&mut buf);
+        let mut encoder = SliceEncoder::new(&mut buf);
 
         let values = [0i16, -1i16];
-        writer.write_signed_vb_16_array(&values);
+        encoder.write_signed_vb_16_array(&values);
 
         // ZigZag 0 -> 0, ZigZag -1 -> 1
         assert_eq!(buf[..2], [0, 1]);
@@ -516,13 +511,13 @@ mod edge_case_tests {
     fn boundary_16bit_signed_vb() {
         let mut buf = [0u8; 10];
         {
-            let mut writer = SliceWriter { buffer: &mut buf, pos: 0 };
+            let mut encoder = SliceEncoder { buffer: &mut buf, pos: 0 };
 
             // i16::MAX (32767) -> ZigZag = 65534 (0xFE 0xFF 0x03)
-            writer.write_signed_vb(32767);
+            encoder.write_signed_vb(32767);
 
             // i16::MIN (-32768) -> ZigZag = 65535 (0xFF 0xFF 0x03)
-            writer.write_signed_vb(-32768);
+            encoder.write_signed_vb(-32768);
         }
         assert_eq!(buf[..3], [0xFE, 0xFF, 0x03]);
         assert_eq!(buf[3..6], [0xFF, 0xFF, 0x03]);
@@ -532,12 +527,12 @@ mod edge_case_tests {
     fn tag8_4s16_boundary_values() {
         let mut buf = [0u8; 10];
         {
-            let mut writer = SliceWriter { buffer: &mut buf, pos: 0 };
+            let mut encoder = SliceEncoder { buffer: &mut buf, pos: 0 };
 
             // Test transitions:
             // -8 (4-bit), -128 (8-bit), 127 (8-bit), 32767 (16-bit)
             let values = [-8, -128, 127, 32767];
-            writer.write_tag8_4s16(values);
+            encoder.write_tag8_4s16(values);
         }
 
         // Tags: -8 is 0x01, -128 is 0x02, 127 is 0x02, 32767 is 0x03
@@ -555,13 +550,13 @@ mod edge_case_tests {
     fn buffer_overflow_safety() {
         let mut small_buf = [0u8; 1];
         {
-            let mut writer = SliceWriter { buffer: &mut small_buf, pos: 0 };
+            let mut encoder = SliceEncoder { buffer: &mut small_buf, pos: 0 };
 
             // This requires 3 bytes, but we only have 1.
             // Logic should write what it can and stop, avoiding panics.
-            writer.write_unsigned_vb(30000);
+            encoder.write_unsigned_vb(30000);
 
-            assert_eq!(writer.pos, 1);
+            assert_eq!(encoder.pos, 1);
         }
         assert_eq!(small_buf[0], 0xB0); // First byte of 30000 (0xB0 0xEA 0x01)
     }
@@ -570,11 +565,11 @@ mod edge_case_tests {
     fn tag2_3s32_max_i16_range() {
         let mut buf = [0u8; 10];
         {
-            let mut writer = SliceWriter { buffer: &mut buf, pos: 0 };
+            let mut encoder = SliceEncoder { buffer: &mut buf, pos: 0 };
 
             // One value is 128 (requires 16-bit mode '3' in tag2_3s32 logic)
             let values = [0, 128, 0];
-            writer.write_tag2_3s32(values);
+            encoder.encoder(values);
         }
 
         assert_eq!(buf[0], 3); // Tag byte should be 3

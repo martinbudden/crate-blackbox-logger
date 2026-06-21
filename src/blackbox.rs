@@ -1,4 +1,4 @@
-use crate::SliceWriter;
+use crate::SliceEncoder;
 use crate::logger::Logger;
 use crate::state_machine::StateMachine;
 use crate::{GyroPidMessage, SetpointMessage};
@@ -109,8 +109,8 @@ impl Blackbox {
     pub fn load_slow_telemetry(&mut self, setpoint: SetpointMessage) {
         self.logger.load_slow_telemetry(setpoint);
     }
-    pub fn update(&mut self, writer: &mut SliceWriter, current_time_us: u32, is_active: bool) -> usize {
-        self.state.update(&mut self.logger, writer, current_time_us, is_active)
+    pub fn update(&mut self, encoder: &mut SliceEncoder, current_time_us: u32, is_active: bool) -> usize {
+        self.state.update(&mut self.logger, encoder, current_time_us, is_active)
     }
     pub fn set_state(&mut self, state: StateMachine) {
         self.state.set_state(state);

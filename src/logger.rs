@@ -1,5 +1,5 @@
 use crate::Event;
-use crate::SliceWriter;
+use crate::SliceEncoder;
 use crate::data::{GpsData, GpsPosition, MainData, SlowData};
 use crate::field_definitions::{FieldCondition, FieldSelect};
 use crate::state_machine::StateMachine;
@@ -254,12 +254,12 @@ impl Logger {
         self.gps_data.satellite_count = telemetry.satellite_count;
     }
 
-    pub fn update(&mut self, state: &mut StateMachine, writer: &mut SliceWriter, current_time_us: u32, is_active:bool) -> usize {
-        state.update(self, writer, current_time_us, is_active)
+    pub fn update(&mut self, state: &mut StateMachine, encoder: &mut SliceEncoder, current_time_us: u32, is_active:bool) -> usize {
+        state.update(self, encoder, current_time_us, is_active)
     }
 
     /// Called when the flight controller signals it has new data.
-    pub fn log_iteration(&mut self, current_time_us: u32, encoder: &mut SliceWriter) -> usize {
+    pub fn log_iteration(&mut self, current_time_us: u32, encoder: &mut SliceEncoder) -> usize {
         self.main_data[0].time_us = current_time_us;
         let mut len = 0_usize;
         // Write a keyframe every i_interval frames so we can resynchronise upon missing frames
@@ -329,14 +329,14 @@ impl Logger {
     }
 
     /// If an arming beep has played since it was last logged, write the time of the arming beep to the log as a synchronization point.
-    pub fn log_event_arming_beep_if_needed(&mut self, encoder: &mut SliceWriter, arming_beep_time_us: u32) {
+    pub fn log_event_arming_beep_if_needed(&mut self, encoder: &mut SliceEncoder, arming_beep_time_us: u32) {
         if arming_beep_time_us != self.last_arming_beep_time_us {
             self.last_arming_beep_time_us = arming_beep_time_us;
             let event = Event::SyncBeep(arming_beep_time_us);
             _ = self.log_e_frame(encoder, event);
         }
     }
-    pub fn log_event_flight_mode_if_needed(&mut self, encoder: &mut SliceWriter, rc_mode_activation_mask: u32) {
+    pub fn log_event_flight_mode_if_needed(&mut self, encoder: &mut SliceEncoder, rc_mode_activation_mask: u32) {
         if rc_mode_activation_mask != self.last_flight_mode_flags {
             let event = Event::FlightMode(rc_mode_activation_mask, self.last_flight_mode_flags);
             _ = self.log_e_frame(encoder, event);

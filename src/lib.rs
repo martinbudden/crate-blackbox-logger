@@ -25,7 +25,7 @@ pub use crate::drivers::sd_card;
 
 pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStartParameters};
 pub use data::Event;
-pub use encoding::{BlackboxWriter, SliceWriter};
+pub use encoding::{BlackboxWriter, SliceEncoder};
 pub use field_definitions::FieldSelect;
 pub use logger::Logger;
 pub use messages::{GpsMessage, GyroPidMessage, SetpointMessage};

@@ -1,7 +1,7 @@
 use crate::data::{Event, EventId, MainData};
 use crate::field_definitions::{FieldCondition, FieldSelect};
 use crate::logger::Logger;
-use crate::{BlackboxWriter, SliceWriter};
+use crate::{BlackboxWriter, SliceEncoder};
 
 #[cfg(test)]
 use crate::field_definitions::{FieldEncoding, FieldPredictor, MainFieldDefinition};
@@ -30,7 +30,7 @@ macro_rules! assert_p_field_encoding {
 
 impl Logger {
     /// Log event: `e_frame`. Written immediately to log when event occurs.
-    pub fn log_e_frame(&mut self, encoder: &mut SliceWriter, event: Event) -> usize {
+    pub fn log_e_frame(&mut self, encoder: &mut SliceEncoder, event: Event) -> usize {
         encoder.begin_frame(b'E');
 
         match event {
@@ -76,7 +76,7 @@ impl Logger {
     }
 
     /// Log slow frame: `s_frame`.
-    pub fn log_s_frame(&mut self, encoder: &mut SliceWriter) -> usize {
+    pub fn log_s_frame(&mut self, encoder: &mut SliceEncoder) -> usize {
         self.logged_any_frames = true;
         self.s_frame_index = 0;
         self.new_slow_data = false;
@@ -93,13 +93,13 @@ impl Logger {
             i32::from(self.slow_data.rx_flight_channel_is_valid),
         ];
 
-        encoder.write_tag2_3s32(values);
+        encoder.encoder(values);
 
         encoder.end_frame()
     }
 
     /// GPS home frame: `h_frame`.
-    pub fn log_h_frame(&mut self, encoder: &mut SliceWriter) -> usize {
+    pub fn log_h_frame(&mut self, encoder: &mut SliceEncoder) -> usize {
         self.logged_any_frames = true;
 
         encoder.begin_frame(b'H');
@@ -113,7 +113,7 @@ impl Logger {
     }
 
     /// GPS frame: `g_frame`. Written at a frequency of about 10Hz.
-    pub fn log_g_frame(&mut self, current_time_us: u32, encoder: &mut SliceWriter) -> usize {
+    pub fn log_g_frame(&mut self, current_time_us: u32, encoder: &mut SliceEncoder) -> usize {
         self.logged_any_frames = true;
         self.new_gps_data = false;
 
@@ -153,7 +153,7 @@ impl Logger {
     /// Write an Intra frame (`i_frame`).
     /// Also known as a key frame.
     #[allow(clippy::too_many_lines)]
-    pub fn log_i_frame(&mut self, encoder: &mut SliceWriter) -> usize {
+    pub fn log_i_frame(&mut self, encoder: &mut SliceEncoder) -> usize {
         self.logged_any_frames = true;
         let current = &self.main_data[0];
 
@@ -319,7 +319,7 @@ impl Logger {
     /// the code is made safe by asserting the `p_encoding` values.
     /// So this code and those definitions must be changed in tandem with each other.
     #[allow(clippy::too_many_lines)]
-    pub fn log_p_frame(&mut self, encoder: &mut SliceWriter) -> usize {
+    pub fn log_p_frame(&mut self, encoder: &mut SliceEncoder) -> usize {
         self.logged_any_frames = true;
 
         {
@@ -360,7 +360,7 @@ impl Logger {
                     current.pid_i[1].wrapping_sub(previous.pid_i[1]),
                     current.pid_i[2].wrapping_sub(previous.pid_i[2]),
                 ];
-                encoder.write_tag2_3s32(deltas);
+                encoder.encoder(deltas);
 
                 // The PID D term is frequently set to zero for yaw, which makes the result from the calculation always zero.
                 // So only record D values when explicitly asked to do so.
@@ -544,7 +544,7 @@ mod tests {
         blackbox.main_data[2].time_us = 1;
 
         let mut buffer = [0u8; 512];
-        let mut encoder = SliceWriter { buffer: &mut buffer, pos: 0 };
+        let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
 
         _ = blackbox.log_i_frame(&mut encoder);
 
@@ -570,7 +570,7 @@ mod tests {
         blackbox.main_data[0].gyro[0] = 1000;
 
         let mut buffer = [0u8; 512];
-        let mut encoder = SliceWriter { buffer: &mut buffer, pos: 0 };
+        let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
 
         _ = blackbox.log_p_frame(&mut encoder);
         assert_eq!(3, blackbox.main_data[0].time_us);

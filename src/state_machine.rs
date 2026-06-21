@@ -1,4 +1,4 @@
-use crate::{BlackboxStartParameters, Event::LoggingResume, Logger, SliceWriter};
+use crate::{BlackboxStartParameters, Event::LoggingResume, Logger, SliceEncoder};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(u8)]
@@ -40,7 +40,7 @@ impl StateMachine {
 
     /// Called each flight loop iteration to perform blackbox logging.
     /// TODO: make this function asynchronous.
-    pub fn update(&mut self, logger: &mut Logger, writer: &mut SliceWriter, current_time_us: u32, is_active: bool) -> usize {
+    pub fn update(&mut self, logger: &mut Logger, encoder: &mut SliceEncoder, current_time_us: u32, is_active: bool) -> usize {
         #[allow(clippy::match_same_arms)]
         let mut len = 0;
         *self = match core::mem::take(self) {
@@ -53,11 +53,11 @@ impl StateMachine {
                 StateMachine::LogFileHeader
             }
             StateMachine::LogFileHeader => {
-                len = Logger::log_file_header(writer);
+                len = Logger::log_file_header(encoder);
                 StateMachine::LogMainFieldsHeader(0)
             }
             StateMachine::LogMainFieldsHeader(index) => {
-                len = logger.log_main_fields_header(writer, index);
+                len = logger.log_main_fields_header(encoder, index);
                 if len == 0 {
                     if logger.features & Logger::FEATURE_GPS != 0 {
                         StateMachine::LogGpsHFieldsHeader
@@ -71,7 +71,7 @@ impl StateMachine {
             StateMachine::LogGpsHFieldsHeader => {
                 #[cfg(feature = "gps")]
                 {
-                    len = logger.log_gps_g_fields_header(writer);
+                    len = logger.log_gps_g_fields_header(encoder);
                     StateMachine::LogGpsGFieldsHeader
                 }
                 #[cfg(not(feature = "gps"))]
@@ -82,7 +82,7 @@ impl StateMachine {
             StateMachine::LogGpsGFieldsHeader => {
                 #[cfg(feature = "gps")]
                 {
-                    len = logger.log_gps_h_fields_header(writer);
+                    len = logger.log_gps_h_fields_header(encoder);
                     StateMachine::LogSlowFieldsHeader
                 }
                 #[cfg(not(feature = "gps"))]
@@ -91,17 +91,17 @@ impl StateMachine {
                 }
             }
             StateMachine::LogSlowFieldsHeader => {
-                len = logger.log_slow_fields_header(writer);
+                len = logger.log_slow_fields_header(encoder);
                 StateMachine::LogSysinfo(0)
             }
             StateMachine::LogSysinfo(index) => {
-                len = logger.log_sys_info(writer, index);
+                len = logger.log_sys_info(encoder, index);
                 if len == 0 { StateMachine::Running } else { StateMachine::LogSysinfo(index + 1) }
             }
             StateMachine::Paused => {
                 if is_active && logger.should_log_i_frame() {
-                    len = logger.log_e_frame(writer, LoggingResume(logger.iteration, current_time_us));
-                    len += logger.log_iteration(current_time_us, writer);
+                    len = logger.log_e_frame(encoder, LoggingResume(logger.iteration, current_time_us));
+                    len += logger.log_iteration(current_time_us, encoder);
                     logger.advance_iteration_timers();
                     StateMachine::Running
                 } else {
@@ -110,7 +110,7 @@ impl StateMachine {
                 }
             }
             StateMachine::Running => {
-                len = logger.log_iteration(current_time_us, writer);
+                len = logger.log_iteration(current_time_us, encoder);
                 logger.advance_iteration_timers();
                 StateMachine::Running
             }
