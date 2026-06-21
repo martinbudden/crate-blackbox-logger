@@ -5,6 +5,49 @@ use crate::field_definitions::{MainFieldDefinition, SimpleFieldDefinition};
 use crate::logger::Logger;
 use crate::{BlackboxWriter, SliceEncoder};
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(u8)]
+pub enum FieldHeader {
+    #[default]
+    IName = 0,
+    ISigned,
+    IPredictor,
+    IEncoding,
+    PPredictor,
+    PEncoding,
+    End,
+}
+
+impl FieldHeader {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self::IName
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(u8)]
+pub enum SysInfoIndex {
+    #[default]
+    Start = 0,
+    S1,
+    S2,
+    S3,
+    S4,
+    S5,
+    S6,
+    S7,
+    S8,
+    End,
+}
+
+impl SysInfoIndex {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self::Start
+    }
+}
+
 // order of headers in log file is:
 // 1. file header
 // 2. main fields header
@@ -18,15 +61,16 @@ impl Logger {
     }
 
     // Note: this mini state machine will go once I start using async and await.
-    pub fn log_main_fields_header(&mut self, encoder: &mut SliceEncoder, index: usize) -> usize {
+    pub fn log_main_fields_header(&mut self, encoder: &mut SliceEncoder, field_header: FieldHeader) -> FieldHeader {
         const MAIN_FIELDS: &[MainFieldDefinition] = crate::field_arrays::BLACKBOX_MAIN_FIELDS;
 
         let filter = |f: &MainFieldDefinition| self.conditions.test(f.condition);
 
-        match index {
-            0 => {
+        match field_header {
+            FieldHeader::IName => {
                 // Name line. Note: This can exceed 500 bytes.
-                // Currently using buffer of size 1024, this will be solved once I start using async and await.
+                // Currently using buffer of size 1024,
+                // this will be solved by adding an index field to IName and iterating over that index once per function call.
                 write_field_line(encoder, 'I', "name", MAIN_FIELDS.iter().filter(|&f| filter(f)), |w, f| {
                     w.write_str(f.name);
                     let index = f.field_name_index;
@@ -36,47 +80,50 @@ impl Logger {
                         w.write_char(']');
                     }
                 });
+                FieldHeader::ISigned
             }
-            1 => {
+            FieldHeader::ISigned => {
                 // I Signed line
                 let filtered = MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(encoder, 'I', "signed", filtered, |w, f| {
                     w.write_u8_ascii(f.is_signed);
                 });
+                FieldHeader::IPredictor
             }
-            2 => {
+            FieldHeader::IPredictor => {
                 // I Predictor line
                 let filtered = MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(encoder, 'I', "predictor", filtered, |w, f| {
                     w.write_u8_ascii(f.i_predict);
                 });
+                FieldHeader::IEncoding
             }
-            3 => {
+            FieldHeader::IEncoding => {
                 // I Encoding line
                 let filtered = MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(encoder, 'I', "encoding", filtered, |w, f| {
                     w.write_u8_ascii(f.i_encode);
                 });
+                FieldHeader::PPredictor
             }
-            4 => {
+            FieldHeader::PPredictor => {
                 // P Predictor line
                 let filtered = MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(encoder, 'P', "predictor", filtered, |w, f| {
                     w.write_u8_ascii(f.p_predict);
                 });
+                FieldHeader::PEncoding
             }
-            5 => {
+            FieldHeader::PEncoding => {
                 // P Encoding line
                 let filtered = MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(encoder, 'P', "encoding", filtered, |w, f| {
                     w.write_u8_ascii(f.p_encode);
                 });
+                FieldHeader::End
             }
-            _ => {
-                return 0;
-            }
+            FieldHeader::End => FieldHeader::End,
         }
-        encoder.pos
     }
 
     #[allow(clippy::unused_self)]
@@ -178,56 +225,64 @@ impl Logger {
         });
     }
 
-    // Note: this mini state machine will go once I start using async and await.
     #[allow(clippy::too_many_lines)]
-    pub fn log_sys_info(&mut self, encoder: &mut SliceEncoder, index: usize) -> usize {
-        match index {
-            0 => {
+    pub fn log_sys_info(&mut self, encoder: &mut SliceEncoder, sys_info: SysInfoIndex) -> SysInfoIndex {
+        match sys_info {
+            SysInfoIndex::Start => {
                 encoder.write_h_str("Firmware type:Cleanflight\n");
+                SysInfoIndex::S1
             }
-            1 => {
+            SysInfoIndex::S1 => {
                 encoder.write_h_str("Firmware revision:Betaflight 4.2.11\n");
                 //encoder.write_h_str("Firmware date:Mar 9 2021 00:00:00\n");
+                SysInfoIndex::S2
             }
-            2 => {
+            SysInfoIndex::S2 => {
                 //encoder.write_h_str("Board information:\n");
                 encoder.write_h_str("Log start datetime:0000-01-01T00:00:00.000+00:00\n");
                 //encoder.write_h_str("Craft name:\n");
+                SysInfoIndex::S3
             }
-            3 => {
+            SysInfoIndex::S3 => {
                 encoder.write_h_str_u32_ascii("I interval:", self.i_interval);
                 encoder.write_h_str_u32_ascii("P interval:1/", self.p_interval);
+                SysInfoIndex::S4
             }
-            4 => {
+            SysInfoIndex::S4 => {
                 encoder.write_h_str_u32_ascii("looptime:", self.looptime);
                 encoder.write_h_str_u32_ascii("gyro_sync_denom:", 1);
                 encoder.write_h_str_u32_ascii("pid_process_denom:", 1);
+                SysInfoIndex::S5
             }
-            5 => {
+            SysInfoIndex::S5 => {
                 // "P denom" ignored by blackbox-log-view
                 encoder.write_h_str("P denom:32\n");
                 encoder.write_h_str_u32_ascii("debug_mode:", 0);
                 encoder.write_h_str("features:541130760\n");
+                SysInfoIndex::S6
             }
-            6 => {
+            SysInfoIndex::S6 => {
                 encoder.write_h_str("gyro_scale:0x3f800000\n");
                 encoder.write_h_str("motorOutput:");
-                encoder.write_u32_ascii(u32::from(self.motor_output_min));
+                encoder.write_u32_ascii(u32::from(self.sys_info.motor_output_min));
                 encoder.write_byte(b',');
-                encoder.write_u32_ascii(u32::from(self.motor_output_max));
+                encoder.write_u32_ascii(u32::from(self.sys_info.motor_output_max));
                 encoder.write_char('\n');
 
                 encoder.write_h_str_u32_ascii("acc_1G:", 4096);
+                SysInfoIndex::S7
             }
-            7 => {
+            SysInfoIndex::S7 => {
                 encoder.write_h_str_u16_ascii("minthrottle:", self.min_throttle);
                 encoder.write_h_str_u16_ascii("maxthrottle:", self.max_throttle);
+                SysInfoIndex::S8
             }
-            8 => {
+            SysInfoIndex::S8 => {
                 encoder.write_h_str_u32_ascii("vbatscale:", 110);
                 encoder.write_h_str("vbatcellvoltage:330,350,430\n");
                 encoder.write_h_str_u16_ascii("vbatref:", self.vbat_reference);
                 encoder.write_h_str("currentSensor:0,250\n");
+                SysInfoIndex::End
             }
             /*9 => {
                 encoder.write_h_str("thr_mid:50\n");
@@ -297,11 +352,8 @@ impl Logger {
                 encoder.write_h_str("motor_pwm_rate:480\n");
                 encoder.write_h_str("dshot_idle_value:550\n");
             }*/
-            _ => {
-                return 0;
-            }
+            SysInfoIndex::End => SysInfoIndex::End,
         }
-        encoder.pos
     }
 }
 
@@ -319,6 +371,8 @@ mod tests {
     #[test]
     fn normal_types() {
         is_full::<Logger>();
+        is_full::<SysInfoIndex>();
+        is_full::<FieldHeader>();
     }
     #[test]
     fn test_new() {
@@ -354,13 +408,12 @@ mod tests {
         let mut ctx = Logger::new(0);
         ctx.init(0, 0);
 
-        let mut index: usize = 0;
+        let mut field_header: FieldHeader = FieldHeader::IName;
         loop {
-            let len = ctx.log_main_fields_header(&mut encoder, index);
-            if len == 0 {
+            field_header = ctx.log_main_fields_header(&mut encoder, field_header);
+            if field_header == FieldHeader::End {
                 break;
             }
-            index += 1;
         }
 
         // Convert the written portion to a string for validation
@@ -390,13 +443,12 @@ mod tests {
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
         let mut ctx = Logger::new(0);
 
-        let mut index: usize = 0;
+        let mut sys_info = SysInfoIndex::Start;
         loop {
-            let len = ctx.log_sys_info(&mut encoder, index);
-            if len == 0 {
+            sys_info = ctx.log_sys_info(&mut encoder, sys_info);
+            if sys_info == SysInfoIndex::End {
                 break;
             }
-            index += 1;
         }
 
         // Convert the written portion to a string for validation
@@ -432,7 +484,7 @@ mod tests {
 
         current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
         _ = state.update(&mut ctx, &mut encoder, current_time_us, true);
-        assert_eq!(StateMachine::LogMainFieldsHeader(0), state);
+        assert_eq!(StateMachine::LogMainFieldsHeader(FieldHeader::IName), state);
 
         /*current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
         _ = state.update(&mut ctx, &mut encoder, current_time_us, true);

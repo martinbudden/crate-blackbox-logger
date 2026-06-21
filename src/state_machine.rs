@@ -1,4 +1,9 @@
-use crate::{BlackboxStartParameters, Event::LoggingResume, Logger, SliceEncoder};
+use crate::{
+    BlackboxStartParameters,
+    Event::LoggingResume,
+    Logger, SliceEncoder,
+    log_headers::{FieldHeader, SysInfoIndex},
+};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(u8)]
@@ -8,11 +13,11 @@ pub enum StateMachine {
     Stopped,
     PrepareLogFile,
     LogFileHeader,
-    LogMainFieldsHeader(usize),
+    LogMainFieldsHeader(FieldHeader),
     LogGpsHFieldsHeader,
     LogGpsGFieldsHeader,
     LogSlowFieldsHeader,
-    LogSysinfo(usize),
+    LogSysinfo(SysInfoIndex),
     Paused,
     Running,
     ShuttingDown,
@@ -58,17 +63,18 @@ impl StateMachine {
             }
             StateMachine::LogFileHeader => {
                 Logger::log_file_header(encoder);
-                StateMachine::LogMainFieldsHeader(0)
+                StateMachine::LogMainFieldsHeader(FieldHeader::IName)
             }
-            StateMachine::LogMainFieldsHeader(index) => {
-                if logger.log_main_fields_header(encoder, index) == 0 {
+            StateMachine::LogMainFieldsHeader(field_header) => {
+                let next_field_header = logger.log_main_fields_header(encoder, field_header);
+                if next_field_header == FieldHeader::End {
                     if logger.features & Logger::FEATURE_GPS != 0 {
                         StateMachine::LogGpsHFieldsHeader
                     } else {
                         StateMachine::LogSlowFieldsHeader
                     }
                 } else {
-                    StateMachine::LogMainFieldsHeader(index + 1)
+                    StateMachine::LogMainFieldsHeader(next_field_header)
                 }
             }
             StateMachine::LogGpsHFieldsHeader => {
@@ -95,13 +101,14 @@ impl StateMachine {
             }
             StateMachine::LogSlowFieldsHeader => {
                 logger.log_slow_fields_header(encoder);
-                StateMachine::LogSysinfo(0)
+                StateMachine::LogSysinfo(SysInfoIndex::Start)
             }
-            StateMachine::LogSysinfo(index) => {
-                if logger.log_sys_info(encoder, index) == 0 {
+            StateMachine::LogSysinfo(sys_info) => {
+                let next_sys_info = logger.log_sys_info(encoder, sys_info);
+                if next_sys_info == SysInfoIndex::End {
                     StateMachine::Running
                 } else {
-                    StateMachine::LogSysinfo(index + 1)
+                    StateMachine::LogSysinfo(next_sys_info)
                 }
             }
             StateMachine::Paused => {

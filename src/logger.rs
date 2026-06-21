@@ -6,6 +6,24 @@ use crate::state_machine::StateMachine;
 use crate::{GpsMessage, GyroPidMessage, SetpointMessage};
 use simple_bitset::BitSet64;
 
+/// System info.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SysInfo {
+    pub motor_output_min: u16,
+    pub motor_output_max: u16,
+}
+
+impl SysInfo {
+    pub const fn new() -> Self {
+        Self { motor_output_min: 158, motor_output_max: 2047 }
+    }
+}
+impl Default for SysInfo {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Blackbox logger.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Logger {
@@ -31,8 +49,6 @@ pub struct Logger {
     pub(crate) motor_count: usize,
     pub(crate) servo_count: usize,
     pub(crate) debug_mode: u16,
-    pub(crate) motor_output_min: u16,
-    pub(crate) motor_output_max: u16,
     pub(crate) min_throttle: u16,
     pub(crate) max_throttle: u16,
     pub(crate) vbat_reference: u16,
@@ -40,6 +56,7 @@ pub struct Logger {
     pub(crate) slow_data: SlowData,
     pub(crate) gps_data: GpsData,
     pub(crate) gps_home: GpsPosition,
+    pub sys_info: SysInfo,
 
     pub(crate) main_data: [MainData; 3],
 }
@@ -59,8 +76,6 @@ impl Logger {
             motor_count: 4,
             servo_count: 0,
             debug_mode: 0,
-            motor_output_min: 158,
-            motor_output_max: 2047,
             min_throttle: 1070,
             max_throttle: 2000,
             vbat_reference: 2466,
@@ -87,6 +102,7 @@ impl Logger {
 
             gps_data: GpsData::new(),
             gps_home: GpsPosition::new(),
+            sys_info: SysInfo::new(),
 
             main_data: [MainData::new(); 3],
         }
@@ -488,6 +504,7 @@ mod tests {
     #[test]
     fn normal_types() {
         is_full::<Logger>();
+        is_full::<SysInfo>();
     }
     #[test]
     fn new() {
