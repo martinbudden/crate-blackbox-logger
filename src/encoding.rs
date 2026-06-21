@@ -132,10 +132,7 @@ impl SliceEncoder<'_> {
         self.write_byte(value);
     }
 
-    #[must_use]
-    pub fn end_frame(&self) -> usize {
-        self.pos
-    }
+    pub fn end_frame(&self) {}
 
     /// Unsigned Variable-Byte.
     pub fn write_unsigned_vb(&mut self, mut value: u32) {

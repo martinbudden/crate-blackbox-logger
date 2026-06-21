@@ -12,10 +12,9 @@ use crate::{BlackboxWriter, SliceEncoder};
 // 4. system info
 // After the headers we have the logging data.
 impl Logger {
-    pub fn log_file_header(encoder: &mut SliceEncoder) -> usize {
+    pub fn log_file_header(encoder: &mut SliceEncoder) {
         encoder.write_h_str("Product:Blackbox flight data recorder by Nicholas Sherlock\n");
         encoder.write_h_str("Data version:2\n");
-        encoder.pos
     }
 
     // Note: this mini state machine will go once I start using async and await.
@@ -77,12 +76,11 @@ impl Logger {
                 return 0;
             }
         }
-
         encoder.pos
     }
 
     #[allow(clippy::unused_self)]
-    pub fn log_slow_fields_header(&mut self, encoder: &mut SliceEncoder) -> usize {
+    pub fn log_slow_fields_header(&mut self, encoder: &mut SliceEncoder) {
         const SLOW_FIELDS: &[SimpleFieldDefinition; SimpleFieldDefinition::SLOW_FIELD_COUNT] =
             &crate::field_arrays::BLACKBOX_SLOW_FIELDS;
         let filter = |_: &SimpleFieldDefinition| true;
@@ -112,12 +110,10 @@ impl Logger {
         write_field_line(encoder, 'S', "encoding", filtered, |w, f| {
             w.write_u8_ascii(f.encode);
         });
-
-        encoder.pos
     }
 
     #[cfg(feature = "gps")]
-    pub fn log_gps_h_fields_header(&mut self, encoder: &mut SliceEncoder) -> usize {
+    pub fn log_gps_h_fields_header(&mut self, encoder: &mut SliceEncoder) {
         const GPS_H_FIELDS: &[SimpleFieldDefinition; SimpleFieldDefinition::GPS_H_FIELD_COUNT] =
             &crate::field_arrays::BLACKBOX_GPS_H_FIELDS;
         let filter = |_: &SimpleFieldDefinition| true;
@@ -147,12 +143,10 @@ impl Logger {
         write_field_line(encoder, 'H', "encoding", filtered, |w, f| {
             w.write_u8_ascii(f.encode);
         });
-
-        encoder.pos
     }
 
     #[cfg(feature = "gps")]
-    pub fn log_gps_g_fields_header(&mut self, encoder: &mut SliceEncoder) -> usize {
+    pub fn log_gps_g_fields_header(&mut self, encoder: &mut SliceEncoder) {
         const GPS_G_FIELDS: &[ConditionalFieldDefinition; ConditionalFieldDefinition::GPS_G_FIELD_COUNT] =
             &crate::field_arrays::BLACKBOX_GPS_G_FIELDS;
         let filter = |_: &ConditionalFieldDefinition| true;
@@ -182,8 +176,6 @@ impl Logger {
         write_field_line(encoder, 'G', "encoding", filtered, |w, f| {
             w.write_u8_ascii(f.encode);
         });
-
-        encoder.pos
     }
 
     // Note: this mini state machine will go once I start using async and await.
@@ -309,7 +301,6 @@ impl Logger {
                 return 0;
             }
         }
-
         encoder.pos
     }
 }
@@ -342,7 +333,7 @@ mod tests {
         let pos = {
             let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
 
-            _ = Logger::log_file_header(&mut encoder);
+            Logger::log_file_header(&mut encoder);
 
             // Convert the written portion to a string for validation
             let result = core::str::from_utf8(&encoder.buffer[..encoder.pos]).unwrap();
@@ -365,7 +356,8 @@ mod tests {
 
         let mut index: usize = 0;
         loop {
-            if ctx.log_main_fields_header(&mut encoder, index) == 0 {
+            let len = ctx.log_main_fields_header(&mut encoder, index);
+            if len == 0 {
                 break;
             }
             index += 1;
@@ -384,8 +376,7 @@ mod tests {
         let mut ctx = Logger::new(0);
         ctx.init(0, 0);
 
-        let len = ctx.log_slow_fields_header(&mut encoder);
-        assert_eq!(encoder.pos, len);
+        ctx.log_slow_fields_header(&mut encoder);
 
         // Convert the written portion to a string for validation
         #[allow(clippy::unwrap_used)]
@@ -401,7 +392,8 @@ mod tests {
 
         let mut index: usize = 0;
         loop {
-            if ctx.log_sys_info(&mut encoder, index) == 0 {
+            let len = ctx.log_sys_info(&mut encoder, index);
+            if len == 0 {
                 break;
             }
             index += 1;
@@ -423,11 +415,37 @@ mod tests {
 
         let start = BlackboxStartParameters::new();
         let mut state = StateMachine::default();
+        assert_eq!(StateMachine::Disabled, state);
+
         let mut current_time_us: u32 = 0;
         let gyro_pid_msg = GyroPidMessage::new();
         let setpoint_msg = SetpointMessage::new();
+        ctx.load_telemetry(current_time_us, gyro_pid_msg, setpoint_msg);
+
         println!("\nSTATE MACHINE HEADERS\n");
         state.start(start);
+        assert_eq!(StateMachine::PrepareLogFile, state);
+
+        current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
+        _ = state.update(&mut ctx, &mut encoder, current_time_us, true);
+        assert_eq!(StateMachine::LogFileHeader, state);
+
+        current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
+        _ = state.update(&mut ctx, &mut encoder, current_time_us, true);
+        assert_eq!(StateMachine::LogMainFieldsHeader(0), state);
+
+        /*current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
+        _ = state.update(&mut ctx, &mut encoder, current_time_us, true);
+        assert_eq!(StateMachine::LogSlowFieldsHeader, state);
+
+        current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
+        _ = state.update(&mut ctx, &mut encoder, current_time_us, true);
+        assert_eq!(StateMachine::LogSysinfo(0), state);
+
+        current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
+        _ = state.update(&mut ctx, &mut encoder, current_time_us, true);
+        assert_eq!(StateMachine::PrepareLogFile, state);*/
+
         loop {
             ctx.load_telemetry(current_time_us, gyro_pid_msg, setpoint_msg);
             _ = state.update(&mut ctx, &mut encoder, current_time_us, true);

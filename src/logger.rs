@@ -254,23 +254,28 @@ impl Logger {
         self.gps_data.satellite_count = telemetry.satellite_count;
     }
 
-    pub fn update(&mut self, state: &mut StateMachine, encoder: &mut SliceEncoder, current_time_us: u32, is_active:bool) -> usize {
+    pub fn update(
+        &mut self,
+        state: &mut StateMachine,
+        encoder: &mut SliceEncoder,
+        current_time_us: u32,
+        is_active: bool,
+    ) -> usize {
         state.update(self, encoder, current_time_us, is_active)
     }
 
     /// Called when the flight controller signals it has new data.
-    pub fn log_iteration(&mut self, current_time_us: u32, encoder: &mut SliceEncoder) -> usize {
+    pub fn log_iteration(&mut self, current_time_us: u32, encoder: &mut SliceEncoder) {
         self.main_data[0].time_us = current_time_us;
-        let mut len = 0_usize;
         // Write a keyframe every i_interval frames so we can resynchronise upon missing frames
         if self.should_log_i_frame() {
             // Don't log a slow frame if the slow data didn't change.
             // i_frames are already large enough without adding an additional item to write at the same time.
             // Unless we're *only* logging i_frames, then we have no choice.
             if self.is_only_logging_i_frames() && self.should_log_s_frame() {
-                len += self.log_s_frame(encoder);
+                self.log_s_frame(encoder);
             }
-            len += self.log_i_frame(encoder);
+            self.log_i_frame(encoder);
         } else {
             //self.log_event_arming_beep_if_needed(encoder);
             //self.log_event_flight_mode_if_needed(encoder); // Check for FlightMode status change event
@@ -280,22 +285,21 @@ impl Logger {
                 // We assume that slow frames are only interesting in that they aid the interpretation of the main data stream.
                 // So only log slow frames during loop iterations where we log a main frame.
                 if self.should_log_s_frame() {
-                    len += self.log_s_frame(encoder);
+                    self.log_s_frame(encoder);
                 }
-                len += self.log_p_frame(encoder);
+                self.log_p_frame(encoder);
             }
             #[cfg(feature = "gps")]
             if Logger::field_enabled(self.enabled_fields, FieldSelect::GPS) {
                 if self.should_log_h_frame() {
                     self.gps_home = self.gps_data.home;
-                    len += self.log_h_frame(encoder);
-                    len += self.log_g_frame(current_time_us, encoder);
+                    self.log_h_frame(encoder);
+                    self.log_g_frame(current_time_us, encoder);
                 } else if self.should_log_g_frame() {
-                    len = self.log_g_frame(current_time_us, encoder);
+                    self.log_g_frame(current_time_us, encoder);
                 }
             }
         }
-        len
     }
 
     #[must_use]
@@ -333,13 +337,13 @@ impl Logger {
         if arming_beep_time_us != self.last_arming_beep_time_us {
             self.last_arming_beep_time_us = arming_beep_time_us;
             let event = Event::SyncBeep(arming_beep_time_us);
-            _ = self.log_e_frame(encoder, event);
+            self.log_e_frame(encoder, event);
         }
     }
     pub fn log_event_flight_mode_if_needed(&mut self, encoder: &mut SliceEncoder, rc_mode_activation_mask: u32) {
         if rc_mode_activation_mask != self.last_flight_mode_flags {
             let event = Event::FlightMode(rc_mode_activation_mask, self.last_flight_mode_flags);
-            _ = self.log_e_frame(encoder, event);
+            self.log_e_frame(encoder, event);
             self.last_flight_mode_flags = rc_mode_activation_mask;
         }
     }

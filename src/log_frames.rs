@@ -30,7 +30,7 @@ macro_rules! assert_p_field_encoding {
 
 impl Logger {
     /// Log event: `e_frame`. Written immediately to log when event occurs.
-    pub fn log_e_frame(&mut self, encoder: &mut SliceEncoder, event: Event) -> usize {
+    pub fn log_e_frame(&mut self, encoder: &mut SliceEncoder, event: Event) {
         encoder.begin_frame(b'E');
 
         match event {
@@ -72,11 +72,11 @@ impl Logger {
             }
             _ => {}
         }
-        encoder.end_frame()
+        encoder.end_frame();
     }
 
     /// Log slow frame: `s_frame`.
-    pub fn log_s_frame(&mut self, encoder: &mut SliceEncoder) -> usize {
+    pub fn log_s_frame(&mut self, encoder: &mut SliceEncoder) {
         self.logged_any_frames = true;
         self.s_frame_index = 0;
         self.new_slow_data = false;
@@ -95,11 +95,11 @@ impl Logger {
 
         encoder.encoder(values);
 
-        encoder.end_frame()
+        encoder.end_frame();
     }
 
     /// GPS home frame: `h_frame`.
-    pub fn log_h_frame(&mut self, encoder: &mut SliceEncoder) -> usize {
+    pub fn log_h_frame(&mut self, encoder: &mut SliceEncoder) {
         self.logged_any_frames = true;
 
         encoder.begin_frame(b'H');
@@ -109,11 +109,11 @@ impl Logger {
         // log altitude in increments of 0.1m
         encoder.write_signed_vb(self.gps_data.home.altitude_cm / 10);
 
-        encoder.end_frame()
+        encoder.end_frame();
     }
 
     /// GPS frame: `g_frame`. Written at a frequency of about 10Hz.
-    pub fn log_g_frame(&mut self, current_time_us: u32, encoder: &mut SliceEncoder) -> usize {
+    pub fn log_g_frame(&mut self, current_time_us: u32, encoder: &mut SliceEncoder) {
         self.logged_any_frames = true;
         self.new_gps_data = false;
 
@@ -147,13 +147,13 @@ impl Logger {
         encoder.write_signed_vb_16(self.gps_data.velocity_east_cmps);
         encoder.write_signed_vb_16(self.gps_data.velocity_down_cmps);
 
-        encoder.end_frame()
+        encoder.end_frame();
     }
 
     /// Write an Intra frame (`i_frame`).
     /// Also known as a key frame.
     #[allow(clippy::too_many_lines)]
-    pub fn log_i_frame(&mut self, encoder: &mut SliceEncoder) -> usize {
+    pub fn log_i_frame(&mut self, encoder: &mut SliceEncoder) {
         self.logged_any_frames = true;
         let current = &self.main_data[0];
 
@@ -304,13 +304,11 @@ impl Logger {
             encoder.write_tag8_8svb(&out);
         }
 
-        let ret = encoder.end_frame();
+        encoder.end_frame();
 
         // This is an i_frame, so there is no other previous data, so we copy the current data into the pre_previous data.
         self.main_data[2] = self.main_data[0];
         self.main_data[1] = self.main_data[0];
-
-        ret
     }
 
     /// Write a Predictor frame (`p_frame`).
@@ -319,7 +317,7 @@ impl Logger {
     /// the code is made safe by asserting the `p_encoding` values.
     /// So this code and those definitions must be changed in tandem with each other.
     #[allow(clippy::too_many_lines)]
-    pub fn log_p_frame(&mut self, encoder: &mut SliceEncoder) -> usize {
+    pub fn log_p_frame(&mut self, encoder: &mut SliceEncoder) {
         self.logged_any_frames = true;
 
         {
@@ -518,13 +516,11 @@ impl Logger {
                 encoder.write_tag8_8svb(&servos);
             }
         }
-        let ret = encoder.end_frame();
+        encoder.end_frame();
 
         // Rotate the saved data.
         self.main_data[2] = self.main_data[1];
         self.main_data[1] = self.main_data[0];
-
-        ret
     }
 }
 
@@ -546,14 +542,14 @@ mod tests {
         let mut buffer = [0u8; 512];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
 
-        _ = blackbox.log_i_frame(&mut encoder);
+        blackbox.log_i_frame(&mut encoder);
 
         assert_eq!(3, blackbox.main_data[0].time_us);
         assert_eq!(3, blackbox.main_data[1].time_us);
         assert_eq!(3, blackbox.main_data[2].time_us);
 
         blackbox.main_data[0].time_us = 4;
-        _ = blackbox.log_i_frame(&mut encoder);
+        blackbox.log_i_frame(&mut encoder);
         assert_eq!(4, blackbox.main_data[0].time_us);
         assert_eq!(4, blackbox.main_data[1].time_us);
         assert_eq!(4, blackbox.main_data[2].time_us);
@@ -572,7 +568,7 @@ mod tests {
         let mut buffer = [0u8; 512];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
 
-        _ = blackbox.log_p_frame(&mut encoder);
+        blackbox.log_p_frame(&mut encoder);
         assert_eq!(3, blackbox.main_data[0].time_us);
         assert_eq!(3, blackbox.main_data[1].time_us);
         assert_eq!(2, blackbox.main_data[2].time_us);
@@ -580,14 +576,14 @@ mod tests {
         assert_eq!(0, blackbox.main_data[2].gyro[0]);
 
         blackbox.main_data[0].time_us = 4;
-        _ = blackbox.log_p_frame(&mut encoder);
+        blackbox.log_p_frame(&mut encoder);
         assert_eq!(4, blackbox.main_data[0].time_us);
         assert_eq!(4, blackbox.main_data[1].time_us);
         assert_eq!(3, blackbox.main_data[2].time_us);
         assert_eq!(1000, blackbox.main_data[2].gyro[0]);
 
         blackbox.main_data[0].time_us = 5;
-        _ = blackbox.log_p_frame(&mut encoder);
+        blackbox.log_p_frame(&mut encoder);
         assert_eq!(5, blackbox.main_data[0].time_us);
         assert_eq!(5, blackbox.main_data[1].time_us);
         assert_eq!(4, blackbox.main_data[2].time_us);
