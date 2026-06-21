@@ -50,8 +50,8 @@ sequential-storage = { version = "7.2.0", features = ["postcard"], optional = tr
 #vqm = { version = "0.1.12" }
 vqm = { git = "https://github.com/martinbudden/crate-vector-quaternion-matrix" }
 #vqm = { path = "../vqm" }
-#simple-bitset = "0.1.1"
-simple-bitset = { git = "https://github.com/martinbudden/crate-simple-bitset" }
+simple-bitset = "0.1.2"
+#simple-bitset = { git = "https://github.com/martinbudden/crate-simple-bitset" }
 
 #embassy-executor = { version = "0.10.0", default-features = false, features = ["arch-std", "executor-thread"] }
 #embassy-executor = { version = "0.10.0", default-features = false, features = ["platform-std", "executor-thread"] }
