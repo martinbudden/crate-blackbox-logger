@@ -1,4 +1,4 @@
-use crate::{BlackboxStartParameters, Logger, SliceWriter};
+use crate::{BlackboxStartParameters, Event::LoggingResume, Logger, SliceWriter};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(u8)]
@@ -39,80 +39,83 @@ impl StateMachine {
     }
 
     /// Called each flight loop iteration to perform blackbox logging.
-    pub fn update(&mut self, logger: &mut Logger, writer: &mut SliceWriter, current_time_us: u32) -> usize {
+    /// TODO: make this function asynchronous.
+    pub fn update(&mut self, logger: &mut Logger, writer: &mut SliceWriter, current_time_us: u32, is_active: bool) -> usize {
         #[allow(clippy::match_same_arms)]
-        match core::mem::take(self) {
-            StateMachine::Disabled => {
-                // If we are disabled, we stay disabled until start() is called
-                // Explicitly setting *self = State::Disabled defends against a change in the default.
-                *self = StateMachine::Disabled;
-                0
-            }
-            StateMachine::Stopped => {
-                *self = StateMachine::Stopped;
-                0
-            }
+        let mut len = 0;
+        *self = match core::mem::take(self) {
+            // If we are disabled, we stay disabled until start() is called
+            // Explicitly setting state = State::Disabled defends against a change in the default.
+            StateMachine::Disabled => StateMachine::Disabled,
+            StateMachine::Stopped | StateMachine::ShuttingDown => StateMachine::Stopped,
             StateMachine::PrepareLogFile => {
                 logger.logged_any_frames = false;
-                *self = StateMachine::LogFileHeader;
-                0
+                StateMachine::LogFileHeader
             }
             StateMachine::LogFileHeader => {
-                *self = StateMachine::LogMainFieldsHeader(0);
-                Logger::log_file_header(writer)
+                len = Logger::log_file_header(writer);
+                StateMachine::LogMainFieldsHeader(0)
             }
             StateMachine::LogMainFieldsHeader(index) => {
-                let len = logger.log_main_fields_header(writer, index);
+                len = logger.log_main_fields_header(writer, index);
                 if len == 0 {
-                    *self = if logger.features & Logger::FEATURE_GPS != 0 {
+                    if logger.features & Logger::FEATURE_GPS != 0 {
                         StateMachine::LogGpsHFieldsHeader
                     } else {
                         StateMachine::LogSlowFieldsHeader
                     }
                 } else {
-                    *self = StateMachine::LogMainFieldsHeader(index + 1);
+                    StateMachine::LogMainFieldsHeader(index + 1)
                 }
-                len
             }
             StateMachine::LogGpsHFieldsHeader => {
-                *self = StateMachine::LogGpsGFieldsHeader;
                 #[cfg(feature = "gps")]
-                return logger.log_gps_g_fields_header(writer);
+                {
+                    len = logger.log_gps_g_fields_header(writer);
+                    StateMachine::LogGpsGFieldsHeader
+                }
                 #[cfg(not(feature = "gps"))]
-                return 0;
+                {
+                    StateMachine::LogGpsGFieldsHeader
+                }
             }
             StateMachine::LogGpsGFieldsHeader => {
-                *self = StateMachine::LogSlowFieldsHeader;
                 #[cfg(feature = "gps")]
-                return logger.log_gps_h_fields_header(writer);
+                {
+                    len = logger.log_gps_h_fields_header(writer);
+                    StateMachine::LogSlowFieldsHeader
+                }
                 #[cfg(not(feature = "gps"))]
-                return 0;
+                {
+                    StateMachine::LogSlowFieldsHeader
+                }
             }
             StateMachine::LogSlowFieldsHeader => {
-                *self = StateMachine::LogSysinfo(0);
-                logger.log_slow_fields_header(writer)
+                len = logger.log_slow_fields_header(writer);
+                StateMachine::LogSysinfo(0)
             }
             StateMachine::LogSysinfo(index) => {
-                let len = logger.log_sys_info(writer, index);
-                *self = if len == 0 { StateMachine::Running } else { StateMachine::LogSysinfo(index + 1) };
-                len
+                len = logger.log_sys_info(writer, index);
+                if len == 0 { StateMachine::Running } else { StateMachine::LogSysinfo(index + 1) }
             }
             StateMachine::Paused => {
-                *self = StateMachine::Paused;
-                logger.advance_iteration_timers();
-                0
+                if is_active && logger.should_log_i_frame() {
+                    len = logger.log_e_frame(writer, LoggingResume(logger.iteration, current_time_us));
+                    len += logger.log_iteration(current_time_us, writer);
+                    logger.advance_iteration_timers();
+                    StateMachine::Running
+                } else {
+                    logger.advance_iteration_timers();
+                    StateMachine::Paused
+                }
             }
             StateMachine::Running => {
-                *self = StateMachine::Running;
-                let len = logger.log_iteration(current_time_us, writer);
+                len = logger.log_iteration(current_time_us, writer);
                 logger.advance_iteration_timers();
-                len
+                StateMachine::Running
             }
-            StateMachine::ShuttingDown => {
-                *self = StateMachine::Stopped;
-                0
-            }
-        }
+        };
+        len
     }
 }
 

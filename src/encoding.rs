@@ -104,7 +104,7 @@ pub fn write_field_line<'a, T, I, F>(
 }
 
 // Simple wrapper for a mutable slice
-#[derive(Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct SliceWriter<'a> {
     pub buffer: &'a mut [u8],
     pub pos: usize,
@@ -381,12 +381,18 @@ tag2_3s32: Confirms the "global" size selector (the highest required size) is ap
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
+    fn is_full_no_copy_no_clone<T: Sized + Send + Sync + Unpin + Default + PartialEq>() {}
 
     // Helper to create a writer and a fixed buffer
     fn create_writer(buf: &mut [u8]) -> SliceWriter<'_> {
         SliceWriter { buffer: buf, pos: 0 }
     }
 
+    #[test]
+    fn normal_types() {
+        is_full_no_copy_no_clone::<SliceWriter>();
+    }
     #[test]
     fn write_byte() {
         let mut buf = [0u8; 2];

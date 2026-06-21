@@ -254,8 +254,8 @@ impl Logger {
         self.gps_data.satellite_count = telemetry.satellite_count;
     }
 
-    pub fn update(&mut self, state: &mut StateMachine, writer: &mut SliceWriter, current_time_us: u32) -> usize {
-        state.update(self, writer, current_time_us)
+    pub fn update(&mut self, state: &mut StateMachine, writer: &mut SliceWriter, current_time_us: u32, is_active:bool) -> usize {
+        state.update(self, writer, current_time_us, is_active)
     }
 
     /// Called when the flight controller signals it has new data.

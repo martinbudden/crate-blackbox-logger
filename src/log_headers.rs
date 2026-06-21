@@ -430,7 +430,7 @@ mod tests {
         state.start(start);
         loop {
             ctx.load_telemetry(current_time_us, gyro_pid_msg, setpoint_msg);
-            _ = state.update(&mut ctx, &mut writer, current_time_us);
+            _ = state.update(&mut ctx, &mut writer, current_time_us, true);
             if state == StateMachine::Running {
                 if writer.pos != 0 {
                     #[allow(clippy::unwrap_used)]
