@@ -1,9 +1,12 @@
 use crate::{
     SliceEncoder,
+    data::{BlackboxMainData, BlackboxSlowData},
     logger::Logger,
     logger_state::LoggerState,
-    {GyroPidMessage, SetpointMessage},
 };
+
+#[cfg(feature = "gps")]
+use crate::BlackboxGpsData;
 
 #[cfg(feature = "serde")]
 use {
@@ -110,18 +113,36 @@ impl Blackbox {
 }
 
 impl Blackbox {
-    pub fn load_telemetry(&mut self, current_time_us: u32, gyro_pid: GyroPidMessage, setpoint: SetpointMessage) {
+    /*pub fn load_telemetry(&mut self, current_time_us: u32, gyro_pid: GyroPidMessage, setpoint: SetpointMessage) {
         self.logger.load_telemetry(current_time_us, gyro_pid, setpoint);
+    }*/
+    #[inline]
+    pub fn set_main_data(&mut self, current_time_us: u32, main_data: BlackboxMainData) {
+        self.logger.set_main_data(current_time_us, main_data);
     }
-    pub fn load_slow_telemetry(&mut self, setpoint: SetpointMessage) {
-        self.logger.load_slow_telemetry(setpoint);
+
+    #[inline]
+    pub fn set_slow_data(&mut self, slow_data: BlackboxSlowData) {
+        self.logger.set_slow_data(slow_data);
     }
+
+    #[inline]
+    #[cfg(feature = "gps")]
+    pub fn set_gps_data(&mut self, gps_data: BlackboxGpsData) {
+        self.logger.set_gps_data(gps_data);
+    }
+
+    #[inline]
     pub fn update(&mut self, encoder: &mut SliceEncoder, current_time_us: u32, is_active: bool) -> usize {
         self.state.update(&mut self.logger, encoder, current_time_us, is_active)
     }
+
+    #[inline]
     pub fn set_state(&mut self, state: LoggerState) {
         self.state.set_state(state);
     }
+
+    #[inline]
     #[must_use]
     pub fn state(&self) -> LoggerState {
         self.state

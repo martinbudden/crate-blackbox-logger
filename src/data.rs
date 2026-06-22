@@ -1,6 +1,6 @@
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct EventId {}
-impl EventId {
+pub struct BlackboxEventId {}
+impl BlackboxEventId {
     pub const SYNC_BEEP: u8 = 0;
     #[allow(unused)]
     pub const AUTOTUNE_CYCLE_START: u8 = 10;
@@ -17,7 +17,7 @@ impl EventId {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
-pub enum Event {
+pub enum BlackboxEvent {
     SyncBeep(u32) = 0,
     AutotuneCycleStart = 10,
     AutotuneCycleResult = 11,
@@ -29,13 +29,13 @@ pub enum Event {
     LogEnd = 255,
 }
 
-impl Default for Event {
+impl Default for BlackboxEvent {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Event {
+impl BlackboxEvent {
     #[must_use]
     pub const fn new() -> Self {
         Self::SyncBeep(0)
@@ -43,7 +43,7 @@ impl Event {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct SlowData {
+pub struct BlackboxSlowData {
     pub flight_mode_flags: u32,
     pub state_flags: u8,
     pub failsafe_phase: u8,
@@ -51,13 +51,14 @@ pub struct SlowData {
     pub rx_flight_channel_is_valid: bool,
 }
 
-impl Default for SlowData {
+impl Default for BlackboxSlowData {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl SlowData {
+impl BlackboxSlowData {
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             flight_mode_flags: 0,
@@ -70,7 +71,7 @@ impl SlowData {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct GpsPosition {
+pub struct BlackboxGpsPosition {
     /// longitude in degrees * 1e+7.
     pub longitude_degrees_1e7: i32,
     /// latitude in degrees * 1e+7.
@@ -79,26 +80,27 @@ pub struct GpsPosition {
     pub altitude_cm: i32,
 }
 
-impl Default for GpsPosition {
+impl Default for BlackboxGpsPosition {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl GpsPosition {
+impl BlackboxGpsPosition {
+    #[must_use]
     pub const fn new() -> Self {
         Self { longitude_degrees_1e7: 0, latitude_degrees_1e7: 0, altitude_cm: 0 }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct GpsData {
+pub struct BlackboxGpsData {
     /// GPS time of week in ms.
     pub time_of_week_ms: u32,
     /// interval between GPS solutions in ms.
     pub interval_ms: u32,
     /// current position.
-    pub position: GpsPosition,
+    pub position: BlackboxGpsPosition,
     /// north velocity, cm/s.
     pub velocity_north_cmps: i16,
     /// east velocity, cm/s.
@@ -114,18 +116,19 @@ pub struct GpsData {
     pub satellite_count: u8,
 }
 
-impl Default for GpsData {
+impl Default for BlackboxGpsData {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl GpsData {
+impl BlackboxGpsData {
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             time_of_week_ms: 0,
             interval_ms: 0,
-            position: GpsPosition::new(),
+            position: BlackboxGpsPosition::new(),
             velocity_north_cmps: 0,
             velocity_east_cmps: 0,
             velocity_down_cmps: 0,
@@ -137,8 +140,9 @@ impl GpsData {
     }
 }
 
-impl GpsData {
+impl BlackboxGpsData {
     #[allow(unused)]
+    #[must_use]
     pub fn state_changed(&self, new_data: Self) -> bool {
         // We could check for velocity changes as well but I doubt it changes independent of position
         new_data.satellite_count != self.satellite_count
@@ -149,7 +153,7 @@ impl GpsData {
 
 /// `MainData` is about 150 bytes when all features enabled, so storing 3 copies for predictive purposes is not over onerous.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct MainData {
+pub struct BlackboxMainData {
     pub time_us: u32,
     pub pid_p: [i32; Self::RPY_AXIS_COUNT],
     pub pid_i: [i32; Self::RPY_AXIS_COUNT],
@@ -161,6 +165,7 @@ pub struct MainData {
     pub gyro: [i16; Self::XYZ_AXIS_COUNT],
     pub gyro_unfiltered: [i16; Self::XYZ_AXIS_COUNT],
     pub acc: [i16; Self::XYZ_AXIS_COUNT],
+    #[cfg(feature = "magnetometer")]
     pub mag: [i16; Self::XYZ_AXIS_COUNT],
     /// only x,y,z from orientation quaternion are stored; w is always positive.
     pub orientation: [i16; Self::XYZ_AXIS_COUNT],
@@ -177,7 +182,7 @@ pub struct MainData {
     pub rssi: u16,
 }
 
-impl MainData {
+impl BlackboxMainData {
     pub const RPY_AXIS_COUNT: usize = 3;
     pub const XYZ_AXIS_COUNT: usize = 3;
     #[cfg(feature = "eight_motors")]
@@ -190,13 +195,14 @@ impl MainData {
     pub const SETPOINT_COUNT: usize = 4;
 }
 
-impl Default for MainData {
+impl Default for BlackboxMainData {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl MainData {
+impl BlackboxMainData {
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             time_us: 0,
@@ -210,7 +216,9 @@ impl MainData {
             gyro: [0i16; Self::XYZ_AXIS_COUNT],
             gyro_unfiltered: [0i16; Self::XYZ_AXIS_COUNT],
             acc: [0i16; Self::XYZ_AXIS_COUNT],
+            #[cfg(feature = "magnetometer")]
             mag: [0i16; Self::XYZ_AXIS_COUNT],
+
             orientation: [0i16; Self::XYZ_AXIS_COUNT],
             #[cfg(feature = "eight_motors")]
             motor: [1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100],
@@ -240,21 +248,21 @@ mod tests {
 
     #[test]
     fn normal_types() {
-        is_full::<SlowData>();
-        is_full::<GpsData>();
-        is_full::<GpsPosition>();
-        is_full::<MainData>();
+        is_full::<BlackboxSlowData>();
+        is_full::<BlackboxGpsData>();
+        is_full::<BlackboxGpsPosition>();
+        is_full::<BlackboxMainData>();
     }
     #[test]
     fn new() {
-        let slow_data = SlowData::new();
+        let slow_data = BlackboxSlowData::new();
         assert_eq!(0, slow_data.flight_mode_flags);
         //assert_eq!(152, core::mem::size_of::<MainState>());
 
-        let main_data = MainData::new();
+        let main_data = BlackboxMainData::new();
         assert_eq!(0, main_data.time_us);
 
-        let gps_data = GpsData::new();
+        let gps_data = BlackboxGpsData::new();
         assert_eq!(0, gps_data.time_of_week_ms);
     }
 }

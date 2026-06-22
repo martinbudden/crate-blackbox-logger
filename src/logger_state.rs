@@ -1,7 +1,6 @@
 use crate::{
-    BlackboxStartParameters,
-    Event::LoggingResume,
-    Logger, SliceEncoder,
+    BlackboxEvent::LoggingResume,
+    BlackboxStartParameters, Logger, SliceEncoder,
     log_headers::{FieldHeaderIndex, SysInfoIndex},
 };
 

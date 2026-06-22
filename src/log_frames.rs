@@ -1,5 +1,5 @@
 use crate::{
-    data::{Event, EventId, MainData},
+    data::{BlackboxEvent, BlackboxEventId, BlackboxMainData},
     field_definitions::{FieldCondition, FieldSelect},
     logger::Logger,
     {BlackboxWriter, SliceEncoder},
@@ -32,16 +32,16 @@ macro_rules! assert_p_field_encoding {
 
 impl Logger {
     /// Log event: `e_frame`. Written immediately to log when event occurs.
-    pub fn log_e_frame(&mut self, encoder: &mut SliceEncoder, event: Event) {
+    pub fn log_e_frame(&mut self, encoder: &mut SliceEncoder, event: BlackboxEvent) {
         encoder.begin_frame(b'E');
 
         match event {
-            Event::SyncBeep(time) => {
-                encoder.write_byte(EventId::SYNC_BEEP);
+            BlackboxEvent::SyncBeep(time) => {
+                encoder.write_byte(BlackboxEventId::SYNC_BEEP);
                 encoder.write_unsigned_vb(time);
             }
-            Event::InflightAdjustment(new_value, new_value_f32, adjustment, is_float) => {
-                encoder.write_byte(EventId::INFLIGHT_ADJUSTMENT);
+            BlackboxEvent::InflightAdjustment(new_value, new_value_f32, adjustment, is_float) => {
+                encoder.write_byte(BlackboxEventId::INFLIGHT_ADJUSTMENT);
                 encoder.write_signed_vb(0);
                 if is_float {
                     const IS_F32_FLAG: u8 = 128;
@@ -52,22 +52,22 @@ impl Logger {
                     encoder.write_signed_vb(new_value);
                 }
             }
-            Event::Disarm(reason) => {
-                encoder.write_byte(EventId::DISARM);
+            BlackboxEvent::Disarm(reason) => {
+                encoder.write_byte(BlackboxEventId::DISARM);
                 encoder.write_unsigned_vb(reason);
             }
-            Event::LoggingResume(iteration, time) => {
-                encoder.write_byte(EventId::LOGGING_RESUME);
+            BlackboxEvent::LoggingResume(iteration, time) => {
+                encoder.write_byte(BlackboxEventId::LOGGING_RESUME);
                 encoder.write_unsigned_vb(iteration);
                 encoder.write_unsigned_vb(time);
             }
-            Event::FlightMode(flags, previous_flags) => {
-                encoder.write_byte(EventId::FLIGHT_MODE);
+            BlackboxEvent::FlightMode(flags, previous_flags) => {
+                encoder.write_byte(BlackboxEventId::FLIGHT_MODE);
                 encoder.write_unsigned_vb(flags);
                 encoder.write_unsigned_vb(previous_flags);
             }
-            Event::LogEnd => {
-                encoder.write_byte(EventId::LOG_END);
+            BlackboxEvent::LogEnd => {
+                encoder.write_byte(BlackboxEventId::LOG_END);
                 encoder.write_str("End of log");
                 encoder.write_byte(0);
                 // TODO:
@@ -247,6 +247,7 @@ impl Logger {
         }
 
         assert_i_field_encoding!("magADC", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        #[cfg(feature = "magnetometer")]
         if self.conditions.test(FieldCondition::MAGNETOMETER) {
             encoder.write_signed_vb_16_array(&current.mag);
         }
@@ -296,7 +297,7 @@ impl Logger {
         }
         #[cfg(feature = "servos")]
         if self.conditions.test(FieldCondition::SERVOS) {
-            let out: [i32; MainData::MAX_SUPPORTED_SERVO_COUNT] = std::array::from_fn(|i| {
+            let out: [i32; BlackboxMainData::MAX_SUPPORTED_SERVO_COUNT] = std::array::from_fn(|i| {
                 i32::from(current.servos[i]) - crate::field_definitions::FieldPredictor::S_1500
             });
             encoder.write_tag8_8svb(&out);
@@ -439,8 +440,9 @@ impl Logger {
             tag8_field_count += 1;
         }
         assert_p_field_encoding!("magADC", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
+        #[cfg(feature = "magnetometer")]
         if self.conditions.test(FieldCondition::MAGNETOMETER) {
-            for ii in 0..MainData::XYZ_AXIS_COUNT {
+            for ii in 0..BlackboxMainData::XYZ_AXIS_COUNT {
                 deltas[tag8_field_count] = i32::from(current.mag[ii].wrapping_sub(previous.mag[ii]));
                 tag8_field_count += 1;
             }
@@ -453,27 +455,27 @@ impl Logger {
         // Since gyros, accelerometers and motors are noisy, base their predictions on the average of the history:
         assert_p_field_encoding!("gyroADC", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::GYRO) {
-            for ii in 0..MainData::XYZ_AXIS_COUNT {
+            for ii in 0..BlackboxMainData::XYZ_AXIS_COUNT {
                 encoder.write_signed_vb_16(current.gyro[ii] - previous.gyro[ii]);
             }
         }
         assert_p_field_encoding!("gyroUnfilt", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::GYRO_UNFILTERED) {
-            for ii in 0..MainData::XYZ_AXIS_COUNT {
+            for ii in 0..BlackboxMainData::XYZ_AXIS_COUNT {
                 let predicted = i16::midpoint(previous.gyro_unfiltered[ii], pre_previous.gyro_unfiltered[ii]);
                 encoder.write_signed_vb_16(current.gyro_unfiltered[ii].wrapping_sub(predicted));
             }
         }
         assert_p_field_encoding!("accSmooth", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::ACC) {
-            for ii in 0..MainData::XYZ_AXIS_COUNT {
+            for ii in 0..BlackboxMainData::XYZ_AXIS_COUNT {
                 let predicted = i16::midpoint(previous.acc[ii], pre_previous.acc[ii]);
                 encoder.write_signed_vb_16(current.acc[ii].wrapping_sub(predicted));
             }
         }
         assert_p_field_encoding!("imuQuaternion", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::ATTITUDE) {
-            for ii in 0..MainData::XYZ_AXIS_COUNT {
+            for ii in 0..BlackboxMainData::XYZ_AXIS_COUNT {
                 let predicted = i16::midpoint(previous.orientation[ii], pre_previous.orientation[ii]);
                 encoder.write_signed_vb_16(current.orientation[ii].wrapping_sub(predicted));
             }
@@ -481,7 +483,7 @@ impl Logger {
 
         assert_p_field_encoding!("debug", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
         if self.conditions.test(FieldCondition::DEBUG) {
-            for ii in 0..MainData::DEBUG_COUNT {
+            for ii in 0..BlackboxMainData::DEBUG_COUNT {
                 let predicted = i16::midpoint(previous.debug[ii], pre_previous.debug[ii]);
                 encoder.write_signed_vb_16(current.debug[ii].wrapping_sub(predicted));
             }
@@ -504,7 +506,7 @@ impl Logger {
 
         #[cfg(feature = "servos")]
         if self.conditions.test(FieldCondition::SERVOS) {
-            let servos: [i32; MainData::MAX_SUPPORTED_SERVO_COUNT] = core::array::from_fn(|ii| {
+            let servos: [i32; BlackboxMainData::MAX_SUPPORTED_SERVO_COUNT] = core::array::from_fn(|ii| {
                 i32::from(current.servos[ii]) - crate::field_definitions::FieldPredictor::S_1500
             });
             encoder.write_tag8_8svb(&servos);

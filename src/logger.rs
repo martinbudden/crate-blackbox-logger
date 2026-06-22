@@ -1,15 +1,12 @@
 use crate::{
-    Event, GyroPidMessage, SetpointMessage, SliceEncoder,
-    data::{MainData, SlowData},
+    BlackboxEvent, SliceEncoder,
+    data::{BlackboxMainData, BlackboxSlowData},
     field_definitions::{FieldCondition, FieldSelect},
     logger_state::LoggerState,
 };
 
 #[cfg(feature = "gps")]
-use crate::{
-    GpsMessage,
-    data::{GpsData, GpsPosition},
-};
+use crate::data::{BlackboxGpsData, BlackboxGpsPosition};
 
 use simple_bitset::BitSet64;
 
@@ -64,14 +61,14 @@ pub struct Logger {
     pub(crate) max_throttle: u16,
     pub(crate) vbat_reference: u16,
 
-    pub(crate) slow_data: SlowData,
+    pub(crate) slow_data: BlackboxSlowData,
     #[cfg(feature = "gps")]
-    pub(crate) gps_data: GpsData,
+    pub(crate) gps_data: BlackboxGpsData,
     #[cfg(feature = "gps")]
-    pub(crate) gps_home: GpsPosition,
+    pub(crate) gps_home: BlackboxGpsPosition,
     pub sys_info: SysInfo,
 
-    pub(crate) main_data: [MainData; 3],
+    pub(crate) main_data: [BlackboxMainData; 3],
 }
 
 impl Default for Logger {
@@ -110,15 +107,15 @@ impl Logger {
             new_gps_data: false,
 
             features,
-            slow_data: SlowData::new(),
+            slow_data: BlackboxSlowData::new(),
 
             #[cfg(feature = "gps")]
-            gps_data: GpsData::new(),
+            gps_data: BlackboxGpsData::new(),
             #[cfg(feature = "gps")]
-            gps_home: GpsPosition::new(),
+            gps_home: BlackboxGpsPosition::new(),
             sys_info: SysInfo::new(),
 
-            main_data: [MainData::new(); 3],
+            main_data: [BlackboxMainData::new(); 3],
         }
     }
 }
@@ -195,105 +192,23 @@ impl Logger {
         a.wrapping_sub(b) < (u32::MAX / 2)
     }
     // Some of the main data comes from the GyroPidMessage, some comes from teh SetpointMessage
-    pub fn load_telemetry(
-        &mut self,
-        _current_time_us: u32,
-        gyro_pid_msg: GyroPidMessage,
-        setpoint_msg: SetpointMessage,
-    ) {
-        const TO_I16: f32 = 32_757.0;
-        let motor_commands = gyro_pid_msg.motor_commands * 2.0;
-        self.main_data[0] = MainData {
-            time_us: gyro_pid_msg.time_us,
-            baro_altitude: 0,
-            range_raw: 0,
-            amperage: 0,
-            battery_voltage: 0,
-            rssi: 0,
-            // todo, add scaling to below
-            #[allow(clippy::cast_possible_truncation)]
-            pid_p: gyro_pid_msg.pid_errors_p.map(|x| x as i32),
-            #[allow(clippy::cast_possible_truncation)]
-            pid_i: gyro_pid_msg.pid_errors_i.map(|x| x as i32),
-            #[allow(clippy::cast_possible_truncation)]
-            pid_d: [gyro_pid_msg.pid_errors_d[0] as i32, gyro_pid_msg.pid_errors_d[1] as i32, 0],
-            pid_s: <[i32; MainData::RPY_AXIS_COUNT]>::default(),
-            pid_k: <[i32; MainData::RPY_AXIS_COUNT]>::default(),
-            rc_commands: [1500, 1500, 1500, 1100],
-            // TODO: need to scale these
-            #[allow(clippy::cast_possible_truncation)]
-            setpoints: [
-                motor_commands.x as i16,
-                motor_commands.y as i16,
-                motor_commands.z as i16,
-                motor_commands.t as i16,
-            ],
-            gyro: (gyro_pid_msg.gyro_rps.to_degrees()).into(),
-            gyro_unfiltered: (gyro_pid_msg.gyro_rps_unfiltered.to_degrees()).into(),
-            acc: (gyro_pid_msg.acc * 4096.0).into(),
-            mag: <[i16; MainData::XYZ_AXIS_COUNT]>::default(),
-            #[allow(clippy::cast_possible_truncation)]
-            orientation: if gyro_pid_msg.orientation.w > 0.0 {
-                [
-                    (gyro_pid_msg.orientation.x * TO_I16) as i16,
-                    (gyro_pid_msg.orientation.y * TO_I16) as i16,
-                    (gyro_pid_msg.orientation.z * TO_I16) as i16,
-                ]
-            } else {
-                [
-                    (-gyro_pid_msg.orientation.x * TO_I16) as i16,
-                    (-gyro_pid_msg.orientation.y * TO_I16) as i16,
-                    (-gyro_pid_msg.orientation.z * TO_I16) as i16,
-                ]
-            },
-            #[cfg(feature = "eight_motors")]
-            motor: [1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100],
-            #[cfg(not(feature = "eight_motors"))]
-            motor: [1100, 1100, 1100, 1100],
-            #[cfg(feature = "dshot_telemetry")]
-            erpm: <[u16; MainData::MAX_SUPPORTED_MOTOR_COUNT]>::default(),
-            debug: [
-                gyro_pid_msg.debug[0],
-                gyro_pid_msg.debug[1],
-                gyro_pid_msg.debug[2],
-                gyro_pid_msg.debug[3],
-                gyro_pid_msg.debug[4],
-                gyro_pid_msg.debug[5],
-                setpoint_msg.debug[0],
-                setpoint_msg.debug[1],
-            ],
-            #[cfg(feature = "servos")]
-            servos: <[i16; MainData::MAX_SUPPORTED_SERVO_COUNT]>::default(),
-        };
-    }
 
-    pub fn load_slow_telemetry(&mut self, setpoint: SetpointMessage) {
-        // todo, need to check time
+    #[inline]
+    pub fn set_main_data(&mut self, _current_time_us: u32, main_data: BlackboxMainData) {
+        self.main_data[0] = main_data;
+    }
+    #[inline]
+    pub fn set_slow_data(&mut self, slow_data: BlackboxSlowData) {
+        // TODO: need to check time
         self.new_slow_data = true;
-        self.slow_data = SlowData {
-            flight_mode_flags: setpoint.flight_mode_flags,
-            state_flags: setpoint.state_flags,
-            failsafe_phase: setpoint.failsafe_phase,
-            rx_signal_received: setpoint.rx_signal_received,
-            rx_flight_channel_is_valid: setpoint.rx_flight_channel_is_valid,
-        }
+        self.slow_data = slow_data;
     }
 
     #[cfg(feature = "gps")]
-    pub fn load_gps_telemetry(&mut self, gps: GpsMessage) {
+    #[inline]
+    pub fn set_gps_data(&mut self, gps_data: BlackboxGpsData) {
         self.new_gps_data = true;
-        self.gps_data = GpsData {
-            time_of_week_ms: gps.time_of_week_ms,
-            interval_ms: gps.interval_ms,
-            position: gps.position,
-            velocity_north_cmps: gps.velocity_north_cmps,
-            velocity_east_cmps: gps.velocity_east_cmps,
-            velocity_down_cmps: gps.velocity_down_cmps,
-            speed3d_cmps: gps.speed3d_cmps,
-            ground_speed_cmps: gps.ground_speed_cmps,
-            ground_course_deci_degrees: gps.ground_course_deci_degrees,
-            satellite_count: gps.satellite_count,
-        };
+        self.gps_data = gps_data;
     }
 
     pub fn update(
@@ -385,13 +300,13 @@ impl Logger {
     pub fn log_event_arming_beep_if_needed(&mut self, encoder: &mut SliceEncoder, arming_beep_time_us: u32) {
         if arming_beep_time_us != self.last_arming_beep_time_us {
             self.last_arming_beep_time_us = arming_beep_time_us;
-            let event = Event::SyncBeep(arming_beep_time_us);
+            let event = BlackboxEvent::SyncBeep(arming_beep_time_us);
             self.log_e_frame(encoder, event);
         }
     }
     pub fn log_event_flight_mode_if_needed(&mut self, encoder: &mut SliceEncoder, rc_mode_activation_mask: u32) {
         if rc_mode_activation_mask != self.last_flight_mode_flags {
-            let event = Event::FlightMode(rc_mode_activation_mask, self.last_flight_mode_flags);
+            let event = BlackboxEvent::FlightMode(rc_mode_activation_mask, self.last_flight_mode_flags);
             self.log_e_frame(encoder, event);
             self.last_flight_mode_flags = rc_mode_activation_mask;
         }

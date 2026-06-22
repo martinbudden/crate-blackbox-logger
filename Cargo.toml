@@ -24,7 +24,7 @@ rustc_version = "0.4.1"
 
 [features]
 #default =[]
-default = ["libm", "dshot_telemetry", "gps"]
+default = ["libm"]
 #default = ["libm", "dshot_telemetry", "gps", "serde"]
 #default = ["dshot_telemetry", "eight_motors", "gps"]
 #default = ["dshot_telemetry", "eight_motors", "gps", "servos"]

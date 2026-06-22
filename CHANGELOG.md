@@ -19,10 +19,14 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 - Renamed `StateMachine` to `LoggerState`.
 - Renamed `FieldHeader` to `FieldHeaderIndex`.
 - Moved setting `logged_any_frames` into `log_iteration`.
+- Added `Blackbox` prefix to many exported structs.
+- Renamed `SliceEncoder::encoder` to `write_tag_3s32`.
 
 ### Removed
 
 - `MockSdCard`.
+- `GyroPidMessage`
+- `SetpointMessage`
 
 ### Deprecated
 

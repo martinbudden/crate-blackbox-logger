@@ -16,12 +16,10 @@ mod log_frames;
 mod log_headers;
 mod logger;
 mod logger_state;
-mod messages;
 
 pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStartParameters};
-pub use data::Event;
+pub use data::{BlackboxEvent, BlackboxGpsData, BlackboxGpsPosition, BlackboxMainData, BlackboxSlowData};
 pub use encoding::{BlackboxWriter, SliceEncoder};
 pub use field_definitions::FieldSelect;
 pub use logger::Logger;
 pub use logger_state::LoggerState;
-pub use messages::{GpsMessage, GyroPidMessage, SetpointMessage};

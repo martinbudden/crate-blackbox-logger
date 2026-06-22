@@ -390,7 +390,7 @@ impl Logger {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
-    use crate::{BlackboxStartParameters, GyroPidMessage, SetpointMessage, logger_state::LoggerState};
+    use crate::{BlackboxStartParameters, data::BlackboxMainData, logger_state::LoggerState};
 
     use super::*;
 
@@ -435,12 +435,12 @@ mod tests {
     fn log_main_fields_header() {
         let mut buffer = [0u8; 2048];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
-        let mut ctx = Logger::new(0);
-        ctx.init(0, 0);
+        let mut logger = Logger::new(0);
+        logger.init(0, 0);
 
         let mut field_header: FieldHeaderIndex = FieldHeaderIndex::IName(0);
         loop {
-            field_header = ctx.log_main_fields_header(&mut encoder, field_header);
+            field_header = logger.log_main_fields_header(&mut encoder, field_header);
             if field_header == FieldHeaderIndex::End {
                 break;
             }
@@ -456,10 +456,10 @@ mod tests {
     fn log_slow_fields_header() {
         let mut buffer = [0u8; 2048];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
-        let mut ctx = Logger::new(0);
-        ctx.init(0, 0);
+        let mut logger = Logger::new(0);
+        logger.init(0, 0);
 
-        ctx.log_slow_fields_header(&mut encoder);
+        logger.log_slow_fields_header(&mut encoder);
 
         // Convert the written portion to a string for validation
         #[allow(clippy::unwrap_used)]
@@ -471,11 +471,11 @@ mod tests {
     fn log_sys_info() {
         let mut buffer = [0u8; 2048];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
-        let mut ctx = Logger::new(0);
+        let mut logger = Logger::new(0);
 
         let mut sys_info = SysInfoIndex::Start;
         loop {
-            sys_info = ctx.log_sys_info(&mut encoder, sys_info);
+            sys_info = logger.log_sys_info(&mut encoder, sys_info);
             if sys_info == SysInfoIndex::End {
                 break;
             }
@@ -491,46 +491,45 @@ mod tests {
     fn state_machine_headers() {
         let mut buffer = [0u8; 4096];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
-        let mut ctx = Logger::new(0);
+        let mut logger = Logger::new(0);
         //let mut _sd_card = MockSdCard::new("state_machine_log.bbl");
-        ctx.init(0, 0);
+        logger.init(0, 0);
 
         let start = BlackboxStartParameters::new();
         let mut state = LoggerState::default();
         assert_eq!(LoggerState::Disabled, state);
 
         let mut current_time_us: u32 = 0;
-        let gyro_pid_msg = GyroPidMessage::new();
-        let setpoint_msg = SetpointMessage::new();
-        ctx.load_telemetry(current_time_us, gyro_pid_msg, setpoint_msg);
+        let main_data = BlackboxMainData::new();
+        logger.set_main_data(current_time_us, main_data);
 
         println!("\nSTATE MACHINE HEADERS\n");
         state.start(start);
         assert_eq!(LoggerState::PrepareLogFile, state);
 
         current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
-        _ = state.update(&mut ctx, &mut encoder, current_time_us, true);
+        _ = state.update(&mut logger, &mut encoder, current_time_us, true);
         assert_eq!(LoggerState::LogFileHeader, state);
 
         current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
-        _ = state.update(&mut ctx, &mut encoder, current_time_us, true);
+        _ = state.update(&mut logger, &mut encoder, current_time_us, true);
         assert_eq!(LoggerState::LogMainFieldsHeader(FieldHeaderIndex::IName(0)), state);
 
         /*current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
-        _ = state.update(&mut ctx, &mut encoder, current_time_us, true);
+        _ = state.update(&mut logger, &mut encoder, current_time_us, true);
         assert_eq!(StateMachine::LogSlowFieldsHeader, state);
 
         current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
-        _ = state.update(&mut ctx, &mut encoder, current_time_us, true);
+        _ = state.update(&mut logger, &mut encoder, current_time_us, true);
         assert_eq!(StateMachine::LogSysinfo(0), state);
 
         current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
-        _ = state.update(&mut ctx, &mut encoder, current_time_us, true);
+        _ = state.update(&mut logger, &mut encoder, current_time_us, true);
         assert_eq!(StateMachine::PrepareLogFile, state);*/
 
         loop {
-            ctx.load_telemetry(current_time_us, gyro_pid_msg, setpoint_msg);
-            _ = state.update(&mut ctx, &mut encoder, current_time_us, true);
+            logger.set_main_data(current_time_us, main_data);
+            _ = state.update(&mut logger, &mut encoder, current_time_us, true);
             if state == LoggerState::Running {
                 if encoder.pos != 0 {
                     #[allow(clippy::unwrap_used)]
@@ -546,8 +545,8 @@ mod tests {
     fn full_run() {
         let mut buffer = [0u8; 4096];
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
-        let mut ctx = Logger::new(0);
-        ctx.init(0, 0);
+        let mut logger = Logger::new(0);
+        logger.init(0, 0);
 
         let start = BlackboxStartParameters::new();
         let mut state = StateMachine::default();
@@ -557,8 +556,8 @@ mod tests {
         state.start(start);
         let mut run_count = 0;
         loop {
-            ctx.load_telemetry(current_time_us, gyro_pid_msg, setpoint_msg);
-            _ = state.update(&mut ctx, &mut writer, current_time_us);
+            logger.load_telemetry(current_time_us, gyro_pid_msg, setpoint_msg);
+            _ = state.update(&mut logger, &mut writer, current_time_us);
             //let state_i:u32 = state.into();
             //println!("state={state_i}");
             if state == StateMachine::Running {
