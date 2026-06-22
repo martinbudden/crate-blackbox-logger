@@ -7,7 +7,7 @@ use crate::{BlackboxWriter, SliceEncoder};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
-pub enum FieldHeader {
+pub enum FieldHeaderIndex {
     IName(usize),
     ISigned,
     IPredictor,
@@ -17,14 +17,14 @@ pub enum FieldHeader {
     End,
 }
 
-impl FieldHeader {
+impl FieldHeaderIndex {
     #[must_use]
     pub const fn new() -> Self {
         Self::IName(0)
     }
 }
 
-impl Default for FieldHeader {
+impl Default for FieldHeaderIndex {
     fn default() -> Self {
         Self::new()
     }
@@ -53,36 +53,37 @@ impl SysInfoIndex {
     }
 }
 
-// order of headers in log file is:
-// 1. file header
-// 2. main fields header
-// 3. slow fields header
-// 4. system info
-// After the headers we have the logging data.
+/// The log file has the following structure:
+/// 1. file header
+/// 2. main fields header
+/// 3. slow fields header
+/// 4. system info
+/// 5. After the headers we have the logging data.
 impl Logger {
     pub fn log_file_header(encoder: &mut SliceEncoder) {
         encoder.write_h_str("Product:Blackbox flight data recorder by Nicholas Sherlock\n");
         encoder.write_h_str("Data version:2\n");
     }
 
-    // Note: this mini state machine will go once I start using async and await.
-    pub fn log_main_fields_header(&mut self, encoder: &mut SliceEncoder, field_header: FieldHeader) -> FieldHeader {
+    /// Write the file fields header.
+    /// The `FieldHeaderIndex` state machine is used to split the header into chunks,
+    /// writing one chunk each iteration so that the encoder buffer does not overflow.
+    pub fn log_main_fields_header(&mut self, encoder: &mut SliceEncoder, field_header: FieldHeaderIndex) -> FieldHeaderIndex {
         const MAIN_FIELDS: &[MainFieldDefinition] = crate::field_arrays::BLACKBOX_MAIN_FIELDS;
 
-        let filter = |f: &MainFieldDefinition| self.conditions.test(f.condition);
-
         match field_header {
-            FieldHeader::IName(mut index) => {
-                if index == 0 {
+            FieldHeaderIndex::IName(mut name_index) => {
+                // write the line header on the first iteration
+                if name_index == 0 {
                     write_field_line_header(encoder, 'I', "name");
                 }
                 // write one field definition each iteration.
-                if let Some(f) = MAIN_FIELDS.get(index) {
-                    index += 1; // Move past this item for future evaluations
+                if let Some(f) = MAIN_FIELDS.get(name_index) {
+                    name_index += 1; // Move past this item for future evaluations
 
                     if self.conditions.test(f.condition) {
                         // Process this single field
-                        if index > 1 {
+                        if name_index > 1 {
                             // don't need the comma before the first item.
                             encoder.write_char(',');
                         }
@@ -94,52 +95,57 @@ impl Logger {
                         }
                     }
                     // Return the updated index state to stay in IName
-                    return FieldHeader::IName(index);
+                    return FieldHeaderIndex::IName(name_index);
                 }
                 encoder.write_char('\n');
-                FieldHeader::ISigned
+                FieldHeaderIndex::ISigned
             }
-            FieldHeader::ISigned => {
+            FieldHeaderIndex::ISigned => {
                 // I Signed line
+                let filter = |f: &MainFieldDefinition| self.conditions.test(f.condition);
                 let filtered = MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(encoder, 'I', "signed", filtered, |w, f| {
                     w.write_u8_ascii(f.is_signed);
                 });
-                FieldHeader::IPredictor
+                FieldHeaderIndex::IPredictor
             }
-            FieldHeader::IPredictor => {
+            FieldHeaderIndex::IPredictor => {
                 // I Predictor line
+                let filter = |f: &MainFieldDefinition| self.conditions.test(f.condition);
                 let filtered = MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(encoder, 'I', "predictor", filtered, |w, f| {
                     w.write_u8_ascii(f.i_predict);
                 });
-                FieldHeader::IEncoding
+                FieldHeaderIndex::IEncoding
             }
-            FieldHeader::IEncoding => {
+            FieldHeaderIndex::IEncoding => {
                 // I Encoding line
+                let filter = |f: &MainFieldDefinition| self.conditions.test(f.condition);
                 let filtered = MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(encoder, 'I', "encoding", filtered, |w, f| {
                     w.write_u8_ascii(f.i_encode);
                 });
-                FieldHeader::PPredictor
+                FieldHeaderIndex::PPredictor
             }
-            FieldHeader::PPredictor => {
+            FieldHeaderIndex::PPredictor => {
                 // P Predictor line
+                let filter = |f: &MainFieldDefinition| self.conditions.test(f.condition);
                 let filtered = MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(encoder, 'P', "predictor", filtered, |w, f| {
                     w.write_u8_ascii(f.p_predict);
                 });
-                FieldHeader::PEncoding
+                FieldHeaderIndex::PEncoding
             }
-            FieldHeader::PEncoding => {
+            FieldHeaderIndex::PEncoding => {
                 // P Encoding line
+                let filter = |f: &MainFieldDefinition| self.conditions.test(f.condition);
                 let filtered = MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(encoder, 'P', "encoding", filtered, |w, f| {
                     w.write_u8_ascii(f.p_encode);
                 });
-                FieldHeader::End
+                FieldHeaderIndex::End
             }
-            FieldHeader::End => FieldHeader::End,
+            FieldHeaderIndex::End => FieldHeaderIndex::End,
         }
     }
 
@@ -266,7 +272,7 @@ impl Logger {
                 SysInfoIndex::S4
             }
             SysInfoIndex::S4 => {
-                encoder.write_h_str_u32_ascii("looptime:", self.looptime);
+                encoder.write_h_str_u32_ascii("looptime:", self.sys_info.looptime);
                 encoder.write_h_str_u32_ascii("gyro_sync_denom:", 1);
                 encoder.write_h_str_u32_ascii("pid_process_denom:", 1);
                 SysInfoIndex::S5
@@ -274,7 +280,7 @@ impl Logger {
             SysInfoIndex::S5 => {
                 // "P denom" ignored by blackbox-log-view
                 encoder.write_h_str("P denom:32\n");
-                encoder.write_h_str_u32_ascii("debug_mode:", 0);
+                encoder.write_h_str_u32_ascii("debug_mode:", self.debug_mode.into());
                 encoder.write_h_str("features:541130760\n");
                 SysInfoIndex::S6
             }
@@ -377,7 +383,7 @@ impl Logger {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
-    use crate::state_machine::StateMachine;
+    use crate::state_machine::LoggerState;
     use crate::{BlackboxStartParameters, GyroPidMessage, SetpointMessage};
 
     use super::*;
@@ -389,7 +395,7 @@ mod tests {
     fn normal_types() {
         is_full::<Logger>();
         is_full::<SysInfoIndex>();
-        is_full::<FieldHeader>();
+        is_full::<FieldHeaderIndex>();
     }
     #[test]
     fn test_new() {
@@ -425,10 +431,10 @@ mod tests {
         let mut ctx = Logger::new(0);
         ctx.init(0, 0);
 
-        let mut field_header: FieldHeader = FieldHeader::IName(0);
+        let mut field_header: FieldHeaderIndex = FieldHeaderIndex::IName(0);
         loop {
             field_header = ctx.log_main_fields_header(&mut encoder, field_header);
-            if field_header == FieldHeader::End {
+            if field_header == FieldHeaderIndex::End {
                 break;
             }
         }
@@ -483,8 +489,8 @@ mod tests {
         ctx.init(0, 0);
 
         let start = BlackboxStartParameters::new();
-        let mut state = StateMachine::default();
-        assert_eq!(StateMachine::Disabled, state);
+        let mut state = LoggerState::default();
+        assert_eq!(LoggerState::Disabled, state);
 
         let mut current_time_us: u32 = 0;
         let gyro_pid_msg = GyroPidMessage::new();
@@ -493,15 +499,15 @@ mod tests {
 
         println!("\nSTATE MACHINE HEADERS\n");
         state.start(start);
-        assert_eq!(StateMachine::PrepareLogFile, state);
+        assert_eq!(LoggerState::PrepareLogFile, state);
 
         current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
         _ = state.update(&mut ctx, &mut encoder, current_time_us, true);
-        assert_eq!(StateMachine::LogFileHeader, state);
+        assert_eq!(LoggerState::LogFileHeader, state);
 
         current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
         _ = state.update(&mut ctx, &mut encoder, current_time_us, true);
-        assert_eq!(StateMachine::LogMainFieldsHeader(FieldHeader::IName(0)), state);
+        assert_eq!(LoggerState::LogMainFieldsHeader(FieldHeaderIndex::IName(0)), state);
 
         /*current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
         _ = state.update(&mut ctx, &mut encoder, current_time_us, true);
@@ -518,7 +524,7 @@ mod tests {
         loop {
             ctx.load_telemetry(current_time_us, gyro_pid_msg, setpoint_msg);
             _ = state.update(&mut ctx, &mut encoder, current_time_us, true);
-            if state == StateMachine::Running {
+            if state == LoggerState::Running {
                 if encoder.pos != 0 {
                     #[allow(clippy::unwrap_used)]
                     let result = core::str::from_utf8(&encoder.buffer[..encoder.pos]).unwrap();

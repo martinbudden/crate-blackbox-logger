@@ -2,20 +2,23 @@ use crate::Event;
 use crate::SliceEncoder;
 use crate::data::{GpsData, GpsPosition, MainData, SlowData};
 use crate::field_definitions::{FieldCondition, FieldSelect};
-use crate::state_machine::StateMachine;
+use crate::state_machine::LoggerState;
 use crate::{GpsMessage, GyroPidMessage, SetpointMessage};
 use simple_bitset::BitSet64;
 
 /// System info.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SysInfo {
+    pub(crate) looptime: u32,
     pub motor_output_min: u16,
     pub motor_output_max: u16,
 }
 
 impl SysInfo {
     pub const fn new() -> Self {
-        Self { motor_output_min: 158, motor_output_max: 2047 }
+        Self { 
+            looptime: 125,   // 125us = 8kHz gyro/pid loop
+            motor_output_min: 158, motor_output_max: 2047 }
     }
 }
 impl Default for SysInfo {
@@ -33,7 +36,6 @@ pub struct Logger {
 
     pub(crate) last_arming_beep_time_us: u32,
     pub(crate) last_flight_mode_flags: u32,
-    pub(crate) looptime: u32,
     pub(crate) i_interval: u32,
     pub(crate) p_interval: u32,
     s_interval: u32,
@@ -81,7 +83,6 @@ impl Logger {
             vbat_reference: 2466,
             conditions: BitSet64::new(),
 
-            looptime: 125,   // 125us = 8kHz gyro/pid loop
             p_interval: 8,   // 8*125us = 1000us = 1kHz logging
             i_interval: 256, // 256*p_interval = 256ms
             s_interval: 0,   // set to 256*i_interval in init. 256*256ms = 65.536s, or approximately one a minute
@@ -272,7 +273,7 @@ impl Logger {
 
     pub fn update(
         &mut self,
-        state: &mut StateMachine,
+        state: &mut LoggerState,
         encoder: &mut SliceEncoder,
         current_time_us: u32,
         is_active: bool,
@@ -281,7 +282,9 @@ impl Logger {
     }
 
     /// Called when the flight controller signals it has new data.
-    pub fn log_iteration(&mut self, current_time_us: u32, encoder: &mut SliceEncoder) {
+    pub fn log_iteration(&mut self, encoder: &mut SliceEncoder, current_time_us: u32) {
+        self.logged_any_frames = true;
+
         self.main_data[0].time_us = current_time_us;
         // Write a keyframe every i_interval frames so we can resynchronise upon missing frames
         if self.should_log_i_frame() {

@@ -24,4 +24,4 @@ pub use encoding::{BlackboxWriter, SliceEncoder};
 pub use field_definitions::FieldSelect;
 pub use logger::Logger;
 pub use messages::{GpsMessage, GyroPidMessage, SetpointMessage};
-pub use state_machine::StateMachine;
+pub use state_machine::LoggerState;

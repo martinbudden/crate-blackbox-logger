@@ -2,18 +2,18 @@ use crate::{
     BlackboxStartParameters,
     Event::LoggingResume,
     Logger, SliceEncoder,
-    log_headers::{FieldHeader, SysInfoIndex},
+    log_headers::{FieldHeaderIndex, SysInfoIndex},
 };
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(u8)]
-pub enum StateMachine {
+pub enum LoggerState {
     #[default]
     Disabled = 0,
     Stopped,
     PrepareLogFile,
     LogFileHeader,
-    LogMainFieldsHeader(FieldHeader),
+    LogMainFieldsHeader(FieldHeaderIndex),
     LogGpsHFieldsHeader,
     LogGpsGFieldsHeader,
     LogSlowFieldsHeader,
@@ -23,20 +23,20 @@ pub enum StateMachine {
     ShuttingDown,
 }
 
-impl StateMachine {
+impl LoggerState {
     #[must_use]
     pub const fn new() -> Self {
         Self::Disabled
     }
 }
 
-impl StateMachine {
+impl LoggerState {
     pub fn start(&mut self, _start_params: BlackboxStartParameters) {
-        *self = StateMachine::PrepareLogFile;
+        *self = LoggerState::PrepareLogFile;
     }
 
     pub fn finish(&mut self) {
-        *self = StateMachine::ShuttingDown;
+        *self = LoggerState::ShuttingDown;
     }
 
     pub fn set_state(&mut self, state: Self) {
@@ -54,69 +54,69 @@ impl StateMachine {
         *self = match core::mem::take(self) {
             // If we are disabled, we stay disabled until start() is called
             // Explicitly setting state = State::Disabled defends against a change in the default.
-            StateMachine::Disabled => StateMachine::Disabled,
-            StateMachine::Stopped | StateMachine::ShuttingDown => StateMachine::Stopped,
-            StateMachine::PrepareLogFile => {
+            LoggerState::Disabled => LoggerState::Disabled,
+            LoggerState::Stopped | LoggerState::ShuttingDown => LoggerState::Stopped,
+            LoggerState::PrepareLogFile => {
                 logger.logged_any_frames = false;
-                StateMachine::LogFileHeader
+                LoggerState::LogFileHeader
             }
-            StateMachine::LogFileHeader => {
+            LoggerState::LogFileHeader => {
                 Logger::log_file_header(encoder);
-                StateMachine::LogMainFieldsHeader(FieldHeader::IName(0))
+                LoggerState::LogMainFieldsHeader(FieldHeaderIndex::IName(0))
             }
-            StateMachine::LogMainFieldsHeader(field_header) => {
+            LoggerState::LogMainFieldsHeader(field_header) => {
                 let next_field_header = logger.log_main_fields_header(encoder, field_header);
-                if next_field_header == FieldHeader::End {
+                if next_field_header == FieldHeaderIndex::End {
                     if logger.features & Logger::FEATURE_GPS != 0 {
-                        StateMachine::LogGpsHFieldsHeader
+                        LoggerState::LogGpsHFieldsHeader
                     } else {
-                        StateMachine::LogSlowFieldsHeader
+                        LoggerState::LogSlowFieldsHeader
                     }
                 } else {
-                    StateMachine::LogMainFieldsHeader(next_field_header)
+                    LoggerState::LogMainFieldsHeader(next_field_header)
                 }
             }
-            StateMachine::LogGpsHFieldsHeader => {
+            LoggerState::LogGpsHFieldsHeader => {
                 #[cfg(feature = "gps")]
                 {
                     logger.log_gps_g_fields_header(encoder);
                 }
-                StateMachine::LogGpsGFieldsHeader
+                LoggerState::LogGpsGFieldsHeader
             }
-            StateMachine::LogGpsGFieldsHeader => {
+            LoggerState::LogGpsGFieldsHeader => {
                 #[cfg(feature = "gps")]
                 {
                     logger.log_gps_h_fields_header(encoder);
                 }
-                StateMachine::LogSlowFieldsHeader
+                LoggerState::LogSlowFieldsHeader
             }
-            StateMachine::LogSlowFieldsHeader => {
+            LoggerState::LogSlowFieldsHeader => {
                 logger.log_slow_fields_header(encoder);
-                StateMachine::LogSysinfo(SysInfoIndex::Start)
+                LoggerState::LogSysinfo(SysInfoIndex::Start)
             }
-            StateMachine::LogSysinfo(sys_info) => {
+            LoggerState::LogSysinfo(sys_info) => {
                 let next_sys_info = logger.log_sys_info(encoder, sys_info);
                 if next_sys_info == SysInfoIndex::End {
-                    StateMachine::Running
+                    LoggerState::Running
                 } else {
-                    StateMachine::LogSysinfo(next_sys_info)
+                    LoggerState::LogSysinfo(next_sys_info)
                 }
             }
-            StateMachine::Paused => {
+            LoggerState::Paused => {
                 if is_active && logger.should_log_i_frame() {
                     logger.log_e_frame(encoder, LoggingResume(logger.iteration, current_time_us));
-                    logger.log_iteration(current_time_us, encoder);
+                    logger.log_iteration(encoder, current_time_us);
                     logger.advance_iteration_timers();
-                    StateMachine::Running
+                    LoggerState::Running
                 } else {
                     logger.advance_iteration_timers();
-                    StateMachine::Paused
+                    LoggerState::Paused
                 }
             }
-            StateMachine::Running => {
-                logger.log_iteration(current_time_us, encoder);
+            LoggerState::Running => {
+                logger.log_iteration(encoder, current_time_us);
                 logger.advance_iteration_timers();
-                StateMachine::Running
+                LoggerState::Running
             }
         };
         encoder.pos
@@ -132,6 +132,6 @@ mod tests {
 
     #[test]
     fn normal_types() {
-        is_full::<StateMachine>();
+        is_full::<LoggerState>();
     }
 }

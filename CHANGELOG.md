@@ -16,6 +16,9 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 ### Changed
 
 - Improved writing of `log_main_fields_header` name.
+- Renamed `StateMachine` to `LoggerState`.
+- Renamed `FieldHeader` to `FieldHeaderIndex`.
+- Moved setting `logged_any_frames` into `log_iteration`.
 
 ### Removed
 

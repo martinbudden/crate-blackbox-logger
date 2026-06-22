@@ -1,6 +1,6 @@
 use crate::SliceEncoder;
 use crate::logger::Logger;
-use crate::state_machine::StateMachine;
+use crate::state_machine::LoggerState;
 use crate::{GyroPidMessage, SetpointMessage};
 #[cfg(feature = "serde")]
 use {
@@ -76,7 +76,7 @@ impl BlackboxStartParameters {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Blackbox {
-    state: StateMachine,
+    state: LoggerState,
     pub logger: Logger,
 
     config: BlackboxConfig,
@@ -91,7 +91,7 @@ impl Default for Blackbox {
 impl Blackbox {
     #[must_use]
     pub const fn new(config: BlackboxConfig, features: u32) -> Self {
-        Self { state: StateMachine::new(), logger: Logger::new(features), config }
+        Self { state: LoggerState::new(), logger: Logger::new(features), config }
     }
 }
 
@@ -112,11 +112,11 @@ impl Blackbox {
     pub fn update(&mut self, encoder: &mut SliceEncoder, current_time_us: u32, is_active: bool) -> usize {
         self.state.update(&mut self.logger, encoder, current_time_us, is_active)
     }
-    pub fn set_state(&mut self, state: StateMachine) {
+    pub fn set_state(&mut self, state: LoggerState) {
         self.state.set_state(state);
     }
     #[must_use]
-    pub fn state(&self) -> StateMachine {
+    pub fn state(&self) -> LoggerState {
         self.state
     }
 }

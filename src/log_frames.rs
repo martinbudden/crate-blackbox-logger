@@ -77,7 +77,6 @@ impl Logger {
 
     /// Log slow frame: `s_frame`.
     pub fn log_s_frame(&mut self, encoder: &mut SliceEncoder) {
-        self.logged_any_frames = true;
         self.s_frame_index = 0;
         self.new_slow_data = false;
 
@@ -100,8 +99,6 @@ impl Logger {
 
     /// GPS home frame: `h_frame`.
     pub fn log_h_frame(&mut self, encoder: &mut SliceEncoder) {
-        self.logged_any_frames = true;
-
         encoder.begin_frame(b'H');
 
         encoder.write_signed_vb(self.gps_home.latitude_degrees_1e7);
@@ -114,7 +111,6 @@ impl Logger {
 
     /// GPS frame: `g_frame`. Written at a frequency of about 10Hz.
     pub fn log_g_frame(&mut self, current_time_us: u32, encoder: &mut SliceEncoder) {
-        self.logged_any_frames = true;
         self.new_gps_data = false;
 
         encoder.begin_frame(b'G');
@@ -154,7 +150,6 @@ impl Logger {
     /// Also known as a key frame.
     #[allow(clippy::too_many_lines)]
     pub fn log_i_frame(&mut self, encoder: &mut SliceEncoder) {
-        self.logged_any_frames = true;
         let current = &self.main_data[0];
 
         encoder.begin_frame(b'I');
@@ -318,9 +313,6 @@ impl Logger {
     /// So this code and those definitions must be changed in tandem with each other.
     #[allow(clippy::too_many_lines)]
     pub fn log_p_frame(&mut self, encoder: &mut SliceEncoder) {
-        self.logged_any_frames = true;
-
-        {
             let current = &self.main_data[0];
             let previous = &self.main_data[1];
             let pre_previous = &self.main_data[2];
@@ -515,7 +507,6 @@ impl Logger {
                 });
                 encoder.write_tag8_8svb(&servos);
             }
-        }
         encoder.end_frame();
 
         // Rotate the saved data.
