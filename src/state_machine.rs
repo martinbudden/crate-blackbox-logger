@@ -32,11 +32,11 @@ impl LoggerState {
 
 impl LoggerState {
     pub fn start(&mut self, _start_params: BlackboxStartParameters) {
-        *self = LoggerState::PrepareLogFile;
+        *self = Self::PrepareLogFile;
     }
 
     pub fn finish(&mut self) {
-        *self = LoggerState::ShuttingDown;
+        *self = Self::ShuttingDown;
     }
 
     pub fn set_state(&mut self, state: Self) {
@@ -54,69 +54,69 @@ impl LoggerState {
         *self = match core::mem::take(self) {
             // If we are disabled, we stay disabled until start() is called
             // Explicitly setting state = State::Disabled defends against a change in the default.
-            LoggerState::Disabled => LoggerState::Disabled,
-            LoggerState::Stopped | LoggerState::ShuttingDown => LoggerState::Stopped,
-            LoggerState::PrepareLogFile => {
+            Self::Disabled => Self::Disabled,
+            Self::Stopped | Self::ShuttingDown => Self::Stopped,
+            Self::PrepareLogFile => {
                 logger.logged_any_frames = false;
-                LoggerState::LogFileHeader
+                Self::LogFileHeader
             }
-            LoggerState::LogFileHeader => {
+            Self::LogFileHeader => {
                 Logger::log_file_header(encoder);
-                LoggerState::LogMainFieldsHeader(FieldHeaderIndex::IName(0))
+                Self::LogMainFieldsHeader(FieldHeaderIndex::IName(0))
             }
-            LoggerState::LogMainFieldsHeader(field_header) => {
+            Self::LogMainFieldsHeader(field_header) => {
                 let next_field_header = logger.log_main_fields_header(encoder, field_header);
                 if next_field_header == FieldHeaderIndex::End {
                     if logger.features & Logger::FEATURE_GPS != 0 {
-                        LoggerState::LogGpsHFieldsHeader
+                        Self::LogGpsHFieldsHeader
                     } else {
-                        LoggerState::LogSlowFieldsHeader
+                        Self::LogSlowFieldsHeader
                     }
                 } else {
-                    LoggerState::LogMainFieldsHeader(next_field_header)
+                    Self::LogMainFieldsHeader(next_field_header)
                 }
             }
-            LoggerState::LogGpsHFieldsHeader => {
+            Self::LogGpsHFieldsHeader => {
                 #[cfg(feature = "gps")]
                 {
                     logger.log_gps_g_fields_header(encoder);
                 }
-                LoggerState::LogGpsGFieldsHeader
+                Self::LogGpsGFieldsHeader
             }
-            LoggerState::LogGpsGFieldsHeader => {
+            Self::LogGpsGFieldsHeader => {
                 #[cfg(feature = "gps")]
                 {
                     logger.log_gps_h_fields_header(encoder);
                 }
-                LoggerState::LogSlowFieldsHeader
+                Self::LogSlowFieldsHeader
             }
-            LoggerState::LogSlowFieldsHeader => {
+            Self::LogSlowFieldsHeader => {
                 logger.log_slow_fields_header(encoder);
-                LoggerState::LogSysinfo(SysInfoIndex::Start)
+                Self::LogSysinfo(SysInfoIndex::Start)
             }
-            LoggerState::LogSysinfo(sys_info) => {
+            Self::LogSysinfo(sys_info) => {
                 let next_sys_info = logger.log_sys_info(encoder, sys_info);
                 if next_sys_info == SysInfoIndex::End {
-                    LoggerState::Running
+                    Self::Running
                 } else {
-                    LoggerState::LogSysinfo(next_sys_info)
+                    Self::LogSysinfo(next_sys_info)
                 }
             }
-            LoggerState::Paused => {
+            Self::Paused => {
                 if is_active && logger.should_log_i_frame() {
                     logger.log_e_frame(encoder, LoggingResume(logger.iteration, current_time_us));
                     logger.log_iteration(encoder, current_time_us);
                     logger.advance_iteration_timers();
-                    LoggerState::Running
+                    Self::Running
                 } else {
                     logger.advance_iteration_timers();
-                    LoggerState::Paused
+                    Self::Paused
                 }
             }
-            LoggerState::Running => {
+            Self::Running => {
                 logger.log_iteration(encoder, current_time_us);
                 logger.advance_iteration_timers();
-                LoggerState::Running
+                Self::Running
             }
         };
         encoder.pos
