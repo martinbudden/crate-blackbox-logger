@@ -15,8 +15,8 @@ mod field_definitions;
 mod log_frames;
 mod log_headers;
 mod logger;
-mod messages;
 mod logger_state;
+mod messages;
 
 pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStartParameters};
 pub use data::Event;

@@ -68,7 +68,11 @@ impl Logger {
     /// Write the file fields header.
     /// The `FieldHeaderIndex` state machine is used to split the header into chunks,
     /// writing one chunk each iteration so that the encoder buffer does not overflow.
-    pub fn log_main_fields_header(&mut self, encoder: &mut SliceEncoder, field_header: FieldHeaderIndex) -> FieldHeaderIndex {
+    pub fn log_main_fields_header(
+        &mut self,
+        encoder: &mut SliceEncoder,
+        field_header: FieldHeaderIndex,
+    ) -> FieldHeaderIndex {
         const MAIN_FIELDS: &[MainFieldDefinition] = crate::field_arrays::BLACKBOX_MAIN_FIELDS;
 
         match field_header {

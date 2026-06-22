@@ -16,9 +16,11 @@ pub struct SysInfo {
 
 impl SysInfo {
     pub const fn new() -> Self {
-        Self { 
-            looptime: 125,   // 125us = 8kHz gyro/pid loop
-            motor_output_min: 158, motor_output_max: 2047 }
+        Self {
+            looptime: 125, // 125us = 8kHz gyro/pid loop
+            motor_output_min: 158,
+            motor_output_max: 2047,
+        }
     }
 }
 impl Default for SysInfo {

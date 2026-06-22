@@ -96,11 +96,7 @@ impl LoggerState {
             }
             Self::LogSysinfo(sys_info) => {
                 let next_sys_info = logger.log_sys_info(encoder, sys_info);
-                if next_sys_info == SysInfoIndex::End {
-                    Self::Running
-                } else {
-                    Self::LogSysinfo(next_sys_info)
-                }
+                if next_sys_info == SysInfoIndex::End { Self::Running } else { Self::LogSysinfo(next_sys_info) }
             }
             Self::Paused => {
                 if is_active && logger.should_log_i_frame() {
