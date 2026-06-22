@@ -93,8 +93,7 @@ impl Logger {
             i32::from(self.slow_data.rx_signal_received),
             i32::from(self.slow_data.rx_flight_channel_is_valid),
         ];
-
-        encoder.encoder(values);
+        encoder.write_tag2_3s32(values);
 
         encoder.end_frame();
     }
@@ -353,7 +352,7 @@ impl Logger {
                 current.pid_i[1].wrapping_sub(previous.pid_i[1]),
                 current.pid_i[2].wrapping_sub(previous.pid_i[2]),
             ];
-            encoder.encoder(deltas);
+            encoder.write_tag2_3s32(deltas);
 
             // The PID D term is frequently set to zero for yaw, which makes the result from the calculation always zero.
             // So only record D values when explicitly asked to do so.

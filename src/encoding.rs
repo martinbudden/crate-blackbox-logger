@@ -319,7 +319,7 @@ impl SliceEncoder<'_> {
         }
     }
 
-    pub fn encoder(&mut self, values: [i32; 3]) {
+    pub fn write_tag2_3s32(&mut self, values: [i32; 3]) {
         // Find the required size for the largest value.
         const BITS_2: u8 = 0;
         const BITS_4: u8 = 1;
@@ -480,7 +480,7 @@ mod tests {
 
         // All fit in 4-bit nibbles (bits_needed = 1)
         let values = [2, -1, 5];
-        encoder.encoder(values);
+        encoder.write_tag2_3s32(values);
 
         // Byte 0: Tag (1)
         // Byte 1: (2 & 0xF) | ((-1 as u8 & 0xF) << 4) = 0x02 | 0xF0 = 0xF2
@@ -573,7 +573,7 @@ mod edge_case_tests {
 
             // One value is 128 (requires 16-bit mode '3' in tag2_3s32 logic)
             let values = [0, 128, 0];
-            encoder.encoder(values);
+            encoder.write_tag2_3s32(values);
         }
 
         assert_eq!(buf[0], 3); // Tag byte should be 3
