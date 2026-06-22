@@ -1,7 +1,9 @@
+use crate::field_definitions::{
+    FieldCondition, FieldEncoding, FieldPredictor, FieldSign, MainFieldDefinition, SimpleFieldDefinition,
+};
+
 #[cfg(feature = "gps")]
 use crate::field_definitions::ConditionalFieldDefinition;
-use crate::field_definitions::{FieldCondition, FieldEncoding, FieldPredictor, FieldSign};
-use crate::field_definitions::{MainFieldDefinition, SimpleFieldDefinition};
 
 pub static BLACKBOX_SLOW_FIELDS: [SimpleFieldDefinition; SimpleFieldDefinition::SLOW_FIELD_COUNT] = [
     SimpleFieldDefinition {

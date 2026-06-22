@@ -1,9 +1,16 @@
-use crate::Event;
-use crate::SliceEncoder;
-use crate::data::{GpsData, GpsPosition, MainData, SlowData};
-use crate::field_definitions::{FieldCondition, FieldSelect};
-use crate::logger_state::LoggerState;
-use crate::{GpsMessage, GyroPidMessage, SetpointMessage};
+use crate::{
+    Event, GyroPidMessage, SetpointMessage, SliceEncoder,
+    data::{MainData, SlowData},
+    field_definitions::{FieldCondition, FieldSelect},
+    logger_state::LoggerState,
+};
+
+#[cfg(feature = "gps")]
+use crate::{
+    GpsMessage,
+    data::{GpsData, GpsPosition},
+};
+
 use simple_bitset::BitSet64;
 
 /// System info.
@@ -58,7 +65,9 @@ pub struct Logger {
     pub(crate) vbat_reference: u16,
 
     pub(crate) slow_data: SlowData,
+    #[cfg(feature = "gps")]
     pub(crate) gps_data: GpsData,
+    #[cfg(feature = "gps")]
     pub(crate) gps_home: GpsPosition,
     pub sys_info: SysInfo,
 
@@ -103,7 +112,9 @@ impl Logger {
             features,
             slow_data: SlowData::new(),
 
+            #[cfg(feature = "gps")]
             gps_data: GpsData::new(),
+            #[cfg(feature = "gps")]
             gps_home: GpsPosition::new(),
             sys_info: SysInfo::new(),
 
@@ -268,9 +279,21 @@ impl Logger {
         }
     }
 
-    pub fn load_gps_data(&mut self, gps: GpsMessage) {
+    #[cfg(feature = "gps")]
+    pub fn load_gps_telemetry(&mut self, gps: GpsMessage) {
         self.new_gps_data = true;
-        self.gps_data.satellite_count = gps.satellite_count;
+        self.gps_data = GpsData {
+            time_of_week_ms: gps.time_of_week_ms,
+            interval_ms: gps.interval_ms,
+            position: gps.position,
+            velocity_north_cmps: gps.velocity_north_cmps,
+            velocity_east_cmps: gps.velocity_east_cmps,
+            velocity_down_cmps: gps.velocity_down_cmps,
+            speed3d_cmps: gps.speed3d_cmps,
+            ground_speed_cmps: gps.ground_speed_cmps,
+            ground_course_deci_degrees: gps.ground_course_deci_degrees,
+            satellite_count: gps.satellite_count,
+        };
     }
 
     pub fn update(

@@ -1,9 +1,12 @@
-use crate::encoding::{write_field_line, write_field_line_header};
+use crate::{
+    encoding::{write_field_line, write_field_line_header},
+    field_definitions::{MainFieldDefinition, SimpleFieldDefinition},
+    logger::Logger,
+    {BlackboxWriter, SliceEncoder},
+};
+
 #[cfg(feature = "gps")]
 use crate::field_definitions::ConditionalFieldDefinition;
-use crate::field_definitions::{MainFieldDefinition, SimpleFieldDefinition};
-use crate::logger::Logger;
-use crate::{BlackboxWriter, SliceEncoder};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
@@ -387,8 +390,7 @@ impl Logger {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
-    use crate::logger_state::LoggerState;
-    use crate::{BlackboxStartParameters, GyroPidMessage, SetpointMessage};
+    use crate::{BlackboxStartParameters, GyroPidMessage, SetpointMessage, logger_state::LoggerState};
 
     use super::*;
 

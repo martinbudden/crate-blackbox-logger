@@ -1,7 +1,10 @@
-use crate::SliceEncoder;
-use crate::logger::Logger;
-use crate::logger_state::LoggerState;
-use crate::{GyroPidMessage, SetpointMessage};
+use crate::{
+    SliceEncoder,
+    logger::Logger,
+    logger_state::LoggerState,
+    {GyroPidMessage, SetpointMessage},
+};
+
 #[cfg(feature = "serde")]
 use {
     sequential_storage::map::PostcardValue,

@@ -1,7 +1,9 @@
-use crate::data::{Event, EventId, MainData};
-use crate::field_definitions::{FieldCondition, FieldSelect};
-use crate::logger::Logger;
-use crate::{BlackboxWriter, SliceEncoder};
+use crate::{
+    data::{Event, EventId, MainData},
+    field_definitions::{FieldCondition, FieldSelect},
+    logger::Logger,
+    {BlackboxWriter, SliceEncoder},
+};
 
 #[cfg(test)]
 use crate::field_definitions::{FieldEncoding, FieldPredictor, MainFieldDefinition};
@@ -98,6 +100,7 @@ impl Logger {
     }
 
     /// GPS home frame: `h_frame`.
+    #[cfg(feature = "gps")]
     pub fn log_h_frame(&mut self, encoder: &mut SliceEncoder) {
         encoder.begin_frame(b'H');
 
@@ -110,6 +113,7 @@ impl Logger {
     }
 
     /// GPS frame: `g_frame`. Written at a frequency of about 10Hz.
+    #[cfg(feature = "gps")]
     pub fn log_g_frame(&mut self, current_time_us: u32, encoder: &mut SliceEncoder) {
         self.new_gps_data = false;
 

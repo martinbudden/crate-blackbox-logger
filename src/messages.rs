@@ -1,6 +1,7 @@
+use crate::data::GpsPosition;
 use vqm::{Quaternionf32, Vector3df32, Vector4df32};
 /*
-Current Estimates for FastTelemetryData:
+Current Estimates for GyroPidMessage:
 AccData (4x f32 ): 16 bytes
 GyroData (4x f32 ): 16 bytes
 GyroUnfiltered (4x f32 ): 16 bytes
@@ -135,13 +136,42 @@ impl Default for SetpointMessage {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct GpsMessage {
+    /// GPS time of week in ms.
+    pub time_of_week_ms: u32,
+    /// interval between GPS solutions in ms.
+    pub interval_ms: u32,
+    /// current position.
+    pub position: GpsPosition,
+    /// north velocity, cm/s.
+    pub velocity_north_cmps: i16,
+    /// east velocity, cm/s.
+    pub velocity_east_cmps: i16,
+    /// down velocity, cm/s.
+    pub velocity_down_cmps: i16,
+    /// speed in cm/s.
+    pub speed3d_cmps: i16,
+    /// speed in cm/s.
+    pub ground_speed_cmps: i16,
+    /// Heading 2D in 10ths of a degree.
+    pub ground_course_deci_degrees: i16,
     pub satellite_count: u8,
 }
 
 impl GpsMessage {
     #[must_use]
     pub const fn new() -> Self {
-        Self { satellite_count: 0 }
+        Self {
+            time_of_week_ms: 0,
+            interval_ms: 0,
+            position: GpsPosition::new(),
+            velocity_north_cmps: 0,
+            velocity_east_cmps: 0,
+            velocity_down_cmps: 0,
+            speed3d_cmps: 0,
+            ground_speed_cmps: 0,
+            ground_course_deci_degrees: 0,
+            satellite_count: 0,
+        }
     }
 }
 
@@ -169,7 +199,7 @@ mod tests {
         assert_eq!(128, core::mem::size_of::<GyroPidMessage>());
         #[cfg(all(feature = "dshot_telemetry", not(any(feature = "servos", feature = "eight_motors"))))]
         assert_eq!(72, core::mem::size_of::<SetpointMessage>());
-        assert_eq!(1, core::mem::size_of::<GpsMessage>());
+        assert_eq!(36, core::mem::size_of::<GpsMessage>());
     }
     #[test]
     fn gyro_pid_message_new() {
