@@ -265,9 +265,9 @@ impl Logger {
         }
     }
 
-    pub fn load_gps_data(&mut self, telemetry: GpsMessage) {
+    pub fn load_gps_data(&mut self, gps: GpsMessage) {
         self.new_gps_data = true;
-        self.gps_data.satellite_count = telemetry.satellite_count;
+        self.gps_data.satellite_count = gps.satellite_count;
     }
 
     pub fn update(
@@ -308,7 +308,6 @@ impl Logger {
             #[cfg(feature = "gps")]
             if Logger::field_enabled(self.enabled_fields, FieldSelect::GPS) {
                 if self.should_log_h_frame() {
-                    self.gps_home = self.gps_data.home;
                     self.log_h_frame(encoder);
                     self.log_g_frame(current_time_us, encoder);
                 } else if self.should_log_g_frame() {
@@ -318,18 +317,22 @@ impl Logger {
         }
     }
 
+    #[inline]
     #[must_use]
     pub fn should_log_i_frame(&self) -> bool {
         self.i_frame_index == 0
     }
+    #[inline]
     #[must_use]
     pub fn should_log_h_frame(&self) -> bool {
         self.features & Self::FEATURE_GPS != 0
     }
+    #[inline]
     #[must_use]
     pub fn should_log_g_frame(&self) -> bool {
         (self.features & Self::FEATURE_GPS != 0) && self.new_gps_data
     }
+    #[inline]
     #[must_use]
     pub fn should_log_p_frame(&self) -> bool {
         self.p_frame_index == 0 && !self.is_only_logging_i_frames()
@@ -339,10 +342,12 @@ impl Logger {
     /// The frame is also logged if it has been more than `s_interval` logging iterations
     /// since the field was last logged.
     // Write the slow frame periodically so it can be recovered if we ever lose sync
+    #[inline]
     #[must_use]
     pub fn should_log_s_frame(&self) -> bool {
         self.s_frame_index >= self.s_interval && self.new_slow_data
     }
+    #[inline]
     #[must_use]
     pub fn is_only_logging_i_frames(&self) -> bool {
         self.p_interval == 0
@@ -401,6 +406,7 @@ impl Logger {
     }
 
     // Helper function to check if a field is enabled
+    #[inline]
     #[must_use]
     pub fn field_enabled(enabled_mask: u32, field: u32) -> bool {
         enabled_mask & field != 0
@@ -508,7 +514,7 @@ mod tests {
     }
     #[test]
     fn new() {
-        let ctx = Logger::new(0);
-        assert!(!ctx.logged_any_frames);
+        let logger = Logger::new(0);
+        assert_eq!(0, logger.features);
     }
 }

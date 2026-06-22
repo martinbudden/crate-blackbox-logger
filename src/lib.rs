@@ -1,5 +1,4 @@
 #![doc = include_str!("../README.md")]
-#![cfg_attr(all(not(test), not(feature = "std")), no_std)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
 #![deny(clippy::panic)]
@@ -10,7 +9,6 @@
 
 mod blackbox;
 mod data;
-pub mod drivers;
 mod encoding;
 mod field_arrays;
 mod field_definitions;
@@ -18,10 +16,7 @@ mod log_frames;
 mod log_headers;
 mod logger;
 mod messages;
-pub mod state_machine;
-
-#[cfg(feature = "mock_sd_card")]
-pub use crate::drivers::sd_card;
+mod state_machine;
 
 pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStartParameters};
 pub use data::Event;

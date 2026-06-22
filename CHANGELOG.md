@@ -15,7 +15,11 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 
 ### Changed
 
+- Improved writing of `log_main_fields_header` name.
+
 ### Removed
+
+- `MockSdCard`.
 
 ### Deprecated
 

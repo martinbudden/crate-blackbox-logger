@@ -104,10 +104,10 @@ impl Logger {
 
         encoder.begin_frame(b'H');
 
-        encoder.write_signed_vb(self.gps_data.home.latitude_degrees_1e7);
-        encoder.write_signed_vb(self.gps_data.home.longitude_degrees_1e7);
+        encoder.write_signed_vb(self.gps_home.latitude_degrees_1e7);
+        encoder.write_signed_vb(self.gps_home.longitude_degrees_1e7);
         // log altitude in increments of 0.1m
-        encoder.write_signed_vb(self.gps_data.home.altitude_cm / 10);
+        encoder.write_signed_vb(self.gps_home.altitude_cm / 10);
 
         encoder.end_frame();
     }

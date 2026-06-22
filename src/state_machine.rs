@@ -44,7 +44,6 @@ impl StateMachine {
     }
 
     /// Called each flight loop iteration to perform blackbox logging.
-    /// TODO: make this function asynchronous.
     pub fn update(
         &mut self,
         logger: &mut Logger,
@@ -63,7 +62,7 @@ impl StateMachine {
             }
             StateMachine::LogFileHeader => {
                 Logger::log_file_header(encoder);
-                StateMachine::LogMainFieldsHeader(FieldHeader::IName)
+                StateMachine::LogMainFieldsHeader(FieldHeader::IName(0))
             }
             StateMachine::LogMainFieldsHeader(field_header) => {
                 let next_field_header = logger.log_main_fields_header(encoder, field_header);
@@ -81,23 +80,15 @@ impl StateMachine {
                 #[cfg(feature = "gps")]
                 {
                     logger.log_gps_g_fields_header(encoder);
-                    StateMachine::LogGpsGFieldsHeader
                 }
-                #[cfg(not(feature = "gps"))]
-                {
-                    StateMachine::LogGpsGFieldsHeader
-                }
+                StateMachine::LogGpsGFieldsHeader
             }
             StateMachine::LogGpsGFieldsHeader => {
                 #[cfg(feature = "gps")]
                 {
                     logger.log_gps_h_fields_header(encoder);
-                    StateMachine::LogSlowFieldsHeader
                 }
-                #[cfg(not(feature = "gps"))]
-                {
-                    StateMachine::LogSlowFieldsHeader
-                }
+                StateMachine::LogSlowFieldsHeader
             }
             StateMachine::LogSlowFieldsHeader => {
                 logger.log_slow_fields_header(encoder);

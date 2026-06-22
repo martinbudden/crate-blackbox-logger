@@ -1,15 +1,14 @@
-use crate::encoding::write_field_line;
+use crate::encoding::{write_field_line, write_field_line_header};
 #[cfg(feature = "gps")]
 use crate::field_definitions::ConditionalFieldDefinition;
 use crate::field_definitions::{MainFieldDefinition, SimpleFieldDefinition};
 use crate::logger::Logger;
 use crate::{BlackboxWriter, SliceEncoder};
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
 pub enum FieldHeader {
-    #[default]
-    IName = 0,
+    IName(usize),
     ISigned,
     IPredictor,
     IEncoding,
@@ -21,7 +20,13 @@ pub enum FieldHeader {
 impl FieldHeader {
     #[must_use]
     pub const fn new() -> Self {
-        Self::IName
+        Self::IName(0)
+    }
+}
+
+impl Default for FieldHeader {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -67,19 +72,31 @@ impl Logger {
         let filter = |f: &MainFieldDefinition| self.conditions.test(f.condition);
 
         match field_header {
-            FieldHeader::IName => {
-                // Name line. Note: This can exceed 500 bytes.
-                // Currently using buffer of size 1024,
-                // this will be solved by adding an index field to IName and iterating over that index once per function call.
-                write_field_line(encoder, 'I', "name", MAIN_FIELDS.iter().filter(|&f| filter(f)), |w, f| {
-                    w.write_str(f.name);
-                    let index = f.field_name_index;
-                    if index >= 0 {
-                        w.write_char('[');
-                        w.write_u8_ascii(index.cast_unsigned());
-                        w.write_char(']');
+            FieldHeader::IName(mut index) => {
+                if index == 0 {
+                    write_field_line_header(encoder, 'I', "name");
+                }
+                // write one field definition each iteration.
+                if let Some(f) = MAIN_FIELDS.get(index) {
+                    index += 1; // Move past this item for future evaluations
+
+                    if self.conditions.test(f.condition) {
+                        // Process this single field
+                        if index > 1 {
+                            // don't need the comma before the first item.
+                            encoder.write_char(',');
+                        }
+                        encoder.write_str(f.name);
+                        if f.field_name_index >= 0 {
+                            encoder.write_char('[');
+                            encoder.write_u8_ascii(f.field_name_index.cast_unsigned());
+                            encoder.write_char(']');
+                        }
                     }
-                });
+                    // Return the updated index state to stay in IName
+                    return FieldHeader::IName(index);
+                }
+                encoder.write_char('\n');
                 FieldHeader::ISigned
             }
             FieldHeader::ISigned => {
@@ -376,8 +393,8 @@ mod tests {
     }
     #[test]
     fn test_new() {
-        let ctx = Logger::new(0);
-        assert!(!ctx.logged_any_frames);
+        let logger = Logger::new(0);
+        assert_eq!(0, logger.features);
     }
 
     #[test]
@@ -408,7 +425,7 @@ mod tests {
         let mut ctx = Logger::new(0);
         ctx.init(0, 0);
 
-        let mut field_header: FieldHeader = FieldHeader::IName;
+        let mut field_header: FieldHeader = FieldHeader::IName(0);
         loop {
             field_header = ctx.log_main_fields_header(&mut encoder, field_header);
             if field_header == FieldHeader::End {
@@ -484,7 +501,7 @@ mod tests {
 
         current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
         _ = state.update(&mut ctx, &mut encoder, current_time_us, true);
-        assert_eq!(StateMachine::LogMainFieldsHeader(FieldHeader::IName), state);
+        assert_eq!(StateMachine::LogMainFieldsHeader(FieldHeader::IName(0)), state);
 
         /*current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
         _ = state.update(&mut ctx, &mut encoder, current_time_us, true);

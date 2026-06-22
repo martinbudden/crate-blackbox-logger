@@ -103,6 +103,13 @@ pub fn write_field_line<'a, T, I, F>(
     writer.write_char('\n');
 }
 
+pub fn write_field_line_header(writer: &mut dyn BlackboxWriter, frame_type: char, label: &str) {
+    writer.write_str("H Field ");
+    writer.write_char(frame_type);
+    writer.write_char(' ');
+    writer.write_str(label);
+    writer.write_char(':');
+}
 /// Encoder to write slice using variable-length encoding.
 #[derive(Debug, Default, PartialEq)]
 pub struct SliceEncoder<'a> {

@@ -133,6 +133,7 @@ impl FieldCondition {
 }
 
 pub struct FieldSelect;
+
 impl FieldSelect {
     pub const DEBUG: u32 = 0x0001;
     pub const PID: u32 = 0x0002;

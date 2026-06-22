@@ -39,7 +39,6 @@ dshot_telemetry = []
 eight_motors = []
 gps = []
 magnetometer = []
-mock_sd_card = []
 rangefinder = []
 servos = []
 

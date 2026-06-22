@@ -97,8 +97,6 @@ pub struct GpsData {
     pub time_of_week_ms: u32,
     /// interval between GPS solutions in ms.
     pub interval_ms: u32,
-    /// home position.
-    pub home: GpsPosition,
     /// current position.
     pub position: GpsPosition,
     /// north velocity, cm/s.
@@ -127,7 +125,6 @@ impl GpsData {
         Self {
             time_of_week_ms: 0,
             interval_ms: 0,
-            home: GpsPosition::new(),
             position: GpsPosition::new(),
             velocity_north_cmps: 0,
             velocity_east_cmps: 0,
