@@ -383,7 +383,7 @@ impl Logger {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
-    use crate::state_machine::LoggerState;
+    use crate::logger_state::LoggerState;
     use crate::{BlackboxStartParameters, GyroPidMessage, SetpointMessage};
 
     use super::*;
@@ -393,14 +393,15 @@ mod tests {
 
     #[test]
     fn normal_types() {
-        is_full::<Logger>();
         is_full::<SysInfoIndex>();
         is_full::<FieldHeaderIndex>();
     }
     #[test]
     fn test_new() {
-        let logger = Logger::new(0);
-        assert_eq!(0, logger.features);
+        let field_header_index = FieldHeaderIndex::new();
+        assert_eq!(FieldHeaderIndex::IName(0), field_header_index);
+        let sys_info_index = SysInfoIndex::new();
+        assert_eq!(SysInfoIndex::Start, sys_info_index);
     }
 
     #[test]

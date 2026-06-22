@@ -1,6 +1,6 @@
 use crate::SliceEncoder;
 use crate::logger::Logger;
-use crate::state_machine::LoggerState;
+use crate::logger_state::LoggerState;
 use crate::{GyroPidMessage, SetpointMessage};
 #[cfg(feature = "serde")]
 use {

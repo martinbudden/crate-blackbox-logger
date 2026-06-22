@@ -134,4 +134,9 @@ mod tests {
     fn normal_types() {
         is_full::<LoggerState>();
     }
+    #[test]
+    fn test_new() {
+        let logger_state = LoggerState::new();
+        assert_eq!(LoggerState::Disabled, logger_state);
+    }
 }

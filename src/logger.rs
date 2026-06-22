@@ -2,7 +2,7 @@ use crate::Event;
 use crate::SliceEncoder;
 use crate::data::{GpsData, GpsPosition, MainData, SlowData};
 use crate::field_definitions::{FieldCondition, FieldSelect};
-use crate::state_machine::LoggerState;
+use crate::logger_state::LoggerState;
 use crate::{GpsMessage, GyroPidMessage, SetpointMessage};
 use simple_bitset::BitSet64;
 
