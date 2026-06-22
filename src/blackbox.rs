@@ -8,19 +8,23 @@ use {
     serde::{Deserialize, Serialize},
 };
 
-pub struct BlackboxDevice {}
-impl BlackboxDevice {
-    pub const NONE: u8 = 0;
-    pub const FLASH: u8 = 1;
-    pub const SDCARD: u8 = 2;
-    pub const SERIAL: u8 = 3;
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(u8)]
+pub enum BlackboxDevice {
+    #[default]
+    None,
+    Flash,
+    SdCard,
+    Serial,
 }
 
-pub struct BlackboxMode {}
-impl BlackboxMode {
-    pub const NORMAL: u8 = 0;
-    pub const MOTOR_TEST: u8 = 1;
-    pub const ALWAYS_ON: u8 = 2;
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(u8)]
+pub enum BlackboxMode {
+    #[default]
+    Normal,
+    MotorTest,
+    AlwaysOne,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -47,8 +51,8 @@ impl BlackboxConfig {
     pub const fn new() -> Self {
         Self {
             sample_rate: 0,
-            device: BlackboxDevice::NONE,
-            mode: BlackboxMode::NORMAL,
+            device: BlackboxDevice::None as u8,
+            mode: BlackboxMode::Normal as u8,
             gps_use_3d_speed: false,
             fields_disabled_mask: 0,
         }
