@@ -106,6 +106,8 @@ impl Logger {
         encoder.write_signed_vb(self.gps_home.longitude_degrees_1e7);
         // log altitude in increments of 0.1m
         encoder.write_signed_vb(self.gps_home.altitude_cm / 10);
+        // TODO: convert gps time to unix time
+        encoder.write_unsigned_vb(0);
 
         encoder.end_frame();
     }
@@ -145,6 +147,7 @@ impl Logger {
         encoder.write_signed_vb_16(self.gps_data.velocity_east_cmps);
         encoder.write_signed_vb_16(self.gps_data.velocity_down_cmps);
 
+        encoder.write_unsigned_vb(self.gps_data.time_of_week_ms);
         encoder.end_frame();
     }
 
@@ -152,6 +155,9 @@ impl Logger {
     /// Also known as a key frame.
     #[allow(clippy::too_many_lines)]
     pub fn log_i_frame(&mut self, encoder: &mut SliceEncoder) {
+        self.main_data_current_idx = 0;
+        self.main_data_previous_idx = 1;
+        self.main_data_pre_previous_idx = 2;
         let current = &self.main_data[0];
 
         encoder.begin_frame(b'I');
@@ -316,9 +322,9 @@ impl Logger {
     /// So this code and those definitions must be changed in tandem with each other.
     #[allow(clippy::too_many_lines)]
     pub fn log_p_frame(&mut self, encoder: &mut SliceEncoder) {
-        let current = &self.main_data[0];
-        let previous = &self.main_data[1];
-        let pre_previous = &self.main_data[2];
+        let current = &self.main_data[self.main_data_current_idx];
+        let previous = &self.main_data[self.main_data_previous_idx];
+        let pre_previous = &self.main_data[self.main_data_pre_previous_idx];
 
         encoder.begin_frame(b'P');
 
@@ -513,8 +519,12 @@ impl Logger {
         encoder.end_frame();
 
         // Rotate the saved data.
-        self.main_data[2] = self.main_data[1];
-        self.main_data[1] = self.main_data[0];
+        //self.main_data[2] = self.main_data[1];
+        //self.main_data[1] = self.main_data[0];
+        let pre_previous_idx = self.main_data_pre_previous_idx;
+        self.main_data_pre_previous_idx = self.main_data_previous_idx;
+        self.main_data_previous_idx = self.main_data_current_idx;
+        self.main_data_current_idx = pre_previous_idx;
     }
 }
 
@@ -563,23 +573,23 @@ mod tests {
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
 
         blackbox.log_p_frame(&mut encoder);
-        assert_eq!(3, blackbox.main_data[0].time_us);
-        assert_eq!(3, blackbox.main_data[1].time_us);
-        assert_eq!(2, blackbox.main_data[2].time_us);
-        assert_eq!(1000, blackbox.main_data[1].gyro[0]);
-        assert_eq!(0, blackbox.main_data[2].gyro[0]);
+        assert_eq!(1, blackbox.main_data[blackbox.main_data_current_idx].time_us);
+        assert_eq!(3, blackbox.main_data[blackbox.main_data_previous_idx].time_us);
+        assert_eq!(2, blackbox.main_data[blackbox.main_data_pre_previous_idx].time_us);
+        assert_eq!(1000, blackbox.main_data[blackbox.main_data_previous_idx].gyro[0]);
+        assert_eq!(0, blackbox.main_data[blackbox.main_data_pre_previous_idx].gyro[0]);
 
         blackbox.main_data[0].time_us = 4;
         blackbox.log_p_frame(&mut encoder);
-        assert_eq!(4, blackbox.main_data[0].time_us);
-        assert_eq!(4, blackbox.main_data[1].time_us);
-        assert_eq!(3, blackbox.main_data[2].time_us);
-        assert_eq!(1000, blackbox.main_data[2].gyro[0]);
+        assert_eq!(2, blackbox.main_data[blackbox.main_data_current_idx].time_us);
+        assert_eq!(1, blackbox.main_data[blackbox.main_data_previous_idx].time_us);
+        assert_eq!(4, blackbox.main_data[blackbox.main_data_pre_previous_idx].time_us);
+        assert_eq!(1000, blackbox.main_data[blackbox.main_data_pre_previous_idx].gyro[0]);
 
         blackbox.main_data[0].time_us = 5;
         blackbox.log_p_frame(&mut encoder);
-        assert_eq!(5, blackbox.main_data[0].time_us);
-        assert_eq!(5, blackbox.main_data[1].time_us);
-        assert_eq!(4, blackbox.main_data[2].time_us);
+        assert_eq!(5, blackbox.main_data[blackbox.main_data_current_idx].time_us);
+        assert_eq!(2, blackbox.main_data[blackbox.main_data_previous_idx].time_us);
+        assert_eq!(1, blackbox.main_data[blackbox.main_data_pre_previous_idx].time_us);
     }
 }

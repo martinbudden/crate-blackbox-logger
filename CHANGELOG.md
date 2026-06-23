@@ -21,6 +21,9 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 - Moved setting `logged_any_frames` into `log_iteration`.
 - Added `Blackbox` prefix to many exported structs.
 - Renamed `SliceEncoder::encoder` to `write_tag_3s32`.
+- Updated slow frame and gps frame field definitions.
+- `main_data` is now indexed rather than copied.
+- Write first slow frame near start of log.
 
 ### Removed
 

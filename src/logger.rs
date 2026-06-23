@@ -68,6 +68,9 @@ pub struct Logger {
     pub sys_info: SysInfo,
 
     pub(crate) main_data: [BlackboxMainData; 3],
+    pub(crate) main_data_current_idx: usize,
+    pub(crate) main_data_previous_idx: usize,
+    pub(crate) main_data_pre_previous_idx: usize,
 }
 
 impl Default for Logger {
@@ -114,6 +117,9 @@ impl Logger {
             sys_info: SysInfo::new(),
 
             main_data: [BlackboxMainData::new(); 3],
+            main_data_current_idx: 0,
+            main_data_previous_idx: 1,
+            main_data_pre_previous_idx: 2,
         }
     }
 }
@@ -192,7 +198,7 @@ impl Logger {
 
     #[inline]
     pub fn set_main_data(&mut self, _current_time_us: u32, main_data: BlackboxMainData) {
-        self.main_data[0] = main_data;
+        self.main_data[self.main_data_current_idx] = main_data;
     }
     #[inline]
     pub fn set_slow_data(&mut self, slow_data: BlackboxSlowData) {
@@ -221,12 +227,13 @@ impl Logger {
     pub fn log_iteration(&mut self, encoder: &mut SliceEncoder, current_time_us: u32) {
         self.logged_any_frames = true;
 
-        self.main_data[0].time_us = current_time_us;
+        self.main_data[self.main_data_current_idx].time_us = current_time_us;
+
         // Write a keyframe every i_interval frames so we can resynchronise upon missing frames
         if self.should_log_i_frame() {
             self.log_i_frame(encoder);
-            // other frames are normally logged alongside p_frames, however if we are only logging i_frames then we need to log them here.
             if self.is_only_logging_i_frames() {
+                // other frames are normally logged alongside p_frames, however if we are only logging i_frames then we need to log them here.
                 if self.should_log_s_frame() {
                     self.log_s_frame(encoder);
                 }
@@ -238,11 +245,11 @@ impl Logger {
             //self.log_event_flight_mode_if_needed(encoder); // Check for FlightMode status change event
 
             if self.should_log_p_frame() {
-                self.log_p_frame(encoder);
                 // Log s_frame alongside p_frame.
                 if self.should_log_s_frame() {
                     self.log_s_frame(encoder);
                 }
+                self.log_p_frame(encoder);
             }
             #[cfg(feature = "gps")]
             if Logger::field_enabled(self.enabled_fields, FieldSelect::GPS) {
@@ -250,7 +257,7 @@ impl Logger {
                     self.log_h_frame(encoder);
                     self.log_g_frame(encoder, current_time_us);
                 } else if self.should_log_g_frame() {
-                    self.log_g_frame(encoder,current_time_us);
+                    self.log_g_frame(encoder, current_time_us);
                 }
             }
         }

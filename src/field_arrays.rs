@@ -25,28 +25,28 @@ pub static BLACKBOX_SLOW_FIELDS: [SimpleFieldDefinition; SimpleFieldDefinition::
         field_name_index: -1,
         is_signed: FieldSign::UNSIGNED,
         predict: FieldPredictor::ZERO,
-        encode: FieldEncoding::UNSIGNED_VB, //TAG2_3S32,
+        encode: FieldEncoding::TAG2_3S32,
     },
     SimpleFieldDefinition {
         name: "rx_signal_received",
         field_name_index: -1,
         is_signed: FieldSign::UNSIGNED,
         predict: FieldPredictor::ZERO,
-        encode: FieldEncoding::UNSIGNED_VB, //TAG2_3S32,
+        encode: FieldEncoding::TAG2_3S32,
     },
     SimpleFieldDefinition {
         name: "rx_flight_channel_is_valid",
         field_name_index: -1,
         is_signed: FieldSign::UNSIGNED,
         predict: FieldPredictor::ZERO,
-        encode: FieldEncoding::UNSIGNED_VB, //TAG2_3S32,
+        encode: FieldEncoding::TAG2_3S32,
     },
 ];
 
 #[allow(unused)]
 impl SimpleFieldDefinition {
     pub const SLOW_FIELD_COUNT: usize = 5;
-    pub const GPS_H_FIELD_COUNT: usize = 3;
+    pub const GPS_H_FIELD_COUNT: usize = 4;
 
     pub fn find_by_name(name: &str) -> Option<&'static Self> {
         BLACKBOX_SLOW_FIELDS.iter().find(|field| field.name == name)
@@ -76,6 +76,13 @@ pub static BLACKBOX_GPS_H_FIELDS: [SimpleFieldDefinition; SimpleFieldDefinition:
         is_signed: FieldSign::SIGNED,
         predict: FieldPredictor::ZERO,
         encode: FieldEncoding::SIGNED_VB,
+    },
+    SimpleFieldDefinition {
+        name: "GPS_home_epoch",
+        field_name_index: -1,
+        is_signed: FieldSign::UNSIGNED,
+        predict: FieldPredictor::ZERO,
+        encode: FieldEncoding::UNSIGNED_VB,
     },
 ];
 
@@ -162,11 +169,19 @@ pub static BLACKBOX_GPS_G_FIELDS: [ConditionalFieldDefinition; ConditionalFieldD
         encode: FieldEncoding::SIGNED_VB,
         condition: FieldCondition::ALWAYS,
     },
+    ConditionalFieldDefinition {
+        name: "GPS_time",
+        field_name_index: -1,
+        is_signed: FieldSign::UNSIGNED,
+        predict: FieldPredictor::ZERO,
+        encode: FieldEncoding::UNSIGNED_VB,
+        condition: FieldCondition::ALWAYS,
+    },
 ];
 
 #[cfg(feature = "gps")]
 impl ConditionalFieldDefinition {
-    pub const GPS_G_FIELD_COUNT: usize = 10;
+    pub const GPS_G_FIELD_COUNT: usize = 11;
 
     #[allow(unused)]
     #[cfg(feature = "gps")]
