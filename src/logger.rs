@@ -51,7 +51,6 @@ pub struct Logger {
     pub(crate) iteration: u32,
 
     pub(crate) logged_any_frames: bool,
-    pub(crate) new_slow_data: bool,
     pub(crate) new_gps_data: bool,
 
     pub(crate) motor_count: usize,
@@ -103,7 +102,6 @@ impl Logger {
             last_arming_beep_time_us: 0,
             last_flight_mode_flags: 0,
             logged_any_frames: false,
-            new_slow_data: false,
             new_gps_data: false,
 
             features,
@@ -153,10 +151,8 @@ impl Logger {
         self.build_field_condition_cache();
         //self.conditions &= !BitSet64::from(config.fields_disabled_mask);
 
-        self.reset_iteration_timers();
-
         // an i_frame is written every 32ms
-        // blackboxUpdate() is run in synchronization with the PID loop
+        // update() is run in synchronization with the PID loop
         // target_pid_looptime_us is 1000 for 1kHz loop, 500 for 2kHz loop etc, target_pid_looptime_us is rounded for short looptimes
         // TODO: self.i_interval = 32 * 1000 / self.target_pid_looptime_us;
 
@@ -165,7 +161,7 @@ impl Logger {
             self.p_interval = 0; // log only i_frames if logging frequency is too low
         }
 
-        // s_frame is written every 256*32 = 8192ms, approx every 8 seconds
+        // s_frame is written every 256 i_frames, ie every 256*32 = 8192ms, approx every 8 seconds
         self.s_interval = self.i_interval * 256;
 
         /*if config.device == BlackboxDevice::NONE {
@@ -175,6 +171,7 @@ impl Logger {
         } else {
             self.set_data(STATE_STOPPED);
         }*/
+        self.reset_iteration_timers(); // should be done after s_interval is set
     }
 }
 
@@ -200,7 +197,6 @@ impl Logger {
     #[inline]
     pub fn set_slow_data(&mut self, slow_data: BlackboxSlowData) {
         // TODO: need to check time
-        self.new_slow_data = true;
         self.slow_data = slow_data;
     }
 
@@ -228,33 +224,33 @@ impl Logger {
         self.main_data[0].time_us = current_time_us;
         // Write a keyframe every i_interval frames so we can resynchronise upon missing frames
         if self.should_log_i_frame() {
-            // Don't log a slow frame if the slow data didn't change.
-            // i_frames are already large enough without adding an additional item to write at the same time.
-            // Unless we're *only* logging i_frames, then we have no choice.
-            if self.is_only_logging_i_frames() && self.should_log_s_frame() {
-                self.log_s_frame(encoder);
-            }
             self.log_i_frame(encoder);
-        } else {
-            //self.log_event_arming_beep_if_needed(encoder);
-            //self.log_event_flight_mode_if_needed(encoder); // Check for FlightMode status change event
-
-            if self.should_log_p_frame() {
-                // ie p_frame_index == 0 && p_interval != 0
-                // We assume that slow frames are only interesting in that they aid the interpretation of the main data stream.
-                // So only log slow frames during loop iterations where we log a main frame.
+            // other frames are normally logged alongside p_frames, however if we are only logging i_frames then we need to log them here.
+            if self.is_only_logging_i_frames() {
                 if self.should_log_s_frame() {
                     self.log_s_frame(encoder);
                 }
+                self.log_event_arming_beep_if_needed(encoder, 0);
+                //self.log_event_flight_mode_if_needed(encoder); // Check for FlightMode status change event
+            }
+        } else {
+            self.log_event_arming_beep_if_needed(encoder, 0);
+            //self.log_event_flight_mode_if_needed(encoder); // Check for FlightMode status change event
+
+            if self.should_log_p_frame() {
                 self.log_p_frame(encoder);
+                // Log s_frame alongside p_frame.
+                if self.should_log_s_frame() {
+                    self.log_s_frame(encoder);
+                }
             }
             #[cfg(feature = "gps")]
             if Logger::field_enabled(self.enabled_fields, FieldSelect::GPS) {
                 if self.should_log_h_frame() {
                     self.log_h_frame(encoder);
-                    self.log_g_frame(current_time_us, encoder);
+                    self.log_g_frame(encoder, current_time_us);
                 } else if self.should_log_g_frame() {
-                    self.log_g_frame(current_time_us, encoder);
+                    self.log_g_frame(encoder,current_time_us);
                 }
             }
         }
@@ -288,7 +284,7 @@ impl Logger {
     #[inline]
     #[must_use]
     pub fn should_log_s_frame(&self) -> bool {
-        self.s_frame_index >= self.s_interval && self.new_slow_data
+        self.s_frame_index >= self.s_interval
     }
     #[inline]
     #[must_use]
@@ -318,15 +314,15 @@ impl Logger {
         self.iteration = 0;
         self.i_frame_index = 0;
         self.p_frame_index = 0;
-        self.s_frame_index = 0;
+        self.s_frame_index = self.s_interval; // so s_frame written next iteration
     }
 
     /// Called once every FC loop in order to keep track of how many FC loop iterations have passed.
     pub fn advance_iteration_timers(&mut self) {
         self.iteration = self.iteration.wrapping_add(1);
         self.s_frame_index = self.s_frame_index.wrapping_add(1);
-        self.i_frame_index = self.i_frame_index.wrapping_add(1);
 
+        self.i_frame_index = self.i_frame_index.wrapping_add(1);
         if self.i_frame_index >= self.i_interval {
             self.i_frame_index = 0; // value of zero means i_frame will be written on next update
             self.p_frame_index = 0;
@@ -356,6 +352,7 @@ impl Logger {
     }
 
     // Public method to check if a log field is enabled
+    #[inline]
     #[must_use]
     pub fn is_field_enabled(&self, field: u32) -> bool {
         Self::field_enabled(self.enabled_fields, field)

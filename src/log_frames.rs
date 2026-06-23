@@ -80,7 +80,6 @@ impl Logger {
     /// Log slow frame: `s_frame`.
     pub fn log_s_frame(&mut self, encoder: &mut SliceEncoder) {
         self.s_frame_index = 0;
-        self.new_slow_data = false;
 
         encoder.begin_frame(b'S');
 
@@ -113,7 +112,7 @@ impl Logger {
 
     /// GPS frame: `g_frame`. Written at a frequency of about 10Hz.
     #[cfg(feature = "gps")]
-    pub fn log_g_frame(&mut self, current_time_us: u32, encoder: &mut SliceEncoder) {
+    pub fn log_g_frame(&mut self, encoder: &mut SliceEncoder, current_time_us: u32) {
         self.new_gps_data = false;
 
         encoder.begin_frame(b'G');
