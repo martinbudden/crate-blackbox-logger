@@ -37,7 +37,6 @@ impl Default for SysInfo {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Logger {
     pub(crate) conditions: BitSet64,
-    pub(crate) features: u32,
     pub(crate) enabled_fields: u32,
 
     pub(crate) last_arming_beep_time_us: u32,
@@ -75,15 +74,13 @@ pub struct Logger {
 
 impl Default for Logger {
     fn default() -> Self {
-        Self::new(0)
+        Self::new()
     }
 }
 
 impl Logger {
-    pub const FEATURE_GPS: u32 = 1 << 7;
-
     #[must_use]
-    pub const fn new(features: u32) -> Self {
+    pub const fn new() -> Self {
         Self {
             motor_count: 4,
             servo_count: 0,
@@ -107,7 +104,6 @@ impl Logger {
             logged_any_frames: false,
             new_gps_data: false,
 
-            features,
             slow_data: BlackboxSlowData::new(),
 
             #[cfg(feature = "gps")]
@@ -151,6 +147,10 @@ impl Logger {
         #[cfg(feature = "dshot_telemetry")]
         {
             self.enabled_fields |= FieldSelect::MOTOR_RPM;
+        }
+        #[cfg(feature = "gps")]
+        {
+            self.enabled_fields |= FieldSelect::GPS;
         }
         self.enabled_fields &= !fields_disabled_mask;
 
@@ -209,7 +209,7 @@ impl Logger {
     #[cfg(feature = "gps")]
     #[inline]
     pub fn set_gps_data(&mut self, gps_data: BlackboxGpsData) {
-        self.new_gps_data = true;
+        self.new_gps_data = self.gps_data != gps_data;
         self.gps_data = gps_data;
     }
 
@@ -252,13 +252,11 @@ impl Logger {
                 self.log_p_frame(encoder);
             }
             #[cfg(feature = "gps")]
-            if Logger::field_enabled(self.enabled_fields, FieldSelect::GPS) {
-                if self.should_log_h_frame() {
-                    self.log_h_frame(encoder);
-                    self.log_g_frame(encoder, current_time_us);
-                } else if self.should_log_g_frame() {
-                    self.log_g_frame(encoder, current_time_us);
-                }
+            if self.should_log_h_frame() {
+                self.log_h_frame(encoder);
+                self.log_g_frame(encoder, current_time_us);
+            } else if self.should_log_g_frame() {
+                self.log_g_frame(encoder, current_time_us);
             }
         }
     }
@@ -271,12 +269,12 @@ impl Logger {
     #[inline]
     #[must_use]
     pub fn should_log_h_frame(&self) -> bool {
-        self.features & Self::FEATURE_GPS != 0
+        (self.enabled_fields & FieldSelect::GPS != 0) && self.new_gps_data
     }
     #[inline]
     #[must_use]
     pub fn should_log_g_frame(&self) -> bool {
-        (self.features & Self::FEATURE_GPS != 0) && self.new_gps_data
+        (self.enabled_fields & FieldSelect::GPS != 0) && self.new_gps_data
     }
     #[inline]
     #[must_use]
@@ -461,7 +459,7 @@ mod tests {
     }
     #[test]
     fn new() {
-        let logger = Logger::new(0);
-        assert_eq!(0, logger.features);
+        let logger = Logger::new();
+        assert_eq!(4, logger.motor_count);
     }
 }

@@ -1,7 +1,7 @@
 use crate::{
     BlackboxEvent::LoggingResume,
-    BlackboxStartParameters, Logger, SliceEncoder,
-    log_headers::{FieldHeaderIndex, SysInfoIndex},
+    BlackboxStartParameters, FieldSelect, Logger, SliceEncoder,
+    write_headers::{FieldHeaderIndex, SysInfoIndex},
 };
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -11,12 +11,13 @@ pub enum LoggerState {
     Disabled = 0,
     Stopped,
     PrepareLogFile,
-    LogFileHeader,
-    LogMainFieldsHeader(FieldHeaderIndex),
-    LogGpsHFieldsHeader,
-    LogGpsGFieldsHeader,
-    LogSlowFieldsHeader,
-    LogSysinfo(SysInfoIndex),
+    WriteFileHeader,
+    WriteMainFieldsHeader(FieldHeaderIndex),
+    WriteGpsHFieldsHeader,
+    WriteGpsGFieldsHeader,
+    WriteSlowFieldsHeader,
+    WriteSysinfo(SysInfoIndex),
+    HeaderWritten,
     Paused,
     Running,
     ShuttingDown,
@@ -57,46 +58,47 @@ impl LoggerState {
             Self::Stopped | Self::ShuttingDown => Self::Stopped,
             Self::PrepareLogFile => {
                 logger.logged_any_frames = false;
-                Self::LogFileHeader
+                Self::WriteFileHeader
             }
-            Self::LogFileHeader => {
-                Logger::log_file_header(encoder);
-                Self::LogMainFieldsHeader(FieldHeaderIndex::IName(0))
+            Self::WriteFileHeader => {
+                Logger::write_file_header(encoder);
+                Self::WriteMainFieldsHeader(FieldHeaderIndex::IName(0))
             }
-            Self::LogMainFieldsHeader(field_header) => {
-                let next_field_header = logger.log_main_fields_header(encoder, field_header);
+            Self::WriteMainFieldsHeader(field_header) => {
+                let next_field_header = logger.write_main_fields_header(encoder, field_header);
                 if next_field_header == FieldHeaderIndex::End {
-                    if logger.features & Logger::FEATURE_GPS != 0 {
-                        Self::LogGpsHFieldsHeader
+                    if logger.enabled_fields & FieldSelect::GPS != 0 {
+                        Self::WriteGpsHFieldsHeader
                     } else {
-                        Self::LogSlowFieldsHeader
+                        Self::WriteSlowFieldsHeader
                     }
                 } else {
-                    Self::LogMainFieldsHeader(next_field_header)
+                    Self::WriteMainFieldsHeader(next_field_header)
                 }
             }
-            Self::LogGpsHFieldsHeader => {
+            Self::WriteGpsHFieldsHeader => {
                 #[cfg(feature = "gps")]
                 {
-                    logger.log_gps_g_fields_header(encoder);
+                    logger.write_gps_g_fields_header(encoder);
                 }
-                Self::LogGpsGFieldsHeader
+                Self::WriteGpsGFieldsHeader
             }
-            Self::LogGpsGFieldsHeader => {
+            Self::WriteGpsGFieldsHeader => {
                 #[cfg(feature = "gps")]
                 {
-                    logger.log_gps_h_fields_header(encoder);
+                    logger.write_gps_h_fields_header(encoder);
                 }
-                Self::LogSlowFieldsHeader
+                Self::WriteSlowFieldsHeader
             }
-            Self::LogSlowFieldsHeader => {
-                logger.log_slow_fields_header(encoder);
-                Self::LogSysinfo(SysInfoIndex::Start)
+            Self::WriteSlowFieldsHeader => {
+                logger.write_slow_fields_header(encoder);
+                Self::WriteSysinfo(SysInfoIndex::Start)
             }
-            Self::LogSysinfo(sys_info) => {
-                let next_sys_info = logger.log_sys_info(encoder, sys_info);
-                if next_sys_info == SysInfoIndex::End { Self::Running } else { Self::LogSysinfo(next_sys_info) }
+            Self::WriteSysinfo(sys_info) => {
+                let next_sys_info = logger.write_sys_info(encoder, sys_info);
+                if next_sys_info == SysInfoIndex::End { Self::HeaderWritten } else { Self::WriteSysinfo(next_sys_info) }
             }
+            Self::HeaderWritten => Self::Running,
             Self::Paused => {
                 if is_active && logger.should_log_i_frame() {
                     logger.log_e_frame(encoder, LoggingResume(logger.iteration, current_time_us));

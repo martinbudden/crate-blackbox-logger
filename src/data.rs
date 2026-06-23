@@ -112,7 +112,7 @@ pub struct BlackboxGpsData {
     /// speed in cm/s.
     pub ground_speed_cmps: i16,
     /// Heading 2D in 10ths of a degree.
-    pub ground_course_deci_degrees: i16,
+    pub ground_course_degrees_x10: i16,
     pub satellite_count: u8,
 }
 
@@ -134,7 +134,7 @@ impl BlackboxGpsData {
             velocity_down_cmps: 0,
             speed3d_cmps: 0,
             ground_speed_cmps: 0,
-            ground_course_deci_degrees: 0,
+            ground_course_degrees_x10: 0,
             satellite_count: 0,
         }
     }

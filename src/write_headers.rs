@@ -63,7 +63,7 @@ impl SysInfoIndex {
 /// 4. system info
 /// 5. After the headers we have the logging data.
 impl Logger {
-    pub fn log_file_header(encoder: &mut SliceEncoder) {
+    pub fn write_file_header(encoder: &mut SliceEncoder) {
         encoder.write_h_str("Product:Blackbox flight data recorder by Nicholas Sherlock\n");
         encoder.write_h_str("Data version:2\n");
     }
@@ -71,7 +71,7 @@ impl Logger {
     /// Write the file fields header.
     /// The `FieldHeaderIndex` state machine is used to split the header into chunks,
     /// writing one chunk each iteration so that the encoder buffer does not overflow.
-    pub fn log_main_fields_header(
+    pub fn write_main_fields_header(
         &mut self,
         encoder: &mut SliceEncoder,
         field_header: FieldHeaderIndex,
@@ -157,7 +157,7 @@ impl Logger {
     }
 
     #[allow(clippy::unused_self)]
-    pub fn log_slow_fields_header(&mut self, encoder: &mut SliceEncoder) {
+    pub fn write_slow_fields_header(&mut self, encoder: &mut SliceEncoder) {
         const SLOW_FIELDS: &[SimpleFieldDefinition; SimpleFieldDefinition::SLOW_FIELD_COUNT] =
             &crate::field_arrays::BLACKBOX_SLOW_FIELDS;
         let filter = |_: &SimpleFieldDefinition| true;
@@ -190,7 +190,7 @@ impl Logger {
     }
 
     #[cfg(feature = "gps")]
-    pub fn log_gps_h_fields_header(&mut self, encoder: &mut SliceEncoder) {
+    pub fn write_gps_h_fields_header(&mut self, encoder: &mut SliceEncoder) {
         const GPS_H_FIELDS: &[SimpleFieldDefinition; SimpleFieldDefinition::GPS_H_FIELD_COUNT] =
             &crate::field_arrays::BLACKBOX_GPS_H_FIELDS;
         let filter = |_: &SimpleFieldDefinition| true;
@@ -223,7 +223,7 @@ impl Logger {
     }
 
     #[cfg(feature = "gps")]
-    pub fn log_gps_g_fields_header(&mut self, encoder: &mut SliceEncoder) {
+    pub fn write_gps_g_fields_header(&mut self, encoder: &mut SliceEncoder) {
         const GPS_G_FIELDS: &[ConditionalFieldDefinition; ConditionalFieldDefinition::GPS_G_FIELD_COUNT] =
             &crate::field_arrays::BLACKBOX_GPS_G_FIELDS;
         let filter = |_: &ConditionalFieldDefinition| true;
@@ -256,7 +256,7 @@ impl Logger {
     }
 
     #[allow(clippy::too_many_lines)]
-    pub fn log_sys_info(&mut self, encoder: &mut SliceEncoder, sys_info: SysInfoIndex) -> SysInfoIndex {
+    pub fn write_sys_info(&mut self, encoder: &mut SliceEncoder, sys_info: SysInfoIndex) -> SysInfoIndex {
         match sys_info {
             SysInfoIndex::Start => {
                 encoder.write_h_str("Firmware type:Cleanflight\n");
@@ -411,13 +411,13 @@ mod tests {
     }
 
     #[test]
-    fn log_file_header() {
+    fn write_file_header() {
         let mut buffer = [0u8; 2048];
         //let mut sd_card = MockSdCard::new("state_machine_log.bbl");
         let pos = {
             let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
 
-            Logger::log_file_header(&mut encoder);
+            Logger::write_file_header(&mut encoder);
 
             // Convert the written portion to a string for validation
             let result = core::str::from_utf8(&encoder.buffer[..encoder.pos]).unwrap();
@@ -432,15 +432,15 @@ mod tests {
         //sd_card.write_all(&buffer[..pos]);
     }
     #[test]
-    fn log_main_fields_header() {
+    fn write_main_fields_header() {
         let mut buffer = [0u8; 2048];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
-        let mut logger = Logger::new(0);
+        let mut logger = Logger::new();
         logger.init(0, 0);
 
         let mut field_header: FieldHeaderIndex = FieldHeaderIndex::IName(0);
         loop {
-            field_header = logger.log_main_fields_header(&mut encoder, field_header);
+            field_header = logger.write_main_fields_header(&mut encoder, field_header);
             if field_header == FieldHeaderIndex::End {
                 break;
             }
@@ -453,13 +453,13 @@ mod tests {
         println!("\nMAIN FIELDS HEADER\n{result}\n");
     }
     #[test]
-    fn log_slow_fields_header() {
+    fn write_slow_fields_header() {
         let mut buffer = [0u8; 2048];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
-        let mut logger = Logger::new(0);
+        let mut logger = Logger::new();
         logger.init(0, 0);
 
-        logger.log_slow_fields_header(&mut encoder);
+        logger.write_slow_fields_header(&mut encoder);
 
         // Convert the written portion to a string for validation
         #[allow(clippy::unwrap_used)]
@@ -468,14 +468,14 @@ mod tests {
         println!("\nSLOW FIELDS HEADER\n{result}\n");
     }
     #[test]
-    fn log_sys_info() {
+    fn write_sys_info() {
         let mut buffer = [0u8; 2048];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
-        let mut logger = Logger::new(0);
+        let mut logger = Logger::new();
 
         let mut sys_info = SysInfoIndex::Start;
         loop {
-            sys_info = logger.log_sys_info(&mut encoder, sys_info);
+            sys_info = logger.write_sys_info(&mut encoder, sys_info);
             if sys_info == SysInfoIndex::End {
                 break;
             }
@@ -491,7 +491,7 @@ mod tests {
     fn state_machine_headers() {
         let mut buffer = [0u8; 4096];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
-        let mut logger = Logger::new(0);
+        let mut logger = Logger::new();
         //let mut _sd_card = MockSdCard::new("state_machine_log.bbl");
         logger.init(0, 0);
 
@@ -509,11 +509,11 @@ mod tests {
 
         current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
         _ = state.update(&mut logger, &mut encoder, current_time_us, true);
-        assert_eq!(LoggerState::LogFileHeader, state);
+        assert_eq!(LoggerState::WriteFileHeader, state);
 
         current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
         _ = state.update(&mut logger, &mut encoder, current_time_us, true);
-        assert_eq!(LoggerState::LogMainFieldsHeader(FieldHeaderIndex::IName(0)), state);
+        assert_eq!(LoggerState::WriteMainFieldsHeader(FieldHeaderIndex::IName(0)), state);
 
         /*current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
         _ = state.update(&mut logger, &mut encoder, current_time_us, true);

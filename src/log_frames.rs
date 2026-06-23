@@ -100,6 +100,8 @@ impl Logger {
     /// GPS home frame: `h_frame`.
     #[cfg(feature = "gps")]
     pub fn log_h_frame(&mut self, encoder: &mut SliceEncoder) {
+        self.new_gps_data = false;
+
         encoder.begin_frame(b'H');
 
         encoder.write_signed_vb(self.gps_home.latitude_degrees_1e7);

@@ -13,9 +13,9 @@ mod encoding;
 mod field_arrays;
 mod field_definitions;
 mod log_frames;
-mod log_headers;
 mod logger;
 mod logger_state;
+mod write_headers;
 
 pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStartParameters};
 pub use data::{BlackboxEvent, BlackboxGpsData, BlackboxGpsPosition, BlackboxMainData, BlackboxSlowData};

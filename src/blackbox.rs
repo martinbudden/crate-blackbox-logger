@@ -94,14 +94,14 @@ pub struct Blackbox {
 
 impl Default for Blackbox {
     fn default() -> Self {
-        Self::new(BlackboxConfig::new(), 0)
+        Self::new(BlackboxConfig::new())
     }
 }
 
 impl Blackbox {
     #[must_use]
-    pub const fn new(config: BlackboxConfig, features: u32) -> Self {
-        Self { state: LoggerState::new(), logger: Logger::new(features), config }
+    pub const fn new(config: BlackboxConfig) -> Self {
+        Self { state: LoggerState::new(), logger: Logger::new(), config }
     }
 }
 
