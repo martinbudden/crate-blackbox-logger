@@ -17,6 +17,7 @@ impl BlackboxEventId {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
+#[allow(missing_docs)]
 pub enum BlackboxEvent {
     SyncBeep(u32) = 0,
     AutotuneCycleStart = 10,
@@ -36,6 +37,7 @@ impl Default for BlackboxEvent {
 }
 
 impl BlackboxEvent {
+    /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
         Self::SyncBeep(0)
@@ -58,6 +60,7 @@ impl Default for BlackboxSlowData {
 }
 
 impl BlackboxSlowData {
+    /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -87,6 +90,7 @@ impl Default for BlackboxGpsPosition {
 }
 
 impl BlackboxGpsPosition {
+    /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
         Self { longitude_degrees_1e7: 0, latitude_degrees_1e7: 0, altitude_cm: 0 }
@@ -123,6 +127,7 @@ impl Default for BlackboxGpsData {
 }
 
 impl BlackboxGpsData {
+    /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -153,6 +158,7 @@ impl BlackboxGpsData {
 
 /// `MainData` is about 150 bytes when all features enabled, so storing 3 copies for predictive purposes is not over onerous.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[allow(missing_docs)]
 pub struct BlackboxMainData {
     pub time_us: u32,
     pub pid_p: [i32; Self::RPY_AXIS_COUNT],
@@ -182,6 +188,7 @@ pub struct BlackboxMainData {
     pub rssi: u16,
 }
 
+#[allow(missing_docs)]
 impl BlackboxMainData {
     pub const RPY_AXIS_COUNT: usize = 3;
     pub const XYZ_AXIS_COUNT: usize = 3;
@@ -202,6 +209,7 @@ impl Default for BlackboxMainData {
 }
 
 impl BlackboxMainData {
+    /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
         Self {

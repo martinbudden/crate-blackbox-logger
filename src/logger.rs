@@ -79,6 +79,7 @@ impl Default for Logger {
 }
 
 impl Logger {
+    /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -349,14 +350,14 @@ impl Logger {
         }
     }
 
-    // Helper function to check if a field is enabled
+    /// Helper function to check if a field is enabled.
     #[inline]
     #[must_use]
     pub fn field_enabled(enabled_mask: u32, field: u32) -> bool {
         enabled_mask & field != 0
     }
 
-    // Public method to check if a log field is enabled
+    /// Public method to check if a log field is enabled.
     #[inline]
     #[must_use]
     pub fn is_field_enabled(&self, field: u32) -> bool {

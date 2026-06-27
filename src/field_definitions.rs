@@ -1,4 +1,5 @@
 // Simple fields, used for S-Frames and H-Frames
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
 pub struct SimpleFieldDefinition {
     pub name: &'static str,
@@ -8,8 +9,16 @@ pub struct SimpleFieldDefinition {
     pub encode: u8,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FieldSign;
+
+impl FieldSign {
+    pub const UNSIGNED: u8 = 0;
+    pub const SIGNED: u8 = 1;
+}
+
 // Conditional fields, used for G-Frames
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg(feature = "gps")]
 #[repr(C)]
 pub struct ConditionalFieldDefinition {
@@ -21,6 +30,7 @@ pub struct ConditionalFieldDefinition {
     pub condition: u8,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
 pub struct MainFieldDefinition {
     pub name: &'static str,
@@ -35,11 +45,7 @@ pub struct MainFieldDefinition {
     pub condition: u8,
 }
 
-impl FieldSign {
-    pub const UNSIGNED: u8 = 0;
-    pub const SIGNED: u8 = 1;
-}
-
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FieldPredictor;
 
 #[allow(unused)]
@@ -58,6 +64,7 @@ impl FieldPredictor {
     pub const MIN_MOTOR: u8 = 11;
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FieldEncoding;
 
 impl FieldEncoding {
@@ -72,6 +79,7 @@ impl FieldEncoding {
     pub const TAG2_3SVARIABLE: u8 = 10;
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FieldCondition;
 
 #[allow(unused)]
@@ -132,8 +140,11 @@ impl FieldCondition {
     pub const LAST: u8 = Self::NEVER;
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[allow(missing_docs)]
 pub struct FieldSelect;
 
+#[allow(missing_docs)]
 impl FieldSelect {
     pub const DEBUG: u32 = 0x0001;
     pub const PID: u32 = 0x0002;
@@ -160,4 +171,24 @@ impl FieldSelect {
     pub const BAROMETER: u32 = 0x40_0000;
     pub const RANGEFINDER: u32 = 0x80_0000;
     pub const GPS: u32 = 0x100_0000;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
+    fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
+
+    #[test]
+    fn normal_types() {
+        is_full::<SimpleFieldDefinition>();
+        is_full::<FieldSign>();
+        #[cfg(feature = "gps")]
+        is_full::<ConditionalFieldDefinition>();
+        is_full::<MainFieldDefinition>();
+        is_full::<FieldEncoding>();
+        is_full::<FieldCondition>();
+        is_full::<FieldSelect>();
+    }
 }

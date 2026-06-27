@@ -16,6 +16,7 @@ use {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(u8)]
+#[allow(missing_docs)]
 pub enum BlackboxDevice {
     #[default]
     None,
@@ -26,6 +27,7 @@ pub enum BlackboxDevice {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(u8)]
+#[allow(missing_docs)]
 pub enum BlackboxMode {
     #[default]
     Normal,
@@ -36,11 +38,12 @@ pub enum BlackboxMode {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct BlackboxConfig {
+    pub fields_disabled_mask: u32,
     pub sample_rate: u8,
     pub device: u8,
     pub mode: u8,
+    pub high_resolution: u8,
     pub gps_use_3d_speed: bool,
-    pub fields_disabled_mask: u32,
 }
 
 #[cfg(feature = "serde")]
@@ -53,14 +56,16 @@ impl Default for BlackboxConfig {
 }
 
 impl BlackboxConfig {
+    /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
         Self {
+            fields_disabled_mask: 0,
             sample_rate: 0,
             device: BlackboxDevice::None as u8,
             mode: BlackboxMode::Normal as u8,
+            high_resolution: 0,
             gps_use_3d_speed: false,
-            fields_disabled_mask: 0,
         }
     }
 }
@@ -78,6 +83,7 @@ impl Default for BlackboxStartParameters {
 }
 
 impl BlackboxStartParameters {
+    /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
         Self { debug_mode: 0, motor_count: 4, servo_count: 0 }
@@ -85,6 +91,7 @@ impl BlackboxStartParameters {
 }
 
 #[derive(Clone, Copy, Debug)]
+#[allow(missing_docs)]
 pub struct Blackbox {
     state: LoggerState,
     pub logger: Logger,
@@ -99,6 +106,7 @@ impl Default for Blackbox {
 }
 
 impl Blackbox {
+    /// Constructor.
     #[must_use]
     pub const fn new(config: BlackboxConfig) -> Self {
         Self { state: LoggerState::new(), logger: Logger::new(), config }

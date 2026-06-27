@@ -143,7 +143,7 @@ impl Logger {
         //}
 
         #[allow(clippy::cast_sign_loss)]
-        encoder.write_unsigned_vb(self.gps_data.ground_course_deci_degrees as u32);
+        encoder.write_unsigned_vb(self.gps_data.ground_course_degrees_x10 as u32);
 
         encoder.write_signed_vb_16(self.gps_data.velocity_north_cmps);
         encoder.write_signed_vb_16(self.gps_data.velocity_east_cmps);

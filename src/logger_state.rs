@@ -6,6 +6,7 @@ use crate::{
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(u8)]
+#[allow(missing_docs)]
 pub enum LoggerState {
     #[default]
     Disabled = 0,
@@ -24,6 +25,7 @@ pub enum LoggerState {
 }
 
 impl LoggerState {
+    /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
         Self::Disabled

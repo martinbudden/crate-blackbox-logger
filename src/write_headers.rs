@@ -63,6 +63,7 @@ impl SysInfoIndex {
 /// 4. system info
 /// 5. After the headers we have the logging data.
 impl Logger {
+    /// Write the file header.
     pub fn write_file_header(encoder: &mut SliceEncoder) {
         encoder.write_h_str("Product:Blackbox flight data recorder by Nicholas Sherlock\n");
         encoder.write_h_str("Data version:2\n");
@@ -156,7 +157,8 @@ impl Logger {
         }
     }
 
-    #[allow(clippy::unused_self)]
+    /// Write the slow fields header.
+    /// It is small enough to be written in one go.
     pub fn write_slow_fields_header(&mut self, encoder: &mut SliceEncoder) {
         const SLOW_FIELDS: &[SimpleFieldDefinition; SimpleFieldDefinition::SLOW_FIELD_COUNT] =
             &crate::field_arrays::BLACKBOX_SLOW_FIELDS;
@@ -190,6 +192,8 @@ impl Logger {
     }
 
     #[cfg(feature = "gps")]
+    /// Write the gps h fields header.
+    /// It is small enough to be written in one go.
     pub fn write_gps_h_fields_header(&mut self, encoder: &mut SliceEncoder) {
         const GPS_H_FIELDS: &[SimpleFieldDefinition; SimpleFieldDefinition::GPS_H_FIELD_COUNT] =
             &crate::field_arrays::BLACKBOX_GPS_H_FIELDS;
@@ -223,6 +227,8 @@ impl Logger {
     }
 
     #[cfg(feature = "gps")]
+    /// Write the gps g fields header.
+    /// It is small enough to be written in one go.
     pub fn write_gps_g_fields_header(&mut self, encoder: &mut SliceEncoder) {
         const GPS_G_FIELDS: &[ConditionalFieldDefinition; ConditionalFieldDefinition::GPS_G_FIELD_COUNT] =
             &crate::field_arrays::BLACKBOX_GPS_G_FIELDS;
@@ -255,6 +261,9 @@ impl Logger {
         });
     }
 
+    /// Write the system info.
+    /// The `SysInfoIndex` state machine is used to split it into chunks,
+    /// writing one chunk each iteration so that the encoder buffer does not overflow.
     #[allow(clippy::too_many_lines)]
     pub fn write_sys_info(&mut self, encoder: &mut SliceEncoder, sys_info: SysInfoIndex) -> SysInfoIndex {
         match sys_info {
