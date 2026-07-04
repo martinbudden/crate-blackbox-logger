@@ -9,7 +9,7 @@ that is each release may contain incompatible API changes.
 
 Once the API has stabilized this project will adopt semantic versioning, the first release to do so will be `0.2.0`.
 
-## [Unreleased]
+## [0.1.8] - 2026-07-04
 
 ### Added
 
@@ -30,12 +30,7 @@ Once the API has stabilized this project will adopt semantic versioning, the fir
 - `MockSdCard`.
 - `GyroPidMessage`
 - `SetpointMessage`
-
-### Deprecated
-
-### Fixed
-
-### Security
+- `features` parameter to `Blackbox::new`.
 
 ## [0.1.7] - 2026-06-05
 
