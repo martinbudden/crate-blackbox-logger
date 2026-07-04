@@ -275,9 +275,9 @@ dependencies = [
 
 [[package]]
 name = "simple-bitset"
-version = "0.1.2"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d01de744a845a8ada95df2637c376585112dc26290924ce83c272bcc643230c"
+checksum = "ecc41f26e44c9b38045a5efc0962ffded9583fc14d4eaead0a1974649dfc7b43"
 dependencies = [
  "rustc_version",
 ]
@@ -348,8 +348,9 @@ checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
 name = "vqm"
-version = "0.1.12"
-source = "git+https://github.com/martinbudden/crate-vector-quaternion-matrix#80d928dd6439fe91623b2877ec1653e268f9d30c"
+version = "0.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93a8d667c20d96671b751da3c306d2eee3ecab6b67ee8f659ba7b50b7bf262d8"
 dependencies = [
  "cfg-if",
  "derive_more",
