@@ -5,8 +5,11 @@ use crate::{
     {BlackboxWriter, SliceEncoder},
 };
 
+#[allow(unused)]
+use crate::field_definitions::FieldPredictor;
+
 #[cfg(test)]
-use crate::field_definitions::{FieldEncoding, FieldPredictor, MainFieldDefinition};
+use crate::field_definitions::{FieldEncoding, MainFieldDefinition};
 
 macro_rules! assert_i_field_encoding {
     ($name:expr, $expected_predict:expr, $expected_encode:expr) => {
@@ -304,9 +307,8 @@ impl Logger {
         }
         #[cfg(feature = "servos")]
         if self.conditions.test(FieldCondition::SERVOS) {
-            let out: [i32; BlackboxMainData::MAX_SUPPORTED_SERVO_COUNT] = std::array::from_fn(|i| {
-                i32::from(current.servos[i]) - crate::field_definitions::FieldPredictor::S_1500
-            });
+            let out: [i32; BlackboxMainData::MAX_SUPPORTED_SERVO_COUNT] =
+                core::array::from_fn(|i| i32::from(current.servos[i]) - FieldPredictor::S_1500);
             encoder.write_tag8_8svb(&out);
         }
 
@@ -513,9 +515,8 @@ impl Logger {
 
         #[cfg(feature = "servos")]
         if self.conditions.test(FieldCondition::SERVOS) {
-            let servos: [i32; BlackboxMainData::MAX_SUPPORTED_SERVO_COUNT] = core::array::from_fn(|ii| {
-                i32::from(current.servos[ii]) - crate::field_definitions::FieldPredictor::S_1500
-            });
+            let servos: [i32; BlackboxMainData::MAX_SUPPORTED_SERVO_COUNT] =
+                core::array::from_fn(|ii| i32::from(current.servos[ii]) - FieldPredictor::S_1500);
             encoder.write_tag8_8svb(&servos);
         }
         encoder.end_frame();
