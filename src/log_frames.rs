@@ -167,20 +167,20 @@ impl Logger {
 
         encoder.begin_frame(b'I');
 
-        assert_i_field_encoding!("loopIteration", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
+        assert_i_field_encoding!("loopIteration", FieldPredictor::Zero, FieldEncoding::UnsignedVb);
         encoder.write_unsigned_vb(self.iteration);
 
-        assert_i_field_encoding!("time", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
+        assert_i_field_encoding!("time", FieldPredictor::Zero, FieldEncoding::UnsignedVb);
         encoder.write_unsigned_vb(current.time_us);
 
-        assert_i_field_encoding!("axisP", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
-        assert_i_field_encoding!("axisI", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
-        assert_i_field_encoding!("axisD", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
-        assert_i_field_encoding!("axisF", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
-        assert_i_field_encoding!("axisS", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("axisP", FieldPredictor::Zero, FieldEncoding::SignedVb);
+        assert_i_field_encoding!("axisI", FieldPredictor::Zero, FieldEncoding::SignedVb);
+        assert_i_field_encoding!("axisD", FieldPredictor::Zero, FieldEncoding::SignedVb);
+        assert_i_field_encoding!("axisF", FieldPredictor::Zero, FieldEncoding::SignedVb);
+        assert_i_field_encoding!("axisS", FieldPredictor::Zero, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::PID) {
             encoder.write_signed_vb_array(&current.pid_p);
-            assert_i_field_encoding!("axisI", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+            assert_i_field_encoding!("axisI", FieldPredictor::Zero, FieldEncoding::SignedVb);
             encoder.write_signed_vb_array(&current.pid_i);
 
             if self.conditions.test(FieldCondition::PID_D_ROLL) {
@@ -207,7 +207,7 @@ impl Logger {
                 encoder.write_signed_vb(current.pid_s[2]);
             }
         }
-        assert_i_field_encoding!("rcCommand", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("rcCommand", FieldPredictor::Zero, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::RC_COMMANDS) {
             // Write roll, pitch and yaw first, these are signed values in the range [-500,500]
             let rc_commands = [
@@ -222,72 +222,72 @@ impl Logger {
             encoder.write_unsigned_vb(u32::from(current.rc_commands[3].wrapping_sub(self.min_throttle)));
         }
 
-        assert_i_field_encoding!("setpoint", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("setpoint", FieldPredictor::Zero, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::SETPOINT) {
             // Write setpoint roll, pitch, yaw, and throttle
             encoder.write_signed_vb_16_array(&current.setpoints);
         }
 
-        assert_i_field_encoding!("vbatLatest", FieldPredictor::VBATREF, FieldEncoding::NEG_14BIT);
+        assert_i_field_encoding!("vbatLatest", FieldPredictor::VBatRef, FieldEncoding::Neg14bit);
         if self.conditions.test(FieldCondition::BATTERY_VOLTAGE) {
             // Our voltage is expected to decrease over the course of the flight, so store our difference from the reference.
             // Write 14 bits even if the number is negative (which would otherwise result in 32 bits)
             encoder.write_unsigned_vb(u32::from(self.vbat_reference - current.battery_voltage) & 0x3FFF);
         }
 
-        assert_i_field_encoding!("amperageLatest", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("amperageLatest", FieldPredictor::Zero, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::BATTERY_CURRENT) {
             // 12bit value directly from ADC
             encoder.write_signed_vb_16(current.amperage);
         }
 
-        assert_i_field_encoding!("BaroAlt", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("BaroAlt", FieldPredictor::Zero, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::BAROMETER) {
             encoder.write_signed_vb(current.baro_altitude);
         }
 
-        assert_i_field_encoding!("surfaceRaw", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("surfaceRaw", FieldPredictor::Zero, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::RANGEFINDER) {
             encoder.write_signed_vb(current.range_raw);
         }
 
-        assert_i_field_encoding!("rssi", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
+        assert_i_field_encoding!("rssi", FieldPredictor::Zero, FieldEncoding::UnsignedVb);
         if self.conditions.test(FieldCondition::RSSI) {
             encoder.write_unsigned_vb_16(current.rssi);
         }
 
-        assert_i_field_encoding!("magADC", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("magADC", FieldPredictor::Zero, FieldEncoding::SignedVb);
         #[cfg(feature = "magnetometer")]
         if self.conditions.test(FieldCondition::MAGNETOMETER) {
             encoder.write_signed_vb_16_array(&current.mag);
         }
 
-        assert_i_field_encoding!("gyroADC", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("gyroADC", FieldPredictor::Zero, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::GYRO) {
             encoder.write_signed_vb_16_array(&current.gyro);
         }
 
-        assert_i_field_encoding!("gyroUnfilt", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("gyroUnfilt", FieldPredictor::Zero, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::GYRO_UNFILTERED) {
             encoder.write_signed_vb_16_array(&current.gyro_unfiltered);
         }
 
-        assert_i_field_encoding!("accSmooth", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("accSmooth", FieldPredictor::Zero, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::ACC) {
             encoder.write_signed_vb_16_array(&current.acc);
         }
 
-        assert_i_field_encoding!("imuQuaternion", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("imuQuaternion", FieldPredictor::Zero, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::ATTITUDE) {
             encoder.write_signed_vb_16_array(&current.orientation);
         }
 
-        assert_i_field_encoding!("debug", FieldPredictor::ZERO, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("debug", FieldPredictor::Zero, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::DEBUG) {
             encoder.write_signed_vb_16_array(&current.debug);
         }
 
-        assert_i_field_encoding!("motor", FieldPredictor::MIN_MOTOR, FieldEncoding::SIGNED_VB);
+        assert_i_field_encoding!("motor", FieldPredictor::MinMotor, FieldEncoding::SignedVb);
         if Logger::field_enabled(self.enabled_fields, FieldSelect::MOTOR) {
             // Motors can be below minimum output when disarmed, but that doesn't happen much
             encoder.write_signed_vb_16(current.motor[0].wrapping_sub(self.min_throttle).cast_signed());
@@ -298,7 +298,7 @@ impl Logger {
             }
         }
         #[cfg(feature = "dshot_telemetry")]
-        assert_i_field_encoding!("eRPM", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
+        assert_i_field_encoding!("eRPM", FieldPredictor::Zero, FieldEncoding::UnsignedVb);
         #[cfg(feature = "dshot_telemetry")]
         if Logger::field_enabled(self.enabled_fields, FieldSelect::MOTOR_RPM) {
             for erpm in current.erpm {
@@ -333,20 +333,20 @@ impl Logger {
         encoder.begin_frame(b'P');
 
         // Don't store store iteration when using FieldEncoding::NULL
-        assert_p_field_encoding!("loopIteration", FieldPredictor::INC, FieldEncoding::NULL);
+        assert_p_field_encoding!("loopIteration", FieldPredictor::Inc, FieldEncoding::Null);
 
         // Since the difference between the difference between successive times will be nearly zero (due to consistent
         // loop time spacing), use second-order differences.
-        assert_p_field_encoding!("time", FieldPredictor::STRAIGHT_LINE, FieldEncoding::SIGNED_VB);
+        assert_p_field_encoding!("time", FieldPredictor::StraightLine, FieldEncoding::SignedVb);
         let time: i64 = i64::from(current.time_us) - 2 * i64::from(previous.time_us) + i64::from(pre_previous.time_us);
         #[allow(clippy::cast_possible_truncation)]
         encoder.write_signed_vb(time as i32);
 
-        assert_p_field_encoding!("axisP", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
-        assert_p_field_encoding!("axisI", FieldPredictor::PREVIOUS, FieldEncoding::TAG2_3S32);
-        assert_p_field_encoding!("axisD", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
-        assert_p_field_encoding!("axisF", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
-        assert_p_field_encoding!("axisS", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
+        assert_p_field_encoding!("axisP", FieldPredictor::Previous, FieldEncoding::SignedVb);
+        assert_p_field_encoding!("axisI", FieldPredictor::Previous, FieldEncoding::Tag2_3S32);
+        assert_p_field_encoding!("axisD", FieldPredictor::Previous, FieldEncoding::SignedVb);
+        assert_p_field_encoding!("axisF", FieldPredictor::Previous, FieldEncoding::SignedVb);
+        assert_p_field_encoding!("axisS", FieldPredictor::Previous, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::PID) {
             let deltas = [
                 current.pid_p[0].wrapping_sub(previous.pid_p[0]),
@@ -398,7 +398,7 @@ impl Logger {
         }
 
         // RC tends to stay the same or fairly small for many frames at a time, so use an encoding that
-        assert_p_field_encoding!("rcCommand", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_4S16);
+        assert_p_field_encoding!("rcCommand", FieldPredictor::Previous, FieldEncoding::Tag8_4S16);
         if self.conditions.test(FieldCondition::RC_COMMANDS) {
             let deltas = [
                 current.rc_commands[0].wrapping_sub(previous.rc_commands[0]).cast_signed(),
@@ -408,7 +408,7 @@ impl Logger {
             ];
             encoder.write_tag8_4s16(deltas);
         }
-        assert_p_field_encoding!("setpoint", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_4S16);
+        assert_p_field_encoding!("setpoint", FieldPredictor::Previous, FieldEncoding::Tag8_4S16);
         if self.conditions.test(FieldCondition::SETPOINT) {
             let deltas = [
                 current.setpoints[0].wrapping_sub(previous.setpoints[0]),
@@ -423,32 +423,32 @@ impl Logger {
         let mut deltas = <[i32; 8]>::default();
         let mut tag8_field_count = 0_usize;
 
-        assert_p_field_encoding!("vbatLatest", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
+        assert_p_field_encoding!("vbatLatest", FieldPredictor::Previous, FieldEncoding::Tag8_8SVb);
         if self.conditions.test(FieldCondition::BATTERY_VOLTAGE) {
             deltas[tag8_field_count] = i32::from(current.battery_voltage.wrapping_sub(previous.battery_voltage));
             tag8_field_count += 1;
         }
-        assert_p_field_encoding!("amperageLatest", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
+        assert_p_field_encoding!("amperageLatest", FieldPredictor::Previous, FieldEncoding::Tag8_8SVb);
         if self.conditions.test(FieldCondition::BATTERY_CURRENT) {
             deltas[tag8_field_count] = i32::from(current.amperage.wrapping_sub(previous.amperage));
             tag8_field_count += 1;
         }
-        assert_p_field_encoding!("BaroAlt", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
+        assert_p_field_encoding!("BaroAlt", FieldPredictor::Previous, FieldEncoding::Tag8_8SVb);
         if self.conditions.test(FieldCondition::BAROMETER) {
             deltas[tag8_field_count] = current.baro_altitude.wrapping_sub(previous.baro_altitude);
             tag8_field_count += 1;
         }
-        assert_p_field_encoding!("surfaceRaw", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
+        assert_p_field_encoding!("surfaceRaw", FieldPredictor::Previous, FieldEncoding::Tag8_8SVb);
         if self.conditions.test(FieldCondition::RANGEFINDER) {
             deltas[tag8_field_count] = current.range_raw.wrapping_sub(previous.range_raw);
             tag8_field_count += 1;
         }
-        assert_p_field_encoding!("rssi", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
+        assert_p_field_encoding!("rssi", FieldPredictor::Previous, FieldEncoding::Tag8_8SVb);
         if self.conditions.test(FieldCondition::RSSI) {
             deltas[tag8_field_count] = i32::from(current.rssi.wrapping_sub(previous.rssi));
             tag8_field_count += 1;
         }
-        assert_p_field_encoding!("magADC", FieldPredictor::PREVIOUS, FieldEncoding::TAG8_8SVB);
+        assert_p_field_encoding!("magADC", FieldPredictor::Previous, FieldEncoding::Tag8_8SVb);
         #[cfg(feature = "magnetometer")]
         if self.conditions.test(FieldCondition::MAGNETOMETER) {
             for ii in 0..BlackboxMainData::XYZ_AXIS_COUNT {
@@ -462,27 +462,27 @@ impl Logger {
         }
 
         // Since gyros, accelerometers and motors are noisy, base their predictions on the average of the history:
-        assert_p_field_encoding!("gyroADC", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
+        assert_p_field_encoding!("gyroADC", FieldPredictor::Previous, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::GYRO) {
             for ii in 0..BlackboxMainData::XYZ_AXIS_COUNT {
                 encoder.write_signed_vb_16(current.gyro[ii] - previous.gyro[ii]);
             }
         }
-        assert_p_field_encoding!("gyroUnfilt", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
+        assert_p_field_encoding!("gyroUnfilt", FieldPredictor::Average2, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::GYRO_UNFILTERED) {
             for ii in 0..BlackboxMainData::XYZ_AXIS_COUNT {
                 let predicted = i16::midpoint(previous.gyro_unfiltered[ii], pre_previous.gyro_unfiltered[ii]);
                 encoder.write_signed_vb_16(current.gyro_unfiltered[ii].wrapping_sub(predicted));
             }
         }
-        assert_p_field_encoding!("accSmooth", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
+        assert_p_field_encoding!("accSmooth", FieldPredictor::Average2, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::ACC) {
             for ii in 0..BlackboxMainData::XYZ_AXIS_COUNT {
                 let predicted = i16::midpoint(previous.acc[ii], pre_previous.acc[ii]);
                 encoder.write_signed_vb_16(current.acc[ii].wrapping_sub(predicted));
             }
         }
-        assert_p_field_encoding!("imuQuaternion", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
+        assert_p_field_encoding!("imuQuaternion", FieldPredictor::Average2, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::ATTITUDE) {
             for ii in 0..BlackboxMainData::XYZ_AXIS_COUNT {
                 let predicted = i16::midpoint(previous.orientation[ii], pre_previous.orientation[ii]);
@@ -490,14 +490,14 @@ impl Logger {
             }
         }
 
-        assert_p_field_encoding!("debug", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
+        assert_p_field_encoding!("debug", FieldPredictor::Average2, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::DEBUG) {
             for ii in 0..BlackboxMainData::DEBUG_COUNT {
                 let predicted = i16::midpoint(previous.debug[ii], pre_previous.debug[ii]);
                 encoder.write_signed_vb_16(current.debug[ii].wrapping_sub(predicted));
             }
         }
-        assert_p_field_encoding!("motor", FieldPredictor::AVERAGE_2, FieldEncoding::SIGNED_VB);
+        assert_p_field_encoding!("motor", FieldPredictor::Average2, FieldEncoding::SignedVb);
         if Logger::field_enabled(self.enabled_fields, FieldSelect::MOTOR) {
             for ii in 0..self.motor_count {
                 let predicted = u16::midpoint(previous.motor[ii], pre_previous.motor[ii]);
@@ -505,7 +505,7 @@ impl Logger {
             }
         }
         #[cfg(feature = "dshot_telemetry")]
-        assert_p_field_encoding!("eRPM", FieldPredictor::PREVIOUS, FieldEncoding::SIGNED_VB);
+        assert_p_field_encoding!("eRPM", FieldPredictor::Previous, FieldEncoding::SignedVb);
         #[cfg(feature = "dshot_telemetry")]
         if Logger::field_enabled(self.enabled_fields, FieldSelect::MOTOR_RPM) {
             for ii in 0..self.motor_count {
@@ -538,8 +538,8 @@ mod tests {
 
     #[test]
     fn i_encodings() {
-        assert_i_field_encoding!("loopIteration", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
-        assert_i_field_encoding!("time", FieldPredictor::ZERO, FieldEncoding::UNSIGNED_VB);
+        assert_i_field_encoding!("loopIteration", FieldPredictor::Zero, FieldEncoding::UnsignedVb);
+        assert_i_field_encoding!("time", FieldPredictor::Zero, FieldEncoding::UnsignedVb);
 
         let mut blackbox = Logger::default();
         blackbox.main_data[0].time_us = 3;
@@ -563,8 +563,8 @@ mod tests {
     }
     #[test]
     fn p_encodings() {
-        assert_p_field_encoding!("loopIteration", FieldPredictor::INC, FieldEncoding::NULL);
-        assert_p_field_encoding!("time", FieldPredictor::STRAIGHT_LINE, FieldEncoding::SIGNED_VB);
+        assert_p_field_encoding!("loopIteration", FieldPredictor::Inc, FieldEncoding::Null);
+        assert_p_field_encoding!("time", FieldPredictor::StraightLine, FieldEncoding::SignedVb);
 
         let mut blackbox = Logger::default();
         blackbox.main_data[0].time_us = 3;

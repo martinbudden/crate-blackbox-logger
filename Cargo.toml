@@ -48,9 +48,7 @@ vqm = { version = "0.1.13" }
 simple-bitset = { version = "0.1.4" }
 #simple-bitset = { git = "https://github.com/martinbudden/crate-simple-bitset" }
 
-#embassy-executor = { version = "0.10.0", default-features = false, features = ["arch-std", "executor-thread"] }
 #embassy-executor = { version = "0.10.0", default-features = false, features = ["platform-std", "executor-thread"] }
-#embassy-executor = { version = "0.10.0", default-features = false, features = ["executor-thread"] }
 #embassy-executor = { version = "0.10.0", default-features = false, features = ["platform-cortex-m", "executor-thread"] }#"task-arena-size-32768",
 embassy-futures = { version = "0.1.2", default-features = false }
 

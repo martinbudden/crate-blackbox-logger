@@ -113,7 +113,7 @@ impl Logger {
                 let filter = |f: &MainFieldDefinition| self.conditions.test(f.condition);
                 let filtered = MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(encoder, 'I', "signed", filtered, |w, f| {
-                    w.write_u8_ascii(f.is_signed);
+                    w.write_u8_ascii(f.is_signed as u8);
                 });
                 FieldHeaderIndex::IPredictor
             }
@@ -122,7 +122,7 @@ impl Logger {
                 let filter = |f: &MainFieldDefinition| self.conditions.test(f.condition);
                 let filtered = MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(encoder, 'I', "predictor", filtered, |w, f| {
-                    w.write_u8_ascii(f.i_predict);
+                    w.write_u8_ascii(f.i_predict as u8);
                 });
                 FieldHeaderIndex::IEncoding
             }
@@ -131,7 +131,7 @@ impl Logger {
                 let filter = |f: &MainFieldDefinition| self.conditions.test(f.condition);
                 let filtered = MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(encoder, 'I', "encoding", filtered, |w, f| {
-                    w.write_u8_ascii(f.i_encode);
+                    w.write_u8_ascii(f.i_encode as u8);
                 });
                 FieldHeaderIndex::PPredictor
             }
@@ -140,7 +140,7 @@ impl Logger {
                 let filter = |f: &MainFieldDefinition| self.conditions.test(f.condition);
                 let filtered = MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(encoder, 'P', "predictor", filtered, |w, f| {
-                    w.write_u8_ascii(f.p_predict);
+                    w.write_u8_ascii(f.p_predict as u8);
                 });
                 FieldHeaderIndex::PEncoding
             }
@@ -149,7 +149,7 @@ impl Logger {
                 let filter = |f: &MainFieldDefinition| self.conditions.test(f.condition);
                 let filtered = MAIN_FIELDS.iter().filter(|&f| filter(f));
                 write_field_line(encoder, 'P', "encoding", filtered, |w, f| {
-                    w.write_u8_ascii(f.p_encode);
+                    w.write_u8_ascii(f.p_encode as u8);
                 });
                 FieldHeaderIndex::End
             }
@@ -177,17 +177,17 @@ impl Logger {
         // Signed line
         let filtered = SLOW_FIELDS.iter().filter(|&f| filter(f));
         write_field_line(encoder, 'S', "signed", filtered, |w, f| {
-            w.write_u8_ascii(f.is_signed);
+            w.write_u8_ascii(f.is_signed as u8);
         });
         // Predictor line
         let filtered = SLOW_FIELDS.iter().filter(|&f| filter(f));
         write_field_line(encoder, 'S', "predictor", filtered, |w, f| {
-            w.write_u8_ascii(f.predict);
+            w.write_u8_ascii(f.predict as u8);
         });
         // Encoding line
         let filtered = SLOW_FIELDS.iter().filter(|&f| filter(f));
         write_field_line(encoder, 'S', "encoding", filtered, |w, f| {
-            w.write_u8_ascii(f.encode);
+            w.write_u8_ascii(f.encode as u8);
         });
     }
 
@@ -212,17 +212,17 @@ impl Logger {
         // Signed line
         let filtered = GPS_H_FIELDS.iter().filter(|&f| filter(f));
         write_field_line(encoder, 'H', "signed", filtered, |w, f| {
-            w.write_u8_ascii(f.is_signed);
+            w.write_u8_ascii(f.is_signed as u8);
         });
         // Predictor line
         let filtered = GPS_H_FIELDS.iter().filter(|&f| filter(f));
         write_field_line(encoder, 'H', "predictor", filtered, |w, f| {
-            w.write_u8_ascii(f.predict);
+            w.write_u8_ascii(f.predict as u8);
         });
         // Encoding line
         let filtered = GPS_H_FIELDS.iter().filter(|&f| filter(f));
         write_field_line(encoder, 'H', "encoding", filtered, |w, f| {
-            w.write_u8_ascii(f.encode);
+            w.write_u8_ascii(f.encode as u8);
         });
     }
 
@@ -247,17 +247,17 @@ impl Logger {
         // Signed line
         let filtered = GPS_G_FIELDS.iter().filter(|&f| filter(f));
         write_field_line(encoder, 'G', "signed", filtered, |w, f| {
-            w.write_u8_ascii(f.is_signed);
+            w.write_u8_ascii(f.is_signed as u8);
         });
         // Predictor line
         let filtered = GPS_G_FIELDS.iter().filter(|&f| filter(f));
         write_field_line(encoder, 'G', "predictor", filtered, |w, f| {
-            w.write_u8_ascii(f.predict);
+            w.write_u8_ascii(f.predict as u8);
         });
         // Encoding line
         let filtered = GPS_G_FIELDS.iter().filter(|&f| filter(f));
         write_field_line(encoder, 'G', "encoding", filtered, |w, f| {
-            w.write_u8_ascii(f.encode);
+            w.write_u8_ascii(f.encode as u8);
         });
     }
 

@@ -4,17 +4,9 @@
 pub struct SimpleFieldDefinition {
     pub name: &'static str,
     pub field_name_index: i8,
-    pub is_signed: u8,
-    pub predict: u8,
-    pub encode: u8,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct FieldSign;
-
-impl FieldSign {
-    pub const UNSIGNED: u8 = 0;
-    pub const SIGNED: u8 = 1;
+    pub is_signed: FieldSign,
+    pub predict: FieldPredictor,
+    pub encode: FieldEncoding,
 }
 
 // Conditional fields, used for G-Frames
@@ -24,9 +16,9 @@ impl FieldSign {
 pub struct ConditionalFieldDefinition {
     pub name: &'static str,
     pub field_name_index: i8,
-    pub is_signed: u8,
-    pub predict: u8,
-    pub encode: u8,
+    pub is_signed: FieldSign,
+    pub predict: FieldPredictor,
+    pub encode: FieldEncoding,
     pub condition: u8,
 }
 
@@ -35,48 +27,56 @@ pub struct ConditionalFieldDefinition {
 pub struct MainFieldDefinition {
     pub name: &'static str,
     pub field_name_index: i8,
-    pub is_signed: u8,
+    pub is_signed: FieldSign,
     // i_frame settings
-    pub i_predict: u8,
-    pub i_encode: u8,
+    pub i_predict: FieldPredictor,
+    pub i_encode: FieldEncoding,
     // p_frame settings
-    pub p_predict: u8,
-    pub p_encode: u8,
+    pub p_predict: FieldPredictor,
+    pub p_encode: FieldEncoding,
     pub condition: u8,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct FieldPredictor;
+#[repr(u8)]
+pub enum FieldSign {
+    #[default]
+    Unsigned = 0,
+    Signed = 1,
+}
 
 #[allow(unused)]
-impl FieldPredictor {
-    pub const ZERO: u8 = 0;
-    pub const PREVIOUS: u8 = 1;
-    pub const STRAIGHT_LINE: u8 = 2;
-    pub const AVERAGE_2: u8 = 3;
-    pub const MIN_THROTTLE: u8 = 4;
-    pub const MOTOR_0: u8 = 5;
-    pub const INC: u8 = 6;
-    pub const HOME_COORD: u8 = 7;
-    pub const S_1500: i32 = 8;
-    pub const VBATREF: u8 = 9;
-    pub const LAST_MAIN_FRAME_TIME: u8 = 10;
-    pub const MIN_MOTOR: u8 = 11;
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(u8)]
+pub enum FieldPredictor {
+    #[default]
+    Zero = 0,
+    Previous = 1,
+    StraightLine = 2,
+    Average2 = 3,
+    MinThrottle = 4,
+    Motor0 = 5,
+    Inc = 6,
+    HomeCoord = 7,
+    S1500 = 8,
+    VBatRef = 9,
+    LastMainFrameTime = 10,
+    MinMotor = 11,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct FieldEncoding;
-
-impl FieldEncoding {
-    pub const SIGNED_VB: u8 = 0;
-    pub const UNSIGNED_VB: u8 = 1;
-    pub const NEG_14BIT: u8 = 3;
-    pub const TAG8_8SVB: u8 = 6;
-    pub const TAG2_3S32: u8 = 7;
-    pub const TAG8_4S16: u8 = 8;
-    pub const NULL: u8 = 9;
+#[repr(u8)]
+pub enum FieldEncoding {
+    #[default]
+    SignedVb = 0,
+    UnsignedVb = 1,
+    Neg14bit = 3,
+    Tag8_8SVb = 6,
+    Tag2_3S32 = 7,
+    Tag8_4S16 = 8,
+    Null = 9,
     #[allow(unused)]
-    pub const TAG2_3SVARIABLE: u8 = 10;
+    Tag2_3SVariable = 10,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -183,10 +183,10 @@ mod tests {
     #[test]
     fn normal_types() {
         is_full::<SimpleFieldDefinition>();
-        is_full::<FieldSign>();
         #[cfg(feature = "gps")]
         is_full::<ConditionalFieldDefinition>();
         is_full::<MainFieldDefinition>();
+        is_full::<FieldSign>();
         is_full::<FieldEncoding>();
         is_full::<FieldCondition>();
         is_full::<FieldSelect>();
