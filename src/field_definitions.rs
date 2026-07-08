@@ -3,7 +3,7 @@
 #[repr(C)]
 pub struct SimpleFieldDefinition {
     pub name: &'static str,
-    pub field_name_index: i8,
+    pub name_index: i8,
     pub is_signed: FieldSign,
     pub predict: FieldPredictor,
     pub encode: FieldEncoding,
@@ -15,7 +15,7 @@ pub struct SimpleFieldDefinition {
 #[repr(C)]
 pub struct ConditionalFieldDefinition {
     pub name: &'static str,
-    pub field_name_index: i8,
+    pub name_index: i8,
     pub is_signed: FieldSign,
     pub predict: FieldPredictor,
     pub encode: FieldEncoding,
@@ -26,7 +26,7 @@ pub struct ConditionalFieldDefinition {
 #[repr(C)]
 pub struct MainFieldDefinition {
     pub name: &'static str,
-    pub field_name_index: i8,
+    pub name_index: i8,
     pub is_signed: FieldSign,
     // i_frame settings
     pub i_predict: FieldPredictor,

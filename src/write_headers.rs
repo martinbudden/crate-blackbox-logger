@@ -96,9 +96,9 @@ impl Logger {
                             encoder.write_char(',');
                         }
                         encoder.write_str(f.name);
-                        if f.field_name_index >= 0 {
+                        if f.name_index >= 0 {
                             encoder.write_char('[');
-                            encoder.write_u8_ascii(f.field_name_index.cast_unsigned());
+                            encoder.write_u8_ascii(f.name_index.cast_unsigned());
                             encoder.write_char(']');
                         }
                     }
@@ -167,7 +167,7 @@ impl Logger {
         // Name line.
         write_field_line(encoder, 'S', "name", SLOW_FIELDS.iter().filter(|&f| filter(f)), |w, f| {
             w.write_str(f.name);
-            let index = f.field_name_index;
+            let index = f.name_index;
             if index >= 0 {
                 w.write_char('[');
                 w.write_u8_ascii(index.cast_unsigned());
@@ -202,7 +202,7 @@ impl Logger {
         // Name line.
         write_field_line(encoder, 'H', "name", GPS_H_FIELDS.iter().filter(|&f| filter(f)), |w, f| {
             w.write_str(f.name);
-            let index = f.field_name_index;
+            let index = f.name_index;
             if index >= 0 {
                 w.write_char('[');
                 w.write_u8_ascii(index.cast_unsigned());
@@ -237,7 +237,7 @@ impl Logger {
         // Name line.
         write_field_line(encoder, 'G', "name", GPS_G_FIELDS.iter().filter(|&f| filter(f)), |w, f| {
             w.write_str(f.name);
-            let index = f.field_name_index;
+            let index = f.name_index;
             if index >= 0 {
                 w.write_char('[');
                 w.write_u8_ascii(index.cast_unsigned());
