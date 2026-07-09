@@ -104,7 +104,7 @@ impl LoggerState {
             Self::HeaderWritten => Self::Running,
             Self::Paused => {
                 if is_active && logger.should_log_i_frame() {
-                    logger.log_e_frame(encoder, LoggingResume(logger.iteration, current_time_us));
+                    _ = logger.log_e_frame(encoder, LoggingResume(logger.iteration, current_time_us));
                     logger.log_iteration(encoder, current_time_us);
                     logger.advance_iteration_timers();
                     Self::Running

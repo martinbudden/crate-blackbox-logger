@@ -238,11 +238,11 @@ impl Logger {
                 if self.should_log_s_frame() {
                     self.log_s_frame(encoder);
                 }
-                self.log_event_arming_beep_if_needed(encoder, 0);
+                _ = self.log_event_arming_beep_if_needed(encoder, 0);
                 //self.log_event_flight_mode_if_needed(encoder); // Check for FlightMode status change event
             }
         } else {
-            self.log_event_arming_beep_if_needed(encoder, 0);
+            _ = self.log_event_arming_beep_if_needed(encoder, 0);
             //self.log_event_flight_mode_if_needed(encoder); // Check for FlightMode status change event
 
             if self.should_log_p_frame() {
@@ -299,19 +299,21 @@ impl Logger {
     }
 
     /// If an arming beep has played since it was last logged, write the time of the arming beep to the log as a synchronization point.
-    pub fn log_event_arming_beep_if_needed(&mut self, encoder: &mut SliceEncoder, arming_beep_time_us: u32) {
+    pub fn log_event_arming_beep_if_needed(&mut self, encoder: &mut SliceEncoder, arming_beep_time_us: u32) -> usize {
         if arming_beep_time_us != self.last_arming_beep_time_us {
             self.last_arming_beep_time_us = arming_beep_time_us;
             let event = BlackboxEvent::SyncBeep(arming_beep_time_us);
-            self.log_e_frame(encoder, event);
+            return self.log_e_frame(encoder, event);
         }
+        0
     }
-    pub fn log_event_flight_mode_if_needed(&mut self, encoder: &mut SliceEncoder, rc_mode_activation_mask: u32) {
+    pub fn log_event_flight_mode_if_needed(&mut self, encoder: &mut SliceEncoder, rc_mode_activation_mask: u32) -> usize {
         if rc_mode_activation_mask != self.last_flight_mode_flags {
             let event = BlackboxEvent::FlightMode(rc_mode_activation_mask, self.last_flight_mode_flags);
-            self.log_e_frame(encoder, event);
             self.last_flight_mode_flags = rc_mode_activation_mask;
+            return self.log_e_frame(encoder, event);
         }
+        0
     }
 }
 

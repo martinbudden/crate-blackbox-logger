@@ -35,7 +35,7 @@ macro_rules! assert_p_field_encoding {
 
 impl Logger {
     /// Log event: `e_frame`. Written immediately to log when event occurs.
-    pub fn log_e_frame(&mut self, encoder: &mut SliceEncoder, event: BlackboxEvent) {
+    pub fn log_e_frame(&mut self, encoder: &mut SliceEncoder, event: BlackboxEvent) -> usize {
         encoder.begin_frame(b'E');
 
         match event {
@@ -78,6 +78,7 @@ impl Logger {
             _ => {}
         }
         encoder.end_frame();
+        encoder.pos
     }
 
     /// Log slow frame: `s_frame`.
