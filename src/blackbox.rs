@@ -125,8 +125,8 @@ impl Blackbox {
         self.logger.load_telemetry(current_time_us, gyro_pid, setpoint);
     }*/
     #[inline]
-    pub fn set_main_data(&mut self, current_time_us: u32, main_data: BlackboxMainData) {
-        self.logger.set_main_data(current_time_us, main_data);
+    pub fn set_main_data(&mut self, main_data: BlackboxMainData) {
+        self.logger.set_main_data(main_data);
     }
 
     #[inline]
@@ -141,8 +141,8 @@ impl Blackbox {
     }
 
     #[inline]
-    pub fn update(&mut self, encoder: &mut SliceEncoder, current_time_us: u32, is_active: bool) -> usize {
-        self.state.update(&mut self.logger, encoder, current_time_us, is_active)
+    pub fn update(&mut self, encoder: &mut SliceEncoder, current_time_us: u32) -> usize {
+        self.state.update(&mut self.logger, encoder, current_time_us)
     }
 
     #[inline]

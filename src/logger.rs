@@ -198,7 +198,7 @@ impl Logger {
     // Some of the main data comes from the GyroPidMessage, some comes from teh SetpointMessage
 
     #[inline]
-    pub fn set_main_data(&mut self, _current_time_us: u32, main_data: BlackboxMainData) {
+    pub fn set_main_data(&mut self, main_data: BlackboxMainData) {
         self.main_data[self.main_data_current_idx] = main_data;
     }
     #[inline]
@@ -214,14 +214,8 @@ impl Logger {
         self.gps_data = gps_data;
     }
 
-    pub fn update(
-        &mut self,
-        state: &mut LoggerState,
-        encoder: &mut SliceEncoder,
-        current_time_us: u32,
-        is_active: bool,
-    ) -> usize {
-        state.update(self, encoder, current_time_us, is_active)
+    pub fn update(&mut self, state: &mut LoggerState, encoder: &mut SliceEncoder, current_time_us: u32) -> usize {
+        state.update(self, encoder, current_time_us)
     }
 
     /// Called when the flight controller signals it has new data.
@@ -230,21 +224,15 @@ impl Logger {
 
         self.main_data[self.main_data_current_idx].time_us = current_time_us;
 
-        // Write a keyframe every i_interval frames so we can resynchronise upon missing frames
         if self.should_log_i_frame() {
             self.log_i_frame(encoder);
             if self.is_only_logging_i_frames() {
-                // other frames are normally logged alongside p_frames, however if we are only logging i_frames then we need to log them here.
+                // s_frames are normally logged alongside p_frames, however if we are only logging i_frames then we need to log them here.
                 if self.should_log_s_frame() {
                     self.log_s_frame(encoder);
                 }
-                _ = self.log_event_arming_beep_if_needed(encoder, 0);
-                //self.log_event_flight_mode_if_needed(encoder); // Check for FlightMode status change event
             }
         } else {
-            _ = self.log_event_arming_beep_if_needed(encoder, 0);
-            //self.log_event_flight_mode_if_needed(encoder); // Check for FlightMode status change event
-
             if self.should_log_p_frame() {
                 // Log s_frame alongside p_frame.
                 if self.should_log_s_frame() {
@@ -260,6 +248,8 @@ impl Logger {
                 self.log_g_frame(encoder, current_time_us);
             }
         }
+        self.log_event_arming_beep_if_needed(encoder, 0);
+        self.log_event_flight_mode_if_needed(encoder);
     }
 
     #[inline]
@@ -299,21 +289,19 @@ impl Logger {
     }
 
     /// If an arming beep has played since it was last logged, write the time of the arming beep to the log as a synchronization point.
-    pub fn log_event_arming_beep_if_needed(&mut self, encoder: &mut SliceEncoder, arming_beep_time_us: u32) -> usize {
+    pub fn log_event_arming_beep_if_needed(&mut self, encoder: &mut SliceEncoder, arming_beep_time_us: u32) {
         if arming_beep_time_us != self.last_arming_beep_time_us {
             self.last_arming_beep_time_us = arming_beep_time_us;
             let event = BlackboxEvent::SyncBeep(arming_beep_time_us);
-            return self.log_e_frame(encoder, event);
+            self.log_e_frame(encoder, event);
         }
-        0
     }
-    pub fn log_event_flight_mode_if_needed(&mut self, encoder: &mut SliceEncoder, rc_mode_activation_mask: u32) -> usize {
-        if rc_mode_activation_mask != self.last_flight_mode_flags {
-            let event = BlackboxEvent::FlightMode(rc_mode_activation_mask, self.last_flight_mode_flags);
-            self.last_flight_mode_flags = rc_mode_activation_mask;
-            return self.log_e_frame(encoder, event);
+    pub fn log_event_flight_mode_if_needed(&mut self, encoder: &mut SliceEncoder) {
+        if self.slow_data.flight_mode_flags != self.last_flight_mode_flags {
+            let event = BlackboxEvent::FlightMode(self.slow_data.flight_mode_flags, self.last_flight_mode_flags);
+            self.last_flight_mode_flags = self.slow_data.flight_mode_flags;
+            self.log_e_frame(encoder, event);
         }
-        0
     }
 }
 

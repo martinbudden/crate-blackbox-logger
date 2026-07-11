@@ -510,18 +510,18 @@ mod tests {
 
         let mut current_time_us: u32 = 0;
         let main_data = BlackboxMainData::new();
-        logger.set_main_data(current_time_us, main_data);
+        logger.set_main_data(main_data);
 
         println!("\nSTATE MACHINE HEADERS\n");
         state.start(start);
         assert_eq!(LoggerState::PrepareLogFile, state);
 
         current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
-        _ = state.update(&mut logger, &mut encoder, current_time_us, true);
+        _ = state.update(&mut logger, &mut encoder, current_time_us);
         assert_eq!(LoggerState::WriteFileHeader, state);
 
         current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
-        _ = state.update(&mut logger, &mut encoder, current_time_us, true);
+        _ = state.update(&mut logger, &mut encoder, current_time_us);
         assert_eq!(LoggerState::WriteMainFieldsHeader(FieldHeaderIndex::IName(0)), state);
 
         /*current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
@@ -537,9 +537,9 @@ mod tests {
         assert_eq!(StateMachine::PrepareLogFile, state);*/
 
         loop {
-            logger.set_main_data(current_time_us, main_data);
-            _ = state.update(&mut logger, &mut encoder, current_time_us, true);
-            if state == LoggerState::Running {
+            logger.set_main_data(main_data);
+            _ = state.update(&mut logger, &mut encoder, current_time_us);
+            if state == LoggerState::HeaderWritten {
                 if encoder.pos != 0 {
                     #[allow(clippy::unwrap_used)]
                     let result = core::str::from_utf8(&encoder.buffer[..encoder.pos]).unwrap();

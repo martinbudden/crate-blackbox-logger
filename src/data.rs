@@ -47,7 +47,7 @@ impl BlackboxEvent {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BlackboxSlowData {
     pub flight_mode_flags: u32,
-    pub state_flags: u8,
+    pub gps_state_flags: u8,
     pub failsafe_phase: u8,
     pub rx_signal_received: bool,
     pub rx_flight_channel_is_valid: bool,
@@ -59,17 +59,29 @@ impl Default for BlackboxSlowData {
     }
 }
 
+#[allow(unused)]
 impl BlackboxSlowData {
+    pub const FLIGHT_MODE_BLACKBOX_ACTIVE: u32 = 1 << 23;
+
+    pub const GPS_FIX_HOME: u8 = 0x01;
+    pub const GPS_STATE_FIX: u8 = 0x02;
+    pub const GPS_STATE_FIX_EVER: u8 = 0x04;
+
     /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
         Self {
             flight_mode_flags: 0,
-            state_flags: 0,
+            gps_state_flags: 0,
             failsafe_phase: 0,
             rx_signal_received: false,
             rx_flight_channel_is_valid: false,
         }
+    }
+
+    #[must_use]
+    pub fn is_blackbox_active(&self) -> bool {
+        self.flight_mode_flags & Self::FLIGHT_MODE_BLACKBOX_ACTIVE != 0
     }
 }
 

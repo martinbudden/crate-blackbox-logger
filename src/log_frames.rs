@@ -35,7 +35,7 @@ macro_rules! assert_p_field_encoding {
 
 impl Logger {
     /// Log event: `e_frame`. Written immediately to log when event occurs.
-    pub fn log_e_frame(&mut self, encoder: &mut SliceEncoder, event: BlackboxEvent) -> usize {
+    pub fn log_e_frame(&mut self, encoder: &mut SliceEncoder, event: BlackboxEvent) {
         encoder.begin_frame(b'E');
 
         match event {
@@ -78,7 +78,6 @@ impl Logger {
             _ => {}
         }
         encoder.end_frame();
-        encoder.pos
     }
 
     /// Log slow frame: `s_frame`.
@@ -88,7 +87,7 @@ impl Logger {
         encoder.begin_frame(b'S');
 
         encoder.write_unsigned_vb(self.slow_data.flight_mode_flags);
-        encoder.write_unsigned_vb(u32::from(self.slow_data.state_flags));
+        encoder.write_unsigned_vb(u32::from(self.slow_data.gps_state_flags));
 
         // Most of the time these three values will be able to pack into one byte.
         let values = [

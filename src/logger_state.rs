@@ -47,13 +47,7 @@ impl LoggerState {
     }
 
     /// Called each flight loop iteration to perform blackbox logging.
-    pub fn update(
-        &mut self,
-        logger: &mut Logger,
-        encoder: &mut SliceEncoder,
-        current_time_us: u32,
-        is_active: bool,
-    ) -> usize {
+    pub fn update(&mut self, logger: &mut Logger, encoder: &mut SliceEncoder, current_time_us: u32) -> usize {
         *self = match core::mem::take(self) {
             // If we are disabled, we stay disabled until start() is called
             // Explicitly setting state = State::Disabled defends against a change in the default.
@@ -101,10 +95,10 @@ impl LoggerState {
                 let next_sys_info = logger.write_sys_info(encoder, sys_info);
                 if next_sys_info == SysInfoIndex::End { Self::HeaderWritten } else { Self::WriteSysinfo(next_sys_info) }
             }
-            Self::HeaderWritten => Self::Running,
+            Self::HeaderWritten => Self::Paused,
             Self::Paused => {
-                if is_active && logger.should_log_i_frame() {
-                    _ = logger.log_e_frame(encoder, LoggingResume(logger.iteration, current_time_us));
+                if logger.slow_data.is_blackbox_active() && logger.should_log_i_frame() {
+                    logger.log_e_frame(encoder, LoggingResume(logger.iteration, current_time_us));
                     logger.log_iteration(encoder, current_time_us);
                     logger.advance_iteration_timers();
                     Self::Running
@@ -114,9 +108,14 @@ impl LoggerState {
                 }
             }
             Self::Running => {
-                logger.log_iteration(encoder, current_time_us);
-                logger.advance_iteration_timers();
-                Self::Running
+                if logger.slow_data.is_blackbox_active() {
+                    logger.log_iteration(encoder, current_time_us);
+                    logger.advance_iteration_timers();
+                    Self::Running
+                } else {
+                    logger.advance_iteration_timers();
+                    Self::Paused
+                }
             }
         };
         encoder.pos
