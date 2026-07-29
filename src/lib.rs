@@ -24,6 +24,8 @@ mod data;
 mod encoding;
 mod field_arrays;
 mod field_definitions;
+mod huffman_table;
+mod huffman_writer;
 mod log_frames;
 mod logger;
 mod logger_state;

@@ -70,6 +70,10 @@ pub struct Logger {
     pub(crate) main_data_current_idx: usize,
     pub(crate) main_data_previous_idx: usize,
     pub(crate) main_data_pre_previous_idx: usize,
+    #[cfg(feature = "huffman")]
+    pub(crate) huffman_compress: bool,
+    #[cfg(feature = "huffman")]
+    pub(crate) q_frame_buffer: [u8; Self::Q_FRAME_BUFFER_CAPACITY],
 }
 
 impl Default for Logger {
@@ -117,12 +121,27 @@ impl Logger {
             main_data_current_idx: 0,
             main_data_previous_idx: 1,
             main_data_pre_previous_idx: 2,
+            #[cfg(feature = "huffman")]
+            huffman_compress: false,
+            #[cfg(feature = "huffman")]
+            q_frame_buffer: [0u8; Self::Q_FRAME_BUFFER_CAPACITY],
         }
     }
 }
 
 impl Logger {
-    pub fn init(&mut self, sample_rate: u8, fields_disabled_mask: u32) {
+    pub const Q_FRAME_BUFFER_CAPACITY: usize = 1024;
+
+    pub fn init(&mut self, sample_rate: u8, fields_disabled_mask: u32, huffman_compress: bool) {
+        #[cfg(feature = "huffman")]
+        {
+            self.huffman_compress = huffman_compress;
+        }
+        #[cfg(not(feature = "huffman"))]
+        {
+            _ = huffman_compress;
+        }
+
         self.enabled_fields = FieldSelect::DEBUG
             | FieldSelect::PID
             | FieldSelect::PID_DTERM_ROLL
@@ -238,7 +257,15 @@ impl Logger {
                 if self.should_log_s_frame() {
                     self.log_s_frame(encoder);
                 }
-                self.log_p_frame(encoder);
+                #[cfg(feature = "huffman")]
+                {
+                    let p_frame_start_pos = self.log_p_frame(encoder);
+                    self.convert_p_frame_to_q_frame(encoder, p_frame_start_pos);
+                }
+                #[cfg(not(feature = "huffman"))]
+                {
+                    _ = self.log_p_frame(encoder);
+                }
             }
             #[cfg(feature = "gps")]
             if self.should_log_h_frame() {

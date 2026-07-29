@@ -445,7 +445,7 @@ mod tests {
         let mut buffer = [0u8; 2048];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
         let mut logger = Logger::new();
-        logger.init(0, 0);
+        logger.init(0, 0, false);
 
         let mut field_header: FieldHeaderIndex = FieldHeaderIndex::IName(0);
         loop {
@@ -466,7 +466,7 @@ mod tests {
         let mut buffer = [0u8; 2048];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
         let mut logger = Logger::new();
-        logger.init(0, 0);
+        logger.init(0, 0, false);
 
         logger.write_slow_fields_header(&mut encoder);
 
@@ -502,7 +502,7 @@ mod tests {
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
         let mut logger = Logger::new();
         //let mut _sd_card = MockSdCard::new("state_machine_log.bbl");
-        logger.init(0, 0);
+        logger.init(0, 0, false);
 
         let start = BlackboxStartParameters::new();
         let mut state = LoggerState::default();

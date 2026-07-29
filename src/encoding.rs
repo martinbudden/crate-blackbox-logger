@@ -112,6 +112,7 @@ pub fn write_field_line_header(writer: &mut dyn BlackboxWriter, frame_type: char
 }
 /// Encoder to write slice using variable-length encoding.
 #[derive(Debug, Default, PartialEq)]
+
 pub struct SliceEncoder<'a> {
     pub buffer: &'a mut [u8],
     pub pos: usize,
@@ -134,6 +135,25 @@ impl BlackboxWriter for SliceEncoder<'_> {
 }
 
 impl SliceEncoder<'_> {
+    /// Gets sub-slice of `len` bytes starting at `pos`.
+    /// Returns `None` if the requested range goes out of bounds.
+    #[must_use]
+    pub fn get_slice(&self, pos: usize, len: usize) -> Option<&[u8]> {
+        // Calculate the end position safely to prevent integer overflow
+        let end = pos.checked_add(len)?;
+        // Ensure the range fits within the buffer boundaries
+        if end <= self.buffer.len() { Some(&self.buffer[pos..end]) } else { None }
+    }
+
+    /// Borrows a mutable sub-slice of `len` bytes starting at `pos`.
+    /// Returns `None` if the requested range goes out of bounds.
+    pub fn get_slice_mut(&mut self, pos: usize, len: usize) -> Option<&mut [u8]> {
+        // Calculate the end position safely to prevent integer overflow
+        let end = pos.checked_add(len)?;
+        // Ensure the range fits within the buffer boundaries
+        if end <= self.buffer.len() { Some(&mut self.buffer[pos..end]) } else { None }
+    }
+
     // begin_frame and end_frame to support future Huffman compression of frame.
     pub fn begin_frame(&mut self, value: u8) {
         self.write_byte(value);

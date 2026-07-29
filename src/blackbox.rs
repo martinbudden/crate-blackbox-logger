@@ -44,6 +44,7 @@ pub struct BlackboxConfig {
     pub mode: u8,
     pub high_resolution: u8,
     pub gps_use_3d_speed: bool,
+    pub huffman_compress: bool,
 }
 
 #[cfg(feature = "serde")]
@@ -66,6 +67,7 @@ impl BlackboxConfig {
             mode: BlackboxMode::Normal as u8,
             high_resolution: 0,
             gps_use_3d_speed: false,
+            huffman_compress: false,
         }
     }
 }
@@ -116,7 +118,7 @@ impl Blackbox {
 impl Blackbox {
     pub fn init(&mut self) {
         //_serial_device.init();
-        self.logger.init(self.config.sample_rate, self.config.fields_disabled_mask);
+        self.logger.init(self.config.sample_rate, self.config.fields_disabled_mask, self.config.huffman_compress);
     }
 }
 

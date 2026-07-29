@@ -1,9 +1,12 @@
 use crate::{
+    BlackboxWriter, SliceEncoder,
     data::{BlackboxEvent, BlackboxEventId, BlackboxMainData},
     field_definitions::{FieldCondition, FieldSelect},
     logger::Logger,
-    {BlackboxWriter, SliceEncoder},
 };
+
+#[cfg(feature = "huffman")]
+use crate::huffman_writer::HuffmanWriter;
 
 #[allow(unused)]
 use crate::field_definitions::FieldPredictor;
@@ -325,11 +328,12 @@ impl Logger {
     /// the code is made safe by asserting the `p_encoding` values.
     /// So this code and those definitions must be changed in tandem with each other.
     #[allow(clippy::too_many_lines)]
-    pub fn log_p_frame(&mut self, encoder: &mut SliceEncoder) {
+    pub fn log_p_frame(&mut self, encoder: &mut SliceEncoder) -> usize {
         let current = &self.main_data[self.main_data_current_idx];
         let previous = &self.main_data[self.main_data_previous_idx];
         let pre_previous = &self.main_data[self.main_data_pre_previous_idx];
 
+        let p_frame_start_pos = encoder.pos;
         encoder.begin_frame(b'P');
 
         // Don't store store iteration when using FieldEncoding::NULL
@@ -528,6 +532,34 @@ impl Logger {
         self.main_data_pre_previous_idx = self.main_data_previous_idx;
         self.main_data_previous_idx = self.main_data_current_idx;
         self.main_data_current_idx = pre_previous_idx;
+
+        p_frame_start_pos
+    }
+
+    /// Convert a `p_frame` to a Huffman encoded `q_frame`.
+    #[cfg(feature = "huffman")]
+    pub fn convert_p_frame_to_q_frame(&mut self, encoder: &mut SliceEncoder, p_frame_start_pos: usize) {
+        let p_frame_length = encoder.pos - p_frame_start_pos;
+        let huffman_writer = HuffmanWriter::new(self.q_frame_buffer.as_mut_slice());
+
+        // Skip over the initial 'P' character
+        if let Some(slice) = encoder.get_slice(p_frame_start_pos + 1, p_frame_length - 1) {
+            #[allow(clippy::cast_possible_truncation)]
+            if let Ok(q_frame_length) = huffman_writer.compress(slice)
+                && q_frame_length < p_frame_length
+                && q_frame_length <= u8::MAX.into()
+            {
+                // set the frame type to Q.
+                encoder.buffer[p_frame_start_pos] = b'Q';
+                // set the length byte
+                encoder.buffer[p_frame_start_pos + 1] = q_frame_length as u8;
+                // copy the q_frame_buffer into the encoder buffer
+                // set the encoder position
+                encoder.pos = p_frame_start_pos + q_frame_length;
+            }
+        }
+
+        // If there are any errors in the compression, then we just return, which just gives us a p_frame.
     }
 }
 
@@ -575,7 +607,11 @@ mod tests {
         let mut buffer = [0u8; 512];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
 
-        blackbox.log_p_frame(&mut encoder);
+        let p_frame_start_pos = blackbox.log_p_frame(&mut encoder);
+        assert_eq!(0, p_frame_start_pos);
+        assert_eq!(b'P', encoder.buffer[p_frame_start_pos]);
+        assert_eq!(0, encoder.buffer[p_frame_start_pos + 1]);
+
         assert_eq!(1, blackbox.main_data[blackbox.main_data_current_idx].time_us);
         assert_eq!(3, blackbox.main_data[blackbox.main_data_previous_idx].time_us);
         assert_eq!(2, blackbox.main_data[blackbox.main_data_pre_previous_idx].time_us);
@@ -583,14 +619,22 @@ mod tests {
         assert_eq!(0, blackbox.main_data[blackbox.main_data_pre_previous_idx].gyro[0]);
 
         blackbox.main_data[0].time_us = 4;
-        blackbox.log_p_frame(&mut encoder);
+        let p_frame_start_pos = blackbox.log_p_frame(&mut encoder);
+        assert_eq!(2, p_frame_start_pos);
+        assert_eq!(b'P', encoder.buffer[p_frame_start_pos]);
+        assert_eq!(9, encoder.buffer[p_frame_start_pos + 1]);
+
         assert_eq!(2, blackbox.main_data[blackbox.main_data_current_idx].time_us);
         assert_eq!(1, blackbox.main_data[blackbox.main_data_previous_idx].time_us);
         assert_eq!(4, blackbox.main_data[blackbox.main_data_pre_previous_idx].time_us);
         assert_eq!(1000, blackbox.main_data[blackbox.main_data_pre_previous_idx].gyro[0]);
 
         blackbox.main_data[0].time_us = 5;
-        blackbox.log_p_frame(&mut encoder);
+        let p_frame_start_pos = blackbox.log_p_frame(&mut encoder);
+        assert_eq!(4, p_frame_start_pos);
+        assert_eq!(b'P', encoder.buffer[p_frame_start_pos]);
+        assert_eq!(10, encoder.buffer[p_frame_start_pos + 1]);
+
         assert_eq!(5, blackbox.main_data[blackbox.main_data_current_idx].time_us);
         assert_eq!(2, blackbox.main_data[blackbox.main_data_previous_idx].time_us);
         assert_eq!(1, blackbox.main_data[blackbox.main_data_pre_previous_idx].time_us);
