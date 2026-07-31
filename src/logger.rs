@@ -64,6 +64,7 @@ pub struct Logger {
     pub(crate) gps_data: BlackboxGpsData,
     #[cfg(feature = "gps")]
     pub(crate) gps_home: BlackboxGpsPosition,
+    #[allow(missing_docs)]
     pub sys_info: SysInfo,
 
     pub(crate) main_data: [BlackboxMainData; 3],
@@ -130,8 +131,10 @@ impl Logger {
 }
 
 impl Logger {
-    pub const Q_FRAME_BUFFER_CAPACITY: usize = 1024;
+    #[cfg(feature = "huffman")]
+    const Q_FRAME_BUFFER_CAPACITY: usize = 256;
 
+    /// Initialization. Builds field condition cache and resets timers.
     pub fn init(&mut self, sample_rate: u8, fields_disabled_mask: u32, huffman_compress: bool) {
         #[cfg(feature = "huffman")]
         {
@@ -201,6 +204,7 @@ impl Logger {
     }
 }
 
+#[allow(missing_docs)]
 impl Logger {
     /// Returns true if `a` is after `b`, taking account of wrapping at `u32::MAX`.
     /// ```
@@ -333,6 +337,7 @@ impl Logger {
 }
 
 impl Logger {
+    /// Reset iteration timers so `s_frame` is written at next iteration.
     pub fn reset_iteration_timers(&mut self) {
         self.iteration = 0;
         self.i_frame_index = 0;
@@ -382,7 +387,7 @@ impl Logger {
     }
 
     // Called from build_field_condition_cache(), which is called from start()
-    // Test condition without caching
+    /// Test condition without caching.
     #[must_use]
     pub fn test_field_condition_uncached(&self, condition: u8) -> bool {
         match condition {

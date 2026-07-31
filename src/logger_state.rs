@@ -5,9 +5,9 @@ use crate::{
     write_headers::{FieldHeaderIndex, SysInfoIndex},
 };
 
+#[allow(missing_docs)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(u8)]
-#[allow(missing_docs)]
 pub enum LoggerState {
     #[default]
     Disabled = 0,
@@ -34,14 +34,17 @@ impl LoggerState {
 }
 
 impl LoggerState {
+    /// Start logging.
     pub fn start(&mut self, _start_params: BlackboxStartParameters) {
         *self = Self::PrepareLogFile;
     }
 
+    /// Finish logging.
     pub fn finish(&mut self) {
         *self = Self::ShuttingDown;
     }
 
+    /// Allow state to be set directly. Used for debug and test.
     pub fn set_state(&mut self, state: Self) {
         *self = state;
     }

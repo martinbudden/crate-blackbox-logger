@@ -14,9 +14,9 @@ use {
     serde::{Deserialize, Serialize},
 };
 
+#[allow(missing_docs)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(u8)]
-#[allow(missing_docs)]
 pub enum BlackboxDevice {
     #[default]
     None,
@@ -25,9 +25,9 @@ pub enum BlackboxDevice {
     Serial,
 }
 
+#[allow(missing_docs)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(u8)]
-#[allow(missing_docs)]
 pub enum BlackboxMode {
     #[default]
     Normal,
@@ -35,6 +35,7 @@ pub enum BlackboxMode {
     AlwaysOne,
 }
 
+#[allow(missing_docs)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct BlackboxConfig {
@@ -71,6 +72,7 @@ impl BlackboxConfig {
         }
     }
 }
+#[allow(missing_docs)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BlackboxStartParameters {
     pub debug_mode: u16,
@@ -92,11 +94,11 @@ impl BlackboxStartParameters {
     }
 }
 
+/// Blackbox struct containing the logger, state machine, and config.
 #[derive(Clone, Copy, Debug)]
-#[allow(missing_docs)]
 pub struct Blackbox {
     state: LoggerState,
-    pub logger: Logger,
+    logger: Logger,
 
     config: BlackboxConfig,
 }
@@ -115,17 +117,17 @@ impl Blackbox {
     }
 }
 
+#[allow(missing_docs)]
 impl Blackbox {
     pub fn init(&mut self) {
         //_serial_device.init();
         self.logger.init(self.config.sample_rate, self.config.fields_disabled_mask, self.config.huffman_compress);
     }
-}
 
-impl Blackbox {
     /*pub fn load_telemetry(&mut self, current_time_us: u32, gyro_pid: GyroPidMessage, setpoint: SetpointMessage) {
         self.logger.load_telemetry(current_time_us, gyro_pid, setpoint);
     }*/
+
     #[inline]
     pub fn set_main_data(&mut self, main_data: BlackboxMainData) {
         self.logger.set_main_data(main_data);

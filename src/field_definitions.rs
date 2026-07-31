@@ -10,8 +10,8 @@ pub struct SimpleFieldDefinition {
 }
 
 // Conditional fields, used for G-Frames
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg(feature = "gps")]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
 pub struct ConditionalFieldDefinition {
     pub name: &'static str,
@@ -140,8 +140,8 @@ impl FieldCondition {
     pub const LAST: u8 = Self::NEVER;
 }
 
+/// Empty struct to define field selection flags.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[allow(missing_docs)]
 pub struct FieldSelect;
 
 #[allow(missing_docs)]

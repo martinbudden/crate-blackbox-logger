@@ -555,7 +555,7 @@ mod tests {
         let mut buffer = [0u8; 4096];
         let mut writer = SliceWriter { buffer: &mut buffer, pos: 0 };
         let mut logger = Logger::new(0);
-        logger.init(0, 0);
+        logger.init(0, 0, false);
 
         let start = BlackboxStartParameters::new();
         let mut state = StateMachine::default();

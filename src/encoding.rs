@@ -1,3 +1,4 @@
+#[allow(missing_docs)]
 pub trait BlackboxWriter {
     fn write_byte(&mut self, byte: u8);
 
@@ -30,10 +31,10 @@ pub trait BlackboxWriter {
             i += 1;
         }
         for j in (0..i).rev() {
-            self.write_char(buf[j] as char);
+            self.write_byte(buf[j]);
         }
     }
-    #[allow(clippy::cast_possible_truncation)]
+
     fn write_u32_ascii(&mut self, mut n: u32) {
         if n == 0 {
             self.write_char('0');
@@ -41,15 +42,17 @@ pub trait BlackboxWriter {
         }
         let mut buf = [0u8; 16];
         let mut i = 0;
+        #[allow(clippy::cast_possible_truncation)]
         while n > 0 {
             buf[i] = ((n % 10) + u32::from(b'0')) as u8;
             n /= 10;
             i += 1;
         }
         for j in (0..i).rev() {
-            self.write_char(buf[j] as char);
+            self.write_byte(buf[j]);
         }
     }
+
     fn write_i32_ascii(&mut self, mut n: i32) {
         if n < 0 {
             self.write_char('-');
@@ -57,19 +60,23 @@ pub trait BlackboxWriter {
         }
         self.write_u32_ascii(n.cast_unsigned());
     }
+
     fn write_h_str_u32_ascii(&mut self, s: &str, n: u32) {
         self.write_h_str(s);
         self.write_u32_ascii(n);
         self.write_char('\n');
     }
+
     fn write_h_str_i32_ascii(&mut self, s: &str, n: i32) {
         self.write_h_str(s);
         self.write_i32_ascii(n);
         self.write_char('\n');
     }
+
     fn write_h_str_u16_ascii(&mut self, s: &str, n: u16) {
         self.write_h_str_u32_ascii(s, u32::from(n));
     }
+
     fn write_h_str_i16_ascii(&mut self, s: &str, n: i16) {
         self.write_h_str_i32_ascii(s, i32::from(n));
     }
@@ -113,6 +120,7 @@ pub fn write_field_line_header(writer: &mut dyn BlackboxWriter, frame_type: char
 /// Encoder to write slice using variable-length encoding.
 #[derive(Debug, Default, PartialEq)]
 
+#[allow(missing_docs)]
 pub struct SliceEncoder<'a> {
     pub buffer: &'a mut [u8],
     pub pos: usize,
@@ -154,14 +162,15 @@ impl SliceEncoder<'_> {
         if end <= self.buffer.len() { Some(&mut self.buffer[pos..end]) } else { None }
     }
 
-    // begin_frame and end_frame to support future Huffman compression of frame.
+    /// Begin frame by writing frame type (eg 'P').
     pub fn begin_frame(&mut self, value: u8) {
         self.write_byte(value);
     }
 
+    /// End frame.
     pub fn end_frame(&self) {}
 
-    /// Unsigned Variable-Byte.
+    /// Write u32 as Unsigned Variable-Bytes.
     pub fn write_unsigned_vb(&mut self, mut value: u32) {
         while value > 127 {
             // Set high bit (continuation) and take 7 bits
@@ -180,10 +189,12 @@ impl SliceEncoder<'_> {
         self.write_unsigned_vb(bits.cast_unsigned());
     }
 
+    /// Write u16 as Unsigned Variable-Bytes.
     pub fn write_unsigned_vb_16(&mut self, value: u16) {
         self.write_unsigned_vb(u32::from(value));
     }
 
+    /// Encodes an array of u32 values using Unsigned Variable-Byte encoding.
     pub fn write_unsigned_vb_array(&mut self, values: &[u32]) {
         for &value in values {
             // We cast to i32 to reuse our existing Signed VB logic
@@ -191,6 +202,7 @@ impl SliceEncoder<'_> {
         }
     }
 
+    /// Encodes an array of u16 values using Unsigned Variable-Byte encoding.
     pub fn write_unsigned_vb_16_array(&mut self, values: &[u16]) {
         for &value in values {
             // We cast to i32 to reuse our existing Signed VB logic
@@ -205,11 +217,12 @@ impl SliceEncoder<'_> {
         ((value << 1) ^ (value >> 31)).cast_unsigned()
     }
 
-    /// Signed Variable-Byte.
+    /// Write i32 as Signed Variable-Bytes.
     pub fn write_signed_vb(&mut self, value: i32) {
         self.write_unsigned_vb(Self::zigzag_encode(value));
     }
 
+    /// Write i16 as Signed Variable-Bytes.
     pub fn write_signed_vb_16(&mut self, value: i16) {
         self.write_signed_vb(i32::from(value));
     }
@@ -222,6 +235,7 @@ impl SliceEncoder<'_> {
         }
     }
 
+    /// Encodes an array of i16 values using Signed Variable-Byte encoding.
     pub fn write_signed_vb_16_array(&mut self, values: &[i16]) {
         for &value in values {
             // We cast to i32 to reuse our existing Signed VB logic
@@ -267,7 +281,7 @@ impl SliceEncoder<'_> {
 
         let mut tag: u8 = 0;
 
-        // 1. Determine the size needed for each value and build the tag
+        // Determine the size needed for each value and build the tag
         for (ii, val) in values.iter().enumerate() {
             let size_code = if *val == 0 {
                 BITS_0 // 0 bits
@@ -281,18 +295,18 @@ impl SliceEncoder<'_> {
             tag |= size_code << (ii * 2);
         }
 
-        // 2. Write the tag byte
+        // Write the tag byte
         self.write_byte(tag);
 
-        // 3. Pack 4-bit values or write 8/16 bit values
+        // Pack 4-bit values or write 8/16 bit values
         // Note: 4-bit values (nibbles) are packed into a single byte if there's a pair
         let mut buffer: Option<u8> = None;
 
         for value in values {
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
             match tag & 0x03 {
                 BITS_4 => {
                     // 4-bit nibble
-                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
                     if let Some(nibble) = buffer {
                         self.write_byte(nibble | (value & 0x0F) as u8);
                         buffer = None;
@@ -302,7 +316,6 @@ impl SliceEncoder<'_> {
                 }
                 BITS_8 => {
                     // 8-bit byte
-                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
                     if let Some(nibble) = buffer {
                         //Write the high bits of the value first (mask to avoid sign extension)
                         self.write_byte(nibble | ((value >> 4) & 0x0F) as u8);
@@ -313,7 +326,6 @@ impl SliceEncoder<'_> {
                     }
                 }
                 BITS_16 => {
-                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
                     if let Some(nibble) = buffer {
                         //First write the highest 4 bits
                         self.write_byte(nibble | ((value >> 12) & 0x0F) as u8);
@@ -333,12 +345,13 @@ impl SliceEncoder<'_> {
             tag >>= 2;
         }
 
-        // 4. If a single nibble is left over (odd number of 4-bit fields), write it
+        // If a single nibble is left over (odd number of 4-bit fields), write it
         if let Some(lone_nibble) = buffer {
             self.write_byte(lone_nibble);
         }
     }
 
+    /// Encodes 3 values into `TAG2_3S32` format.
     pub fn write_tag2_3s32(&mut self, values: [i32; 3]) {
         // Find the required size for the largest value.
         const BITS_2: u8 = 0;

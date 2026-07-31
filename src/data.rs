@@ -15,9 +15,9 @@ impl BlackboxEventId {
     pub const LOG_END: u8 = 255;
 }
 
+#[allow(missing_docs)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
-#[allow(missing_docs)]
 pub enum BlackboxEvent {
     SyncBeep(u32) = 0,
     AutotuneCycleStart = 10,
@@ -44,6 +44,7 @@ impl BlackboxEvent {
     }
 }
 
+#[allow(missing_docs)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BlackboxSlowData {
     pub flight_mode_flags: u32,
@@ -59,6 +60,7 @@ impl Default for BlackboxSlowData {
     }
 }
 
+#[allow(missing_docs)]
 #[allow(unused)]
 impl BlackboxSlowData {
     pub const FLIGHT_MODE_BLACKBOX_ACTIVE: u32 = 1 << 23;
@@ -85,6 +87,7 @@ impl BlackboxSlowData {
     }
 }
 
+/// GPS position as longitude, latitude, and altitude.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BlackboxGpsPosition {
     /// longitude in degrees * 1e+7.
@@ -109,26 +112,29 @@ impl BlackboxGpsPosition {
     }
 }
 
+
+/// GPS data that is recorded.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BlackboxGpsData {
     /// GPS time of week in ms.
     pub time_of_week_ms: u32,
-    /// interval between GPS solutions in ms.
+    /// Interval between GPS solutions in ms.
     pub interval_ms: u32,
-    /// current position.
+    /// Current position.
     pub position: BlackboxGpsPosition,
-    /// north velocity, cm/s.
+    /// North velocity, cm/s.
     pub velocity_north_cmps: i16,
-    /// east velocity, cm/s.
+    /// East velocity, cm/s.
     pub velocity_east_cmps: i16,
-    /// down velocity, cm/s.
+    /// Down velocity, cm/s.
     pub velocity_down_cmps: i16,
-    /// speed in cm/s.
+    /// Speed in cm/s.
     pub speed3d_cmps: i16,
-    /// speed in cm/s.
+    /// Speed in cm/s.
     pub ground_speed_cmps: i16,
     /// Heading 2D in 10ths of a degree.
     pub ground_course_degrees_x10: i16,
+    /// Number of satellites used for GPS fix.
     pub satellite_count: u8,
 }
 
@@ -158,7 +164,7 @@ impl BlackboxGpsData {
 }
 
 impl BlackboxGpsData {
-    #[allow(unused)]
+    /// Returns true if GPS data is different from previous data.
     #[must_use]
     pub fn state_changed(&self, new_data: Self) -> bool {
         // We could check for velocity changes as well but I doubt it changes independent of position
@@ -169,8 +175,8 @@ impl BlackboxGpsData {
 }
 
 /// `MainData` is about 150 bytes when all features enabled, so storing 3 copies for predictive purposes is not over onerous.
-#[derive(Clone, Copy, Debug, PartialEq)]
 #[allow(missing_docs)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BlackboxMainData {
     pub time_us: u32,
     pub pid_p: [i32; Self::RPY_AXIS_COUNT],

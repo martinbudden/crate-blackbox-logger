@@ -8,6 +8,7 @@ use crate::field_definitions::ConditionalFieldDefinition as CFD;
 
 impl SFD {
     pub const SLOW_FIELD_COUNT: usize = 5;
+    #[cfg(feature = "gps")]
     pub const GPS_H_FIELD_COUNT: usize = 4;
 
     #[allow(unused)]
