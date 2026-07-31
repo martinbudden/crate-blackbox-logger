@@ -91,9 +91,9 @@ impl BlackboxSlowData {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BlackboxGpsPosition {
     /// longitude in degrees * 1e+7.
-    pub longitude_degrees_1e7: i32,
+    pub longitude_degrees_x1e7: i32,
     /// latitude in degrees * 1e+7.
-    pub latitude_degrees_1e7: i32,
+    pub latitude_degrees_x1e7: i32,
     /// altitude in cm.
     pub altitude_cm: i32,
 }
@@ -108,7 +108,7 @@ impl BlackboxGpsPosition {
     /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
-        Self { longitude_degrees_1e7: 0, latitude_degrees_1e7: 0, altitude_cm: 0 }
+        Self { longitude_degrees_x1e7: 0, latitude_degrees_x1e7: 0, altitude_cm: 0 }
     }
 }
 
@@ -169,8 +169,8 @@ impl BlackboxGpsData {
     pub fn state_changed(&self, new_data: Self) -> bool {
         // We could check for velocity changes as well but I doubt it changes independent of position
         new_data.satellite_count != self.satellite_count
-            || new_data.position.latitude_degrees_1e7 != self.position.latitude_degrees_1e7
-            || new_data.position.longitude_degrees_1e7 != self.position.longitude_degrees_1e7
+            || new_data.position.latitude_degrees_x1e7 != self.position.latitude_degrees_x1e7
+            || new_data.position.longitude_degrees_x1e7 != self.position.longitude_degrees_x1e7
     }
 }
 

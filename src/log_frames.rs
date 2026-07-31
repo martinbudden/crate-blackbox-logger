@@ -9,7 +9,7 @@ use crate::{
 use crate::huffman_encoder::HuffmanEncoder;
 
 #[allow(unused)]
-use crate::field_definitions::FieldPredictor;
+use crate::field_definitions::FieldPredictor; // used in macro_rules, so sometimes not visible to compiler
 
 #[cfg(test)]
 use crate::field_definitions::{FieldEncoding, MainFieldDefinition};
@@ -106,12 +106,12 @@ impl Logger {
     /// GPS home frame: `h_frame`.
     #[cfg(feature = "gps")]
     pub fn log_h_frame(&mut self, encoder: &mut SliceEncoder) {
-        self.new_gps_data = false;
+        self.has_new_gps_data = false;
 
         encoder.begin_frame(b'H');
 
-        encoder.write_signed_vb(self.gps_home.latitude_degrees_1e7);
-        encoder.write_signed_vb(self.gps_home.longitude_degrees_1e7);
+        encoder.write_signed_vb(self.gps_home.latitude_degrees_x1e7);
+        encoder.write_signed_vb(self.gps_home.longitude_degrees_x1e7);
         // log altitude in increments of 0.1m
         encoder.write_signed_vb(self.gps_home.altitude_cm / 10);
         // TODO: convert gps time to unix time
@@ -123,7 +123,7 @@ impl Logger {
     /// GPS frame: `g_frame`. Written at a frequency of about 10Hz.
     #[cfg(feature = "gps")]
     pub fn log_g_frame(&mut self, encoder: &mut SliceEncoder, current_time_us: u32) {
-        self.new_gps_data = false;
+        self.has_new_gps_data = false;
 
         encoder.begin_frame(b'G');
 
@@ -136,8 +136,8 @@ impl Logger {
         }
 
         encoder.write_unsigned_vb(u32::from(self.gps_data.satellite_count));
-        encoder.write_signed_vb(self.gps_data.position.latitude_degrees_1e7 - self.gps_home.latitude_degrees_1e7);
-        encoder.write_signed_vb(self.gps_data.position.longitude_degrees_1e7 - self.gps_home.longitude_degrees_1e7);
+        encoder.write_signed_vb(self.gps_data.position.latitude_degrees_x1e7 - self.gps_home.latitude_degrees_x1e7);
+        encoder.write_signed_vb(self.gps_data.position.longitude_degrees_x1e7 - self.gps_home.longitude_degrees_x1e7);
         // log altitude in increments of 0.1m
         encoder.write_signed_vb(self.gps_data.position.altitude_cm / 10);
 

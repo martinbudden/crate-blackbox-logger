@@ -1,7 +1,6 @@
 use crate::{
     BlackboxEvent::LoggingResume,
     BlackboxStartParameters, Logger, SliceEncoder,
-    field_definitions::FieldSelect,
     write_headers::{FieldHeaderIndex, SysInfoIndex},
 };
 
@@ -67,27 +66,26 @@ impl LoggerState {
             Self::WriteMainFieldsHeader(field_header) => {
                 let next_field_header = logger.write_main_fields_header(encoder, field_header);
                 if next_field_header == FieldHeaderIndex::End {
-                    if logger.enabled_fields & FieldSelect::GPS != 0 {
+                    #[cfg(feature = "gps")]
+                    if logger.enabled_fields & crate::field_definitions::FieldSelect::GPS != 0 {
                         Self::WriteGpsHFieldsHeader
                     } else {
                         Self::WriteSlowFieldsHeader
                     }
+                    #[cfg(not(feature = "gps"))]
+                    Self::WriteSlowFieldsHeader
                 } else {
                     Self::WriteMainFieldsHeader(next_field_header)
                 }
             }
             Self::WriteGpsHFieldsHeader => {
                 #[cfg(feature = "gps")]
-                {
-                    logger.write_gps_g_fields_header(encoder);
-                }
+                logger.write_gps_g_fields_header(encoder);
                 Self::WriteGpsGFieldsHeader
             }
             Self::WriteGpsGFieldsHeader => {
                 #[cfg(feature = "gps")]
-                {
-                    logger.write_gps_h_fields_header(encoder);
-                }
+                logger.write_gps_h_fields_header(encoder);
                 Self::WriteSlowFieldsHeader
             }
             Self::WriteSlowFieldsHeader => {
@@ -100,23 +98,24 @@ impl LoggerState {
             }
             Self::HeaderWritten => Self::Paused,
             Self::Paused => {
-                if logger.slow_data.is_blackbox_active() && logger.should_log_i_frame() {
-                    logger.log_e_frame(encoder, LoggingResume(logger.iteration, current_time_us));
+                if logger.slow_data.is_blackbox_active() {
+                    logger.force_log_i_frame();
                     logger.log_iteration(encoder, current_time_us);
-                    logger.advance_iteration_timers();
+                    logger.log_e_frame(encoder, LoggingResume(logger.iteration, current_time_us)); // must be after log_iteration
+                    logger.advance_i_frame_indices();
                     Self::Running
                 } else {
-                    logger.advance_iteration_timers();
+                    logger.advance_iteration_indices();
                     Self::Paused
                 }
             }
             Self::Running => {
                 if logger.slow_data.is_blackbox_active() {
                     logger.log_iteration(encoder, current_time_us);
-                    logger.advance_iteration_timers();
+                    logger.advance_iteration_indices();
                     Self::Running
                 } else {
-                    logger.advance_iteration_timers();
+                    //logger.advance_iteration_timers();
                     Self::Paused
                 }
             }

@@ -50,7 +50,7 @@ pub struct Logger {
     pub(crate) iteration: u32,
 
     pub(crate) logged_any_frames: bool,
-    pub(crate) new_gps_data: bool,
+    pub(crate) has_new_gps_data: bool,
 
     pub(crate) motor_count: usize,
     pub(crate) servo_count: usize,
@@ -108,7 +108,7 @@ impl Logger {
             last_arming_beep_time_us: 0,
             last_flight_mode_flags: 0,
             logged_any_frames: false,
-            new_gps_data: false,
+            has_new_gps_data: false,
 
             slow_data: BlackboxSlowData::new(),
 
@@ -200,7 +200,7 @@ impl Logger {
         } else {
             self.set_data(STATE_STOPPED);
         }*/
-        self.reset_iteration_timers(); // should be done after s_interval is set
+        self.reset_iteration_indices(); // should be done after s_interval is set
     }
 }
 
@@ -218,7 +218,6 @@ impl Logger {
         // This calculates (a - b) mod 2^32
         a.wrapping_sub(b) < (u32::MAX / 2)
     }
-    // Some of the main data comes from the GyroPidMessage, some comes from teh SetpointMessage
 
     #[inline]
     pub fn set_main_data(&mut self, main_data: BlackboxMainData) {
@@ -233,7 +232,7 @@ impl Logger {
     #[cfg(feature = "gps")]
     #[inline]
     pub fn set_gps_data(&mut self, gps_data: BlackboxGpsData) {
-        self.new_gps_data = self.gps_data != gps_data;
+        self.has_new_gps_data |= self.gps_data.state_changed(gps_data);
         self.gps_data = gps_data;
     }
 
@@ -247,6 +246,7 @@ impl Logger {
 
         self.main_data[self.main_data_current_idx].time_us = current_time_us;
 
+        #[allow(clippy::collapsible_else_if)]
         if self.should_log_i_frame() {
             self.log_i_frame(encoder);
             if self.is_only_logging_i_frames() {
@@ -258,9 +258,6 @@ impl Logger {
         } else {
             if self.should_log_p_frame() {
                 // Log s_frame alongside p_frame.
-                if self.should_log_s_frame() {
-                    self.log_s_frame(encoder);
-                }
                 #[cfg(feature = "huffman")]
                 {
                     let p_frame_start_pos = self.log_p_frame(encoder);
@@ -270,6 +267,9 @@ impl Logger {
                 {
                     _ = self.log_p_frame(encoder);
                 }
+            }
+            if self.should_log_s_frame() {
+                self.log_s_frame(encoder);
             }
             #[cfg(feature = "gps")]
             if self.should_log_h_frame() {
@@ -286,33 +286,38 @@ impl Logger {
     #[inline]
     #[must_use]
     pub fn should_log_i_frame(&self) -> bool {
-        self.i_frame_index == 0
+        self.i_frame_index == 0 || self.is_only_logging_i_frames()
     }
+
     #[inline]
     #[must_use]
     pub fn should_log_h_frame(&self) -> bool {
-        (self.enabled_fields & FieldSelect::GPS != 0) && self.new_gps_data
+        (self.enabled_fields & FieldSelect::GPS != 0) && self.has_new_gps_data
     }
+
     #[inline]
     #[must_use]
     pub fn should_log_g_frame(&self) -> bool {
-        (self.enabled_fields & FieldSelect::GPS != 0) && self.new_gps_data
+        (self.enabled_fields & FieldSelect::GPS != 0) && self.has_new_gps_data
     }
+
     #[inline]
     #[must_use]
     pub fn should_log_p_frame(&self) -> bool {
         self.p_frame_index == 0 && !self.is_only_logging_i_frames()
     }
+
     /// If the data in the slow frame has changed, log a slow frame.
     ///
     /// The frame is also logged if it has been more than `s_interval` logging iterations
     /// since the field was last logged.
-    // Write the slow frame periodically so it can be recovered if we ever lose sync
+    /// Write the slow frame periodically so it can be recovered if we ever lose sync.
     #[inline]
     #[must_use]
     pub fn should_log_s_frame(&self) -> bool {
         self.s_frame_index >= self.s_interval
     }
+
     #[inline]
     #[must_use]
     pub fn is_only_logging_i_frames(&self) -> bool {
@@ -327,6 +332,7 @@ impl Logger {
             self.log_e_frame(encoder, event);
         }
     }
+
     pub fn log_event_flight_mode_if_needed(&mut self, encoder: &mut SliceEncoder) {
         if self.slow_data.flight_mode_flags != self.last_flight_mode_flags {
             let event = BlackboxEvent::FlightMode(self.slow_data.flight_mode_flags, self.last_flight_mode_flags);
@@ -337,16 +343,32 @@ impl Logger {
 }
 
 impl Logger {
+    /// Set indices to force logging of `i_frame` on next `log_iteration`.
+    #[inline]
+    pub fn force_log_i_frame(&mut self) {
+        self.i_frame_index = 0;
+        self.p_frame_index = 0;
+    }
+
     /// Reset iteration timers so `s_frame` is written at next iteration.
-    pub fn reset_iteration_timers(&mut self) {
+    pub fn reset_iteration_indices(&mut self) {
         self.iteration = 0;
         self.i_frame_index = 0;
         self.p_frame_index = 0;
         self.s_frame_index = self.s_interval; // so s_frame written next iteration
     }
 
+    /// Advance the `i_frame_index` after a forced write.
+    #[inline]
+    pub fn advance_i_frame_indices(&mut self) {
+        self.iteration = self.iteration.wrapping_add(1);
+        //self.i_frame_index = self.i_frame_index.wrapping_add(1); // this causes corruption, but without it, it means we get two i_frames.
+        self.p_frame_index = 0;
+    }
+
     /// Called once every FC loop in order to keep track of how many FC loop iterations have passed.
-    pub fn advance_iteration_timers(&mut self) {
+    #[inline]
+    pub fn advance_iteration_indices(&mut self) {
         self.iteration = self.iteration.wrapping_add(1);
         self.s_frame_index = self.s_frame_index.wrapping_add(1);
 
