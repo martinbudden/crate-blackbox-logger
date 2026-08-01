@@ -1,8 +1,10 @@
 #![doc = include_str!("../README.md")]
-#![cfg_attr(not(test), no_std)]
+#![cfg_attr(all(not(test), not(feature = "std")), no_std)]
+#![cfg_attr(not(feature = "std"), no_main)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
 #![deny(clippy::panic)]
+#![deny(clippy::undocumented_unsafe_blocks)]
 #![deny(missing_docs)]
 #![deny(
     missing_copy_implementations,
@@ -26,6 +28,7 @@ mod field_arrays;
 mod field_definitions;
 mod huffman_decoder;
 mod huffman_encoder;
+mod huffman_generate;
 mod huffman_table;
 mod log_frames;
 mod logger;

@@ -123,10 +123,12 @@ mod tests {
     #[test]
     fn test_round_trip_lookup_table() {
         let original_input = [0u8, 1u8, 2u8, 3u8, 4u8];
-        let mut compressed_buffer = [0u8; 16];
+        let mut compressed_buffer = [0u8; 32];
 
         // 1. Compress
-        let writer = HuffmanEncoder::new(&mut compressed_buffer);
+        let Ok(writer) = HuffmanEncoder::<16>::new(&mut compressed_buffer) else {
+            panic!("Could not create HuffmanEncoder");
+        };
         let Ok(compressed_size) = writer.compress(&original_input) else {
             panic!("Compression failed unexpectedly with Err(())");
         };

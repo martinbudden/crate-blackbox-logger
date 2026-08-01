@@ -540,7 +540,12 @@ impl Logger {
     #[cfg(feature = "huffman")]
     pub fn convert_p_frame_to_q_frame(&mut self, encoder: &mut SliceEncoder, p_frame_start_pos: usize) {
         let p_frame_length = encoder.pos - p_frame_start_pos;
-        let huffman_writer = HuffmanEncoder::new(self.q_frame_buffer.as_mut_slice());
+        let Ok(huffman_writer) =
+            HuffmanEncoder::<{ Logger::Q_FRAME_MAX_INPUT_LENGTH }>::new(self.q_frame_buffer.as_mut_slice())
+        else {
+            // If we can't create the HuffmanEncoder, then we just return, which just gives us a p_frame.
+            return;
+        };
 
         // Skip over the initial 'P' character
         if let Some(slice) = encoder.get_slice(p_frame_start_pos + 1, p_frame_length - 1) {
@@ -558,7 +563,6 @@ impl Logger {
                 encoder.pos = p_frame_start_pos + q_frame_length;
             }
         }
-
         // If there are any errors in the compression, then we just return, which just gives us a p_frame.
     }
 }

@@ -112,7 +112,6 @@ impl BlackboxGpsPosition {
     }
 }
 
-
 /// GPS data that is recorded.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BlackboxGpsData {

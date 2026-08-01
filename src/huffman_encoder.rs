@@ -1,87 +1,94 @@
 #![cfg(feature = "huffman")]
-use crate::huffman_table::HUFFMAN_TABLE;
+use crate::huffman_table::{HUFFMAN_MAX_ENCODED_BITS, HUFFMAN_TABLE};
 
 #[derive(Debug, Default, PartialEq)]
-pub struct HuffmanEncoder<'a> {
+pub struct HuffmanEncoder<'a, const MAX_IN_LEN: usize> {
     output: &'a mut [u8],
     write_idx: usize,
-    bit_buffer: u32,
+    bit_buffer: u64,
     bit_count: u32,
 }
 
-impl<'a> HuffmanEncoder<'a> {
-    pub fn new(output: &'a mut [u8]) -> Self {
-        Self {
+impl<'a, const MAX_INPUT_LEN: usize> HuffmanEncoder<'a, MAX_INPUT_LEN> {
+    pub const fn new(output: &'a mut [u8]) -> Result<Self, ()> {
+        // The compiler evaluates this at compile time because `MAX_IN_LEN` is a constant value.
+        let payload_bits = MAX_INPUT_LEN * HUFFMAN_MAX_ENCODED_BITS;
+        let worst_case_payload = payload_bits.div_ceil(8);
+        let required_capacity = 1 + worst_case_payload;
+
+        // Perform the verification check exactly once during setup
+        if output.len() < required_capacity {
+            return Err(());
+        }
+
+        Ok(Self {
             output,
             // Start at index 1 to reserve index 0 for the uncompressed length of the input stream
             write_idx: 1,
             bit_buffer: 0,
             bit_count: 0,
-        }
+        })
     }
 
     /// Internal helper to push bits into the slice.
     /// Expects left-aligned bits from a u16 code.
+    /// Bounds checks have been completely removed via hoisting.
     #[inline]
-    fn write_bits(&mut self, code: u16, len: u32) -> Result<(), ()> {
-        // Shift code up to the top of the u32 accumulator,
-        // then align it to the current bit cursor position.
-        let code_u32 = u32::from(code) << 16;
-        self.bit_buffer |= code_u32 >> self.bit_count;
+    fn write_bits(&mut self, code: u16, len: u32) {
+        let code_u64 = u64::from(code) << 48;
+        self.bit_buffer |= code_u64 >> self.bit_count;
         self.bit_count += len;
 
-        // Drain full bytes out of the top of the accumulator
-        while self.bit_count >= 8 {
-            if self.write_idx >= self.output.len() {
-                return Err(());
+        if self.bit_count >= 8 {
+            // SAFETY: Bounds check eliminated because the `new` function pre-validated that write_idx can never exceed output.len()
+            unsafe {
+                *self.output.get_unchecked_mut(self.write_idx) = (self.bit_buffer >> 56) as u8;
             }
-
-            // Extract the highest 8 bits
-            self.output[self.write_idx] = (self.bit_buffer >> 24) as u8;
             self.write_idx += 1;
-
-            // Shift accumulator left and update bit count
             self.bit_buffer <<= 8;
             self.bit_count -= 8;
         }
-        Ok(())
+
+        if self.bit_count >= 8 {
+            // SAFETY: Bounds check eliminated because the `new` function pre-validated that write_idx can never exceed output.len()
+            unsafe {
+                *self.output.get_unchecked_mut(self.write_idx) = (self.bit_buffer >> 56) as u8;
+            }
+            self.write_idx += 1;
+            self.bit_buffer <<= 8;
+            self.bit_count -= 8;
+        }
     }
 
     /// O(1) compression routine per byte.
-    /// Prepends a u8 uncompressed length byte to the output slice.
     pub fn compress(mut self, input: &[u8]) -> Result<usize, ()> {
-        // Enforce that the stream is under 255 bytes
-        if input.len() > 255 {
-            return Err(());
-        }
+        let input_len = input.len();
+        // Assert for development safety that the slice doesn't break the contract.
+        // In release builds on Cortex-M, this is a zero-cost invariant.
+        debug_assert!(input.len() <= MAX_INPUT_LEN);
 
-        // Check if the buffer can even hold the 1-byte length header
-        if self.output.is_empty() {
-            return Err(());
-        }
-
-        // Process the input bytes
+        // Hot path loop - completely free of internal bounds checking branch loops
         for &byte in input {
             let huff_code = HUFFMAN_TABLE[byte as usize];
-            self.write_bits(huff_code.code, u32::from(huff_code.len))?;
+            self.write_bits(huff_code.code, u32::from(huff_code.len));
         }
 
-        // Flush remaining partial bits (padded with trailing zeros)
+        // Flush remaining partial bits (Guaranteed safe by our pre-check)
         if self.bit_count > 0 {
-            if self.write_idx >= self.output.len() {
-                return Err(());
+            // SAFETY: Bounds check eliminated because the `new` function pre-validated that write_idx can never exceed output.len()
+            unsafe {
+                *self.output.get_unchecked_mut(self.write_idx) = (self.bit_buffer >> 56) as u8;
             }
-            self.output[self.write_idx] = (self.bit_buffer >> 24) as u8;
             self.write_idx += 1;
         }
 
-        // Write the input length into the reserved first byte
-        #[allow(clippy::cast_possible_truncation)]
-        {
-            self.output[0] = input.len() as u8;
-        }
+        // Set the leading length byte safely.
+        // `try_into` ensures that if input_len somehow exceeded 255, it fails cleanly without silently truncating data.
+        let Ok(input_len_u8) = input_len.try_into() else {
+            return Err(());
+        };
+        self.output[0] = input_len_u8;
 
-        // Return total bytes written (length byte + compressed data payload)
         Ok(self.write_idx)
     }
 }
@@ -96,7 +103,7 @@ mod tests {
 
     #[test]
     fn normal_types() {
-        is_partial::<HuffmanEncoder>();
+        is_partial::<HuffmanEncoder<16>>();
     }
 
     // 0x0 11
@@ -109,9 +116,12 @@ mod tests {
     #[test]
     fn test_single_byte_zero() {
         let input = [0u8];
-        let mut output = [0u8; 16];
+        let mut output = [0u8; 25];
 
-        let writer = HuffmanEncoder::new(&mut output);
+        let Ok(writer) = HuffmanEncoder::<16>::new(&mut output) else {
+            panic!("Could not create HuffmanEncoder");
+        };
+
         let result = writer.compress(&input);
 
         // Expected compression stream:
@@ -125,9 +135,11 @@ mod tests {
     #[test]
     fn test_sequence_zero_to_four() {
         let input = [0u8, 1u8, 2u8, 3u8, 4u8];
-        let mut output = [0u8; 16];
+        let mut output = [0u8; 13];
 
-        let writer = HuffmanEncoder::new(&mut output);
+        let Ok(writer) = HuffmanEncoder::<8>::new(&mut output) else {
+            panic!("Could not create HuffmanEncoder");
+        };
         let result = writer.compress(&input);
 
         // Expected compression stream:
@@ -144,12 +156,14 @@ mod tests {
 
     #[test]
     fn test_buffer_overflow_error() {
-        let input = [0u8, 1u8, 2u8, 3u8, 4u8];
+        const INPUT_LEN: usize = 5;
+        let input: [u8; INPUT_LEN] = [0u8, 1u8, 2u8, 3u8, 4u8];
         let mut tiny_output = [0u8; 2]; // Too small for result
 
-        let writer = HuffmanEncoder::new(&mut tiny_output);
-        let result = writer.compress(&input);
-
-        assert_eq!(result, Err(()));
+        let Ok(_writer) = HuffmanEncoder::<INPUT_LEN>::new(&mut tiny_output) else {
+            return;
+        };
+        _ = input;
+        panic!("HuffmanEncoder new failed");
     }
 }

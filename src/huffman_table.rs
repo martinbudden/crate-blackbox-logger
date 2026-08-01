@@ -1,6 +1,7 @@
 #![cfg(feature = "huffman")]
 
 pub const HUFFMAN_TABLE_SIZE: usize = 256;
+pub const HUFFMAN_MAX_ENCODED_BITS: usize = 12;
 
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct HuffmanCode {

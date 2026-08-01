@@ -8,6 +8,9 @@ use crate::{
 #[cfg(feature = "gps")]
 use crate::data::{BlackboxGpsData, BlackboxGpsPosition};
 
+#[cfg(feature = "huffman")]
+use crate::huffman_table::HUFFMAN_MAX_ENCODED_BITS;
+
 use simple_bitset::BitSet64;
 
 /// System info.
@@ -84,6 +87,12 @@ impl Default for Logger {
 }
 
 impl Logger {
+    /// Max input length for Huffman compression.
+    #[cfg(feature = "huffman")]
+    pub const Q_FRAME_MAX_INPUT_LENGTH: usize = 64;
+    #[cfg(feature = "huffman")]
+    const Q_FRAME_BUFFER_CAPACITY: usize = (Self::Q_FRAME_MAX_INPUT_LENGTH * HUFFMAN_MAX_ENCODED_BITS).div_ceil(8) + 2;
+
     /// Constructor.
     #[must_use]
     pub const fn new() -> Self {
@@ -131,9 +140,6 @@ impl Logger {
 }
 
 impl Logger {
-    #[cfg(feature = "huffman")]
-    const Q_FRAME_BUFFER_CAPACITY: usize = 256;
-
     /// Initialization. Builds field condition cache and resets timers.
     pub fn init(&mut self, sample_rate: u8, fields_disabled_mask: u32, huffman_compress: bool) {
         #[cfg(feature = "huffman")]

@@ -119,7 +119,6 @@ pub fn write_field_line_header(writer: &mut dyn BlackboxWriter, frame_type: char
 }
 /// Encoder to write slice using variable-length encoding.
 #[derive(Debug, Default, PartialEq)]
-
 #[allow(missing_docs)]
 pub struct SliceEncoder<'a> {
     pub buffer: &'a mut [u8],
