@@ -21,16 +21,12 @@ rustc_version = "0.4.1"
 
 [features]
 #default =[]
-#default = ["libm"]
-#default = ["libm", "dshot_telemetry", "gps", "serde"]
-default = ["libm", "dshot_telemetry", "gps", "serde", "huffman", "std", "magnetometer", "rangefinder", "servos"]
-#default = ["libm", "dshot_telemetry", "serde", "huffman", "std"]
+#default = ["dshot_telemetry", "gps", "serde"]
+default = ["dshot_telemetry", "gps", "serde", "huffman", "std", "magnetometer", "rangefinder", "servos"]
+#default = ["dshot_telemetry", "serde", "huffman", "std"]
 #default = ["dshot_telemetry", "eight_motors", "gps"]
-#default = ["libm", "dshot_telemetry", "eight_motors", "gps", "servos"]
-libm = ["vqm/libm"]
-serde = ["dep:serde", "postcard", "sequential-storage", "vqm/serde"]
-align = ["vqm/align"]
-simd = ["vqm/simd"]
+#default = ["dshot_telemetry", "eight_motors", "gps", "servos"]
+serde = ["dep:serde", "postcard", "sequential-storage"]
 
 barometer = []
 dshot_telemetry = []
@@ -42,17 +38,12 @@ rangefinder = []
 servos = []
 
 # Target platforms
-std = [
-    "vqm/std",
-]
+std = []
 
 [dependencies]
 serde = { version = "1.0.228", default-features = false, features = ["derive"], optional = true }
 postcard = { version = "1.1.3", default-features = false, features = ["embedded-io"], optional = true }
 sequential-storage = { version = "7.2.0", features = ["postcard"], optional = true }
-#vqm = { version = "0.1.13" }
-vqm = { git = "https://github.com/martinbudden/crate-vector-quaternion-matrix" }
-#vqm = { path = "../vqm" }
 simple-bitset = { version = "0.1.5" }
 #simple-bitset = { git = "https://github.com/martinbudden/crate-simple-bitset" }
 
