@@ -2,7 +2,7 @@
 use crate::huffman_table::{HUFFMAN_MAX_ENCODED_BITS, HUFFMAN_TABLE};
 
 #[derive(Debug, Default, PartialEq)]
-pub struct HuffmanEncoder<'a, const MAX_IN_LEN: usize> {
+pub struct HuffmanEncoder<'a, const MAX_INPUT_LEN: usize> {
     output: &'a mut [u8],
     write_idx: usize,
     bit_buffer: u64,
@@ -61,11 +61,19 @@ impl<'a, const MAX_INPUT_LEN: usize> HuffmanEncoder<'a, MAX_INPUT_LEN> {
     }
 
     /// O(1) compression routine per byte.
-    pub fn compress(mut self, input: &[u8]) -> Result<usize, ()> {
+    pub fn try_compress(mut self, input: &[u8]) -> Result<usize, ()> {
         let input_len = input.len();
-        // Assert for development safety that the slice doesn't break the contract.
-        // In release builds on Cortex-M, this is a zero-cost invariant.
-        debug_assert!(input.len() <= MAX_INPUT_LEN);
+
+        // ensure that when input is compressed, the max encoded bits will not exceed the output buffer size.
+        if input_len > MAX_INPUT_LEN {
+            return Err(());
+        }
+
+        // ensure the that input length fits in a u8.
+        let Ok(input_len_u8) = u8::try_from(input_len) else {
+            return Err(());
+        };
+        self.output[0] = input_len_u8;
 
         // Hot path loop - completely free of internal bounds checking branch loops
         for &byte in input {
@@ -82,13 +90,7 @@ impl<'a, const MAX_INPUT_LEN: usize> HuffmanEncoder<'a, MAX_INPUT_LEN> {
             self.write_idx += 1;
         }
 
-        // Set the leading length byte safely.
-        // `try_into` ensures that if input_len somehow exceeded 255, it fails cleanly without silently truncating data.
-        let Ok(input_len_u8) = input_len.try_into() else {
-            return Err(());
-        };
-        self.output[0] = input_len_u8;
-
+        // Return the output length
         Ok(self.write_idx)
     }
 }
@@ -116,13 +118,13 @@ mod tests {
     #[test]
     fn test_single_byte_zero() {
         let input = [0u8];
-        let mut output = [0u8; 25];
+        let mut output = [0u8; 27];
 
-        let Ok(writer) = HuffmanEncoder::<16>::new(&mut output) else {
+        let Ok(huffman_encoder) = HuffmanEncoder::<16>::new(&mut output) else {
             panic!("Could not create HuffmanEncoder");
         };
 
-        let result = writer.compress(&input);
+        let result = huffman_encoder.try_compress(&input);
 
         // Expected compression stream:
         // '0' symbol:  11 (2 bits)
@@ -135,23 +137,25 @@ mod tests {
     #[test]
     fn test_sequence_zero_to_four() {
         let input = [0u8, 1u8, 2u8, 3u8, 4u8];
-        let mut output = [0u8; 13];
+        let mut output = [0u8; 14];
 
-        let Ok(writer) = HuffmanEncoder::<8>::new(&mut output) else {
+        let Ok(huffman_encoder) = HuffmanEncoder::<8>::new(&mut output) else {
             panic!("Could not create HuffmanEncoder");
         };
-        let result = writer.compress(&input);
+        let Ok(result) = huffman_encoder.try_compress(&input) else {
+            panic!("try_compress failed");
+        };
 
         // Expected compression stream:
         // '0':   11       (2 bits)
-        // '1':   101      (3 bits)
-        // '2':   1001     (4 bits)
-        // '3':   10001    (5 bits)
-        // '4':   10000    (5 bits)
-        // Stream: 11101100 11000110 00 000000 -> [5, 0xEC, 0xC6, 0x00]
-        assert_eq!(result, Ok(4)); // length of output stream, including length byte, is 4
+        // '1':   011      (3 bits)
+        // '2':   001      (3 bits)
+        // '3':   10111    (5 bits)
+        // '4':   0001     (4 bits)
+        // Stream: 1101 1001 1011 1000 1 -> [5, 0xD9, 0xB8, 0x00]
+        assert_eq!(result, 4); // length of output stream, including length byte, is 4
         // the length byte is the length of the input stream
-        assert_eq!(&output[..4], &[5, 0xEC, 0xC6, 0x00]);
+        assert_eq!(&output[..4], &[5, 0xD9, 0xB8, 0x80]);
     }
 
     #[test]
@@ -160,7 +164,7 @@ mod tests {
         let input: [u8; INPUT_LEN] = [0u8, 1u8, 2u8, 3u8, 4u8];
         let mut tiny_output = [0u8; 2]; // Too small for result
 
-        let Ok(_writer) = HuffmanEncoder::<INPUT_LEN>::new(&mut tiny_output) else {
+        let Ok(_huffman_encoder) = HuffmanEncoder::<INPUT_LEN>::new(&mut tiny_output) else {
             return;
         };
         _ = input;

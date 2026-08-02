@@ -45,7 +45,6 @@ pub enum FieldSign {
     Signed = 1,
 }
 
-#[allow(unused)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(u8)]
 pub enum FieldPredictor {
@@ -57,9 +56,11 @@ pub enum FieldPredictor {
     MinThrottle = 4,
     Motor0 = 5,
     Inc = 6,
+    #[cfg(feature = "gps")]
     HomeCoord = 7,
-    S1500 = 8,
+    _S1500 = 8,
     VBatRef = 9,
+    #[cfg(feature = "gps")]
     LastMainFrameTime = 10,
     MinMotor = 11,
 }
@@ -75,8 +76,7 @@ pub enum FieldEncoding {
     Tag2_3S32 = 7,
     Tag8_4S16 = 8,
     Null = 9,
-    #[allow(unused)]
-    Tag2_3SVariable = 10,
+    _Tag2_3SVariable = 10,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

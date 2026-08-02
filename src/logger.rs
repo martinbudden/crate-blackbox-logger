@@ -264,14 +264,14 @@ impl Logger {
         } else {
             if self.should_log_p_frame() {
                 // Log s_frame alongside p_frame.
+                #[allow(unused_variables)]
+                let p_frame_start_pos = self.log_p_frame(encoder);
                 #[cfg(feature = "huffman")]
                 {
-                    let p_frame_start_pos = self.log_p_frame(encoder);
-                    self.convert_p_frame_to_q_frame(encoder, p_frame_start_pos);
-                }
-                #[cfg(not(feature = "huffman"))]
-                {
-                    _ = self.log_p_frame(encoder);
+                    if self.huffman_compress {
+                        // Attempt to convert the p_frame to a q_frame. If it fails, then we just leave the p_frame intact.
+                        _ = self.try_convert_p_frame_to_q_frame(encoder, p_frame_start_pos);
+                    }
                 }
             }
             if self.should_log_s_frame() {

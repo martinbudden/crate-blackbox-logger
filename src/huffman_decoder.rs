@@ -1,9 +1,9 @@
 #![cfg(feature = "huffman")]
 #![allow(unused)]
 
-use crate::huffman_table::{HUFFMAN_TABLE, HUFFMAN_TABLE_SIZE};
+use crate::huffman_table::{HUFFMAN_MAX_ENCODED_BITS, HUFFMAN_TABLE, HUFFMAN_TABLE_SIZE};
 
-pub const LUT_SIZE: usize = 1 << 12; // 4096 entries
+pub const LUT_SIZE: usize = 1 << HUFFMAN_MAX_ENCODED_BITS; // 4096 entries
 
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct DecoderEntry {
@@ -11,6 +11,7 @@ pub struct DecoderEntry {
     pub len: u8,     // The exact bit length of this code
 }
 
+#[allow(clippy::large_const_arrays)]
 pub const DECODER_LUT: [DecoderEntry; LUT_SIZE] = {
     let mut lut = [DecoderEntry { symbol: 0, len: 0 }; LUT_SIZE];
 
@@ -21,12 +22,12 @@ pub const DECODER_LUT: [DecoderEntry; LUT_SIZE] = {
 
         if len > 0 {
             // Your HUFFMAN_TABLE code is left-aligned in a u16.
-            // Move it to the highest bits of a 12-bit index.
-            let base_idx = (huff.code >> 4) as usize;
+            // Move it to the highest bits of a HUFFMAN_MAX_ENCODED_BITS-bit index.
+            let base_idx = (huff.code >> (16 - HUFFMAN_MAX_ENCODED_BITS)) as usize;
 
             // How many trailing bit combinations exist for this prefix?
-            // E.g., if len is 2, there are 12 - 2 = 10 variable trailing bits.
-            let num_entries = 1 << (12 - len);
+            // E.g., if len is 2, there are HUFFMAN_MAX_ENCODED_BITS - 2 = 10 variable trailing bits.
+            let num_entries = 1 << (HUFFMAN_MAX_ENCODED_BITS - len);
 
             let mut jj = 0;
             #[allow(clippy::cast_possible_truncation)]
@@ -43,7 +44,7 @@ pub const DECODER_LUT: [DecoderEntry; LUT_SIZE] = {
 pub struct HuffmanDecoder<'a> {
     input: &'a [u8],
     read_idx: usize,
-    bit_buffer: u64, // Using u64 makes it easy to keep at least 12 bits ready
+    bit_buffer: u64, // Using u64 makes it easy to keep at least HUFFMAN_MAX_ENCODED_BITS bits ready
     bit_count: u32,
 }
 
@@ -52,7 +53,7 @@ impl<'a> HuffmanDecoder<'a> {
         Self { input, read_idx: 0, bit_buffer: 0, bit_count: 0 }
     }
 
-    /// Pulls data from the input slice until we have at least 12 bits buffered.
+    /// Pulls data from the input slice until we have at least `HUFFMAN_MAX_ENCODED_BITS` bits buffered.
     #[inline]
     fn refill_buffer(&mut self) {
         while self.bit_count <= 56 && self.read_idx < self.input.len() {
@@ -88,8 +89,8 @@ impl<'a> HuffmanDecoder<'a> {
                 return Err(()); // Stream ended early
             }
 
-            // Peek the top 12 bits from the buffer to form our LUT index
-            let lut_idx = (self.bit_buffer >> 52) as usize;
+            // Peek the top HUFFMAN_MAX_ENCODED_BITS bits from the buffer to form our LUT index
+            let lut_idx = (self.bit_buffer >> (64 - HUFFMAN_MAX_ENCODED_BITS)) as usize;
             let entry = DECODER_LUT[lut_idx];
 
             // If length is 0, the bit sequence is invalid/corrupt
@@ -129,7 +130,7 @@ mod tests {
         let Ok(writer) = HuffmanEncoder::<16>::new(&mut compressed_buffer) else {
             panic!("Could not create HuffmanEncoder");
         };
-        let Ok(compressed_size) = writer.compress(&original_input) else {
+        let Ok(compressed_size) = writer.try_compress(&original_input) else {
             panic!("Compression failed unexpectedly with Err(())");
         };
 

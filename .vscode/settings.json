@@ -44,6 +44,7 @@
         "nocapture",
         "ONESHOT",
         "pidsum",
+        "println",
         "Protoflight",
         "Quaternionf",
         "RSSI",
@@ -64,10 +65,12 @@
         "thiserror",
         "TRICOPTER",
         "Unfilt",
+        "usize",
         "vbat",
         "vbatcellvoltage",
         "vbatref",
         "vbatscale",
-        "velned"
+        "velned",
+        "writeln"
     ]
 }

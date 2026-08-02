@@ -12,8 +12,15 @@ impl SFD {
     pub const GPS_H_FIELD_COUNT: usize = 4;
 
     #[allow(unused)]
-    pub fn find_by_name(name: &str) -> Option<&'static Self> {
+    #[cfg(test)]
+    pub fn find_s_field_by_name(name: &str) -> Option<&'static Self> {
         BLACKBOX_SLOW_FIELDS.iter().find(|field| field.name == name)
+    }
+
+    #[allow(unused)]
+    #[cfg(all(test, feature = "gps"))]
+    pub fn find_h_field_by_name(name: &str) -> Option<&'static Self> {
+        BLACKBOX_GPS_H_FIELDS.iter().find(|field| field.name == name)
     }
 }
 
@@ -22,14 +29,16 @@ impl CFD {
     pub const GPS_G_FIELD_COUNT: usize = 11;
 
     #[allow(unused)]
-    pub fn find_by_name(name: &str) -> Option<&'static Self> {
+    #[cfg(test)]
+    pub fn find_g_field_by_name(name: &str) -> Option<&'static Self> {
         BLACKBOX_GPS_G_FIELDS.iter().find(|field| field.name == name)
     }
 }
 
 impl MFD {
     #[allow(unused)]
-    pub fn find_by_name(name: &str) -> Option<&'static Self> {
+    #[cfg(test)]
+    pub fn find_main_field_by_name(name: &str) -> Option<&'static Self> {
         BLACKBOX_MAIN_FIELDS.iter().find(|field| field.name == name)
     }
 }

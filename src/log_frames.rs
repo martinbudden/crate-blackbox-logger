@@ -1,6 +1,6 @@
 use crate::{
     BlackboxWriter, SliceEncoder,
-    data::{BlackboxEvent, BlackboxEventId, BlackboxMainData},
+    data::{BlackboxEvent, BlackboxEventId},
     field_definitions::{FieldCondition, FieldSelect},
     logger::Logger,
 };
@@ -8,17 +8,23 @@ use crate::{
 #[cfg(feature = "huffman")]
 use crate::huffman_encoder::HuffmanEncoder;
 
+#[cfg(feature = "servos")]
+use crate::data::BlackboxMainData;
+
 #[allow(unused)]
 use crate::field_definitions::FieldPredictor; // used in macro_rules, so sometimes not visible to compiler
 
 #[cfg(test)]
-use crate::field_definitions::{FieldEncoding, MainFieldDefinition};
+use crate::field_definitions::{FieldEncoding, MainFieldDefinition, SimpleFieldDefinition};
+
+#[cfg(all(test, feature = "gps"))]
+use crate::field_definitions::ConditionalFieldDefinition;
 
 macro_rules! assert_i_field_encoding {
     ($name:expr, $expected_predict:expr, $expected_encode:expr) => {
         #[cfg(test)]
         {
-            let field = MainFieldDefinition::find_by_name($name).expect(concat!("Field not found: ", $name));
+            let field = MainFieldDefinition::find_main_field_by_name($name).expect(concat!("Field not found: ", $name));
             assert_eq!(field.i_predict, $expected_predict, "I PREDICT mismatch for field: \"{}\"", $name);
             assert_eq!(field.i_encode, $expected_encode, "I ENCODE mismatch for field: \"{}\"", $name);
         }
@@ -29,9 +35,45 @@ macro_rules! assert_p_field_encoding {
     ($name:expr, $expected_predict:expr, $expected_encode:expr) => {
         #[cfg(test)]
         {
-            let field = MainFieldDefinition::find_by_name($name).expect(concat!("Field not found: ", $name));
+            let field = MainFieldDefinition::find_main_field_by_name($name).expect(concat!("Field not found: ", $name));
             assert_eq!(field.p_predict, $expected_predict, "P PREDICT mismatch for field: \"{}\"", $name);
             assert_eq!(field.p_encode, $expected_encode, "P ENCODE mismatch for field: \"{}\"", $name);
+        }
+    };
+}
+
+macro_rules! assert_s_field_encoding {
+    ($name:expr, $expected_predict:expr, $expected_encode:expr) => {
+        #[cfg(test)]
+        {
+            let field = SimpleFieldDefinition::find_s_field_by_name($name).expect(concat!("Field not found: ", $name));
+            assert_eq!(field.predict, $expected_predict, "PREDICT mismatch for field: \"{}\"", $name);
+            assert_eq!(field.encode, $expected_encode, "ENCODE mismatch for field: \"{}\"", $name);
+        }
+    };
+}
+
+#[cfg(feature = "gps")]
+macro_rules! assert_h_field_encoding {
+    ($name:expr, $expected_predict:expr, $expected_encode:expr) => {
+        #[cfg(test)]
+        {
+            let field = SimpleFieldDefinition::find_h_field_by_name($name).expect(concat!("Field not found: ", $name));
+            assert_eq!(field.predict, $expected_predict, "PREDICT mismatch for field: \"{}\"", $name);
+            assert_eq!(field.encode, $expected_encode, "ENCODE mismatch for field: \"{}\"", $name);
+        }
+    };
+}
+
+#[cfg(feature = "gps")]
+macro_rules! assert_g_field_encoding {
+    ($name:expr, $expected_predict:expr, $expected_encode:expr) => {
+        #[cfg(test)]
+        {
+            let field =
+                ConditionalFieldDefinition::find_g_field_by_name($name).expect(concat!("Field not found: ", $name));
+            assert_eq!(field.predict, $expected_predict, "PREDICT mismatch for field: \"{}\"", $name);
+            assert_eq!(field.encode, $expected_encode, "ENCODE mismatch for field: \"{}\"", $name);
         }
     };
 }
@@ -89,9 +131,15 @@ impl Logger {
 
         encoder.begin_frame(b'S');
 
+        assert_s_field_encoding!("flight_mode_flags", FieldPredictor::Zero, FieldEncoding::UnsignedVb);
         encoder.write_unsigned_vb(self.slow_data.flight_mode_flags);
+
+        assert_s_field_encoding!("state_flags", FieldPredictor::Zero, FieldEncoding::UnsignedVb);
         encoder.write_unsigned_vb(u32::from(self.slow_data.gps_state_flags));
 
+        assert_s_field_encoding!("failsafe_phase", FieldPredictor::Zero, FieldEncoding::Tag2_3S32);
+        assert_s_field_encoding!("rx_signal_received", FieldPredictor::Zero, FieldEncoding::Tag2_3S32);
+        assert_s_field_encoding!("rx_flight_channel_is_valid", FieldPredictor::Zero, FieldEncoding::Tag2_3S32);
         // Most of the time these three values will be able to pack into one byte.
         let values = [
             i32::from(self.slow_data.failsafe_phase),
@@ -110,11 +158,14 @@ impl Logger {
 
         encoder.begin_frame(b'H');
 
+        assert_h_field_encoding!("GPS_home", FieldPredictor::Zero, FieldEncoding::SignedVb);
         encoder.write_signed_vb(self.gps_home.latitude_degrees_x1e7);
         encoder.write_signed_vb(self.gps_home.longitude_degrees_x1e7);
         // log altitude in increments of 0.1m
         encoder.write_signed_vb(self.gps_home.altitude_cm / 10);
+
         // TODO: convert gps time to unix time
+        assert_h_field_encoding!("GPS_home_epoch", FieldPredictor::Zero, FieldEncoding::UnsignedVb);
         encoder.write_unsigned_vb(0);
 
         encoder.end_frame();
@@ -130,31 +181,41 @@ impl Logger {
         // If we're logging every frame, then a GPS frame always appears just after a frame with the
         // current_time timestamp in the log, so the reader can just use that timestamp for the GPS frame.
         // If we're not logging every frame, we need to store the time of this GPS frame.
+        assert_g_field_encoding!("time", FieldPredictor::LastMainFrameTime, FieldEncoding::UnsignedVb);
         if self.conditions.test(FieldCondition::NOT_LOGGING_EVERY_FRAME) {
             // Predict the time of the last frame in the main log
             encoder.write_unsigned_vb(current_time_us - self.main_data[0].time_us);
         }
 
+        assert_g_field_encoding!("GPS_numSat", FieldPredictor::Zero, FieldEncoding::UnsignedVb);
         encoder.write_unsigned_vb(u32::from(self.gps_data.satellite_count));
+
+        assert_g_field_encoding!("GPS_coord", FieldPredictor::HomeCoord, FieldEncoding::SignedVb);
         encoder.write_signed_vb(self.gps_data.position.latitude_degrees_x1e7 - self.gps_home.latitude_degrees_x1e7);
         encoder.write_signed_vb(self.gps_data.position.longitude_degrees_x1e7 - self.gps_home.longitude_degrees_x1e7);
+
         // log altitude in increments of 0.1m
+        assert_g_field_encoding!("GPS_altitude", FieldPredictor::Zero, FieldEncoding::SignedVb);
         encoder.write_signed_vb(self.gps_data.position.altitude_cm / 10);
 
-        #[allow(clippy::cast_sign_loss)]
         //if self.config.gps_use_3d_speed {
         //    encoder.write_unsigned_vb(self.gps_data.speed3d_cmps as u32);
         //} else {
+        assert_g_field_encoding!("GPS_speed", FieldPredictor::Zero, FieldEncoding::UnsignedVb);
+        #[allow(clippy::cast_sign_loss)]
         encoder.write_unsigned_vb(self.gps_data.ground_speed_cmps as u32);
         //}
 
+        assert_g_field_encoding!("GPS_ground_course", FieldPredictor::Zero, FieldEncoding::UnsignedVb);
         #[allow(clippy::cast_sign_loss)]
         encoder.write_unsigned_vb(self.gps_data.ground_course_degrees_x10 as u32);
 
+        assert_g_field_encoding!("GPS_velned", FieldPredictor::Zero, FieldEncoding::SignedVb);
         encoder.write_signed_vb_16(self.gps_data.velocity_north_cmps);
         encoder.write_signed_vb_16(self.gps_data.velocity_east_cmps);
         encoder.write_signed_vb_16(self.gps_data.velocity_down_cmps);
 
+        assert_g_field_encoding!("GPS_time", FieldPredictor::Zero, FieldEncoding::UnsignedVb);
         encoder.write_unsigned_vb(self.gps_data.time_of_week_ms);
         encoder.end_frame();
     }
@@ -311,7 +372,7 @@ impl Logger {
         #[cfg(feature = "servos")]
         if self.conditions.test(FieldCondition::SERVOS) {
             let out: [i32; BlackboxMainData::MAX_SUPPORTED_SERVO_COUNT] =
-                core::array::from_fn(|i| i32::from(current.servos[i]) - FieldPredictor::S_1500);
+                core::array::from_fn(|i| i32::from(current.servos[i]) - 1500);
             encoder.write_tag8_8svb(&out);
         }
 
@@ -401,7 +462,7 @@ impl Logger {
             }
         }
 
-        // RC tends to stay the same or fairly small for many frames at a time, so use an encoding that
+        // RC tends to stay the same or fairly small for many frames at a time, so use an encoding that reflects that.
         assert_p_field_encoding!("rcCommand", FieldPredictor::Previous, FieldEncoding::Tag8_4S16);
         if self.conditions.test(FieldCondition::RC_COMMANDS) {
             let deltas = [
@@ -424,7 +485,7 @@ impl Logger {
         }
 
         // Check for sensors that are updated periodically (so deltas are normally zero)
-        let mut deltas = <[i32; 8]>::default();
+        let mut deltas = [0i32; 8];
         let mut tag8_field_count = 0_usize;
 
         assert_p_field_encoding!("vbatLatest", FieldPredictor::Previous, FieldEncoding::Tag8_8SVb);
@@ -455,8 +516,8 @@ impl Logger {
         assert_p_field_encoding!("magADC", FieldPredictor::Previous, FieldEncoding::Tag8_8SVb);
         #[cfg(feature = "magnetometer")]
         if self.conditions.test(FieldCondition::MAGNETOMETER) {
-            for ii in 0..BlackboxMainData::XYZ_AXIS_COUNT {
-                deltas[tag8_field_count] = i32::from(current.mag[ii].wrapping_sub(previous.mag[ii]));
+            for (&current_mag, &previous_mag) in current.mag.iter().zip(previous.mag.iter()) {
+                deltas[tag8_field_count] = i32::from(current_mag.wrapping_sub(previous_mag));
                 tag8_field_count += 1;
             }
         }
@@ -468,59 +529,73 @@ impl Logger {
         // Since gyros, accelerometers and motors are noisy, base their predictions on the average of the history:
         assert_p_field_encoding!("gyroADC", FieldPredictor::Previous, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::GYRO) {
-            for ii in 0..BlackboxMainData::XYZ_AXIS_COUNT {
-                encoder.write_signed_vb_16(current.gyro[ii] - previous.gyro[ii]);
+            for (&current_gyro, &previous_gyro) in current.gyro.iter().zip(&previous.gyro) {
+                encoder.write_signed_vb_16(current_gyro - previous_gyro);
             }
         }
         assert_p_field_encoding!("gyroUnfilt", FieldPredictor::Average2, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::GYRO_UNFILTERED) {
-            for ii in 0..BlackboxMainData::XYZ_AXIS_COUNT {
-                let predicted = i16::midpoint(previous.gyro_unfiltered[ii], pre_previous.gyro_unfiltered[ii]);
-                encoder.write_signed_vb_16(current.gyro_unfiltered[ii].wrapping_sub(predicted));
+            for ((&current_gyro, &previous_gyro), &pre_previous_gyro) in
+                current.gyro_unfiltered.iter().zip(&previous.gyro_unfiltered).zip(&pre_previous.gyro_unfiltered)
+            {
+                let predicted = i16::midpoint(previous_gyro, pre_previous_gyro);
+                encoder.write_signed_vb_16(current_gyro.wrapping_sub(predicted));
             }
         }
         assert_p_field_encoding!("accSmooth", FieldPredictor::Average2, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::ACC) {
-            for ii in 0..BlackboxMainData::XYZ_AXIS_COUNT {
-                let predicted = i16::midpoint(previous.acc[ii], pre_previous.acc[ii]);
-                encoder.write_signed_vb_16(current.acc[ii].wrapping_sub(predicted));
+            for ((&current_acc, &previous_acc), &pre_previous_acc) in
+                current.acc.iter().zip(&previous.acc).zip(&pre_previous.acc)
+            {
+                let predicted = i16::midpoint(previous_acc, pre_previous_acc);
+                encoder.write_signed_vb_16(current_acc.wrapping_sub(predicted));
             }
         }
         assert_p_field_encoding!("imuQuaternion", FieldPredictor::Average2, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::ATTITUDE) {
-            for ii in 0..BlackboxMainData::XYZ_AXIS_COUNT {
-                let predicted = i16::midpoint(previous.orientation[ii], pre_previous.orientation[ii]);
-                encoder.write_signed_vb_16(current.orientation[ii].wrapping_sub(predicted));
+            for ((&current_orientation, &previous_orientation), &pre_previous_orientation) in
+                current.orientation.iter().zip(&previous.orientation).zip(&pre_previous.orientation)
+            {
+                let predicted = i16::midpoint(previous_orientation, pre_previous_orientation);
+                encoder.write_signed_vb_16(current_orientation.wrapping_sub(predicted));
             }
         }
 
         assert_p_field_encoding!("debug", FieldPredictor::Average2, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::DEBUG) {
-            for ii in 0..BlackboxMainData::DEBUG_COUNT {
-                let predicted = i16::midpoint(previous.debug[ii], pre_previous.debug[ii]);
-                encoder.write_signed_vb_16(current.debug[ii].wrapping_sub(predicted));
+            for ((&current_debug, &previous_debug), &pre_previous_debug) in
+                current.debug.iter().zip(&previous.debug).zip(&pre_previous.debug)
+            {
+                let predicted = i16::midpoint(previous_debug, pre_previous_debug);
+                encoder.write_signed_vb_16(current_debug.wrapping_sub(predicted));
             }
         }
         assert_p_field_encoding!("motor", FieldPredictor::Average2, FieldEncoding::SignedVb);
         if Logger::field_enabled(self.enabled_fields, FieldSelect::MOTOR) {
-            for ii in 0..self.motor_count {
-                let predicted = u16::midpoint(previous.motor[ii], pre_previous.motor[ii]);
-                encoder.write_signed_vb_16(current.motor[ii].wrapping_sub(predicted).cast_signed());
+            for ((&current_motor, &previous_motor), &pre_previous_motor) in current.motor[..self.motor_count]
+                .iter()
+                .zip(&previous.motor[..self.motor_count])
+                .zip(&pre_previous.motor[..self.motor_count])
+            {
+                let predicted = u16::midpoint(previous_motor, pre_previous_motor);
+                encoder.write_signed_vb_16(current_motor.wrapping_sub(predicted).cast_signed());
             }
         }
         #[cfg(feature = "dshot_telemetry")]
         assert_p_field_encoding!("eRPM", FieldPredictor::Previous, FieldEncoding::SignedVb);
         #[cfg(feature = "dshot_telemetry")]
         if Logger::field_enabled(self.enabled_fields, FieldSelect::MOTOR_RPM) {
-            for ii in 0..self.motor_count {
-                encoder.write_signed_vb_16(current.erpm[ii].wrapping_sub(previous.erpm[ii]).cast_signed());
+            for (&current_erpm, &previous_erpm) in
+                current.erpm[..self.motor_count].iter().zip(&previous.erpm[..self.motor_count])
+            {
+                encoder.write_signed_vb_16(current_erpm.wrapping_sub(previous_erpm).cast_signed());
             }
         }
 
         #[cfg(feature = "servos")]
         if self.conditions.test(FieldCondition::SERVOS) {
             let servos: [i32; BlackboxMainData::MAX_SUPPORTED_SERVO_COUNT] =
-                core::array::from_fn(|ii| i32::from(current.servos[ii]) - FieldPredictor::S_1500);
+                core::array::from_fn(|ii| i32::from(current.servos[ii]) - 1500);
             encoder.write_tag8_8svb(&servos);
         }
         encoder.end_frame();
@@ -537,33 +612,32 @@ impl Logger {
     }
 
     /// Convert a `p_frame` to a Huffman encoded `q_frame`.
+    /// If there are any errors in the conversion, then we just return false, and leave the `p_frame` intact.
     #[cfg(feature = "huffman")]
-    pub fn convert_p_frame_to_q_frame(&mut self, encoder: &mut SliceEncoder, p_frame_start_pos: usize) {
+    pub fn try_convert_p_frame_to_q_frame(&mut self, encoder: &mut SliceEncoder, p_frame_start_pos: usize) -> bool {
         let p_frame_length = encoder.pos - p_frame_start_pos;
-        let Ok(huffman_writer) =
+        let Ok(huffman_encoder) =
             HuffmanEncoder::<{ Logger::Q_FRAME_MAX_INPUT_LENGTH }>::new(self.q_frame_buffer.as_mut_slice())
         else {
-            // If we can't create the HuffmanEncoder, then we just return, which just gives us a p_frame.
-            return;
+            // If we can't create the HuffmanEncoder, then we just return false, and leave the `p_frame` intact.
+            return false;
         };
 
-        // Skip over the initial 'P' character
-        if let Some(slice) = encoder.get_slice(p_frame_start_pos + 1, p_frame_length - 1) {
-            #[allow(clippy::cast_possible_truncation)]
-            if let Ok(q_frame_length) = huffman_writer.compress(slice)
-                && q_frame_length < p_frame_length
-                && q_frame_length <= u8::MAX.into()
-            {
-                // set the frame type to Q.
-                encoder.buffer[p_frame_start_pos] = b'Q';
-                // set the length byte
-                encoder.buffer[p_frame_start_pos + 1] = q_frame_length as u8;
-                // copy the q_frame_buffer into the encoder buffer
-                // set the encoder position
-                encoder.pos = p_frame_start_pos + q_frame_length;
-            }
+        // Skip over the initial 'P' character.
+        if let Some(slice) = encoder.get_slice(p_frame_start_pos + 1, p_frame_length - 1)
+            && let Ok(q_frame_length) = huffman_encoder.try_compress(slice)
+            && q_frame_length < p_frame_length
+        {
+            // Set the frame type to Q.
+            encoder.buffer[p_frame_start_pos] = b'Q';
+            // Copy the q_frame_buffer into the encoder buffer.
+            encoder.buffer[p_frame_start_pos + 1..p_frame_start_pos + 1 + q_frame_length]
+                .copy_from_slice(&self.q_frame_buffer.as_slice()[..q_frame_length]);
+            // Set the encoder position.
+            encoder.pos = p_frame_start_pos + q_frame_length + 1;
+            return true;
         }
-        // If there are any errors in the compression, then we just return, which just gives us a p_frame.
+        false
     }
 }
 
@@ -571,6 +645,52 @@ impl Logger {
 mod tests {
 
     use super::*;
+
+    #[cfg(feature = "gps")]
+    #[test]
+    fn e_encodings() {
+        let mut blackbox = Logger::default();
+
+        let mut buffer = [0u8; 512];
+        let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
+
+        blackbox.log_e_frame(&mut encoder, BlackboxEvent::LogEnd);
+    }
+
+    #[cfg(feature = "gps")]
+    #[test]
+    fn g_encodings() {
+        let mut blackbox = Logger::default();
+
+        let mut buffer = [0u8; 512];
+        let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
+
+        // Ensures the assert_g_field_encoding macros are run.
+        blackbox.log_g_frame(&mut encoder, 123_456_789);
+    }
+
+    #[cfg(feature = "gps")]
+    #[test]
+    fn h_encodings() {
+        let mut blackbox = Logger::default();
+
+        let mut buffer = [0u8; 512];
+        let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
+
+        // Ensures the assert_s_field_encoding macros are run.
+        blackbox.log_h_frame(&mut encoder);
+    }
+
+    #[test]
+    fn s_encodings() {
+        let mut blackbox = Logger::default();
+
+        let mut buffer = [0u8; 512];
+        let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
+
+        // Ensures the assert_s_field_encoding macros are run.
+        blackbox.log_s_frame(&mut encoder);
+    }
 
     #[test]
     fn i_encodings() {
@@ -585,6 +705,7 @@ mod tests {
         let mut buffer = [0u8; 512];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
 
+        // Ensures the assert_i_field_encoding macros are run.
         blackbox.log_i_frame(&mut encoder);
 
         assert_eq!(3, blackbox.main_data[0].time_us);
@@ -597,6 +718,7 @@ mod tests {
         assert_eq!(4, blackbox.main_data[1].time_us);
         assert_eq!(4, blackbox.main_data[2].time_us);
     }
+
     #[test]
     fn p_encodings() {
         assert_p_field_encoding!("loopIteration", FieldPredictor::Inc, FieldEncoding::Null);
@@ -611,6 +733,7 @@ mod tests {
         let mut buffer = [0u8; 512];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
 
+        // Ensures the assert_p_field_encoding macros are run.
         let p_frame_start_pos = blackbox.log_p_frame(&mut encoder);
         assert_eq!(0, p_frame_start_pos);
         assert_eq!(b'P', encoder.buffer[p_frame_start_pos]);
@@ -642,5 +765,86 @@ mod tests {
         assert_eq!(5, blackbox.main_data[blackbox.main_data_current_idx].time_us);
         assert_eq!(2, blackbox.main_data[blackbox.main_data_previous_idx].time_us);
         assert_eq!(1, blackbox.main_data[blackbox.main_data_pre_previous_idx].time_us);
+    }
+
+    #[cfg(feature = "huffman")]
+    #[test]
+    fn q_encodings() {
+        let mut blackbox = Logger::default();
+        let mut buffer = [0u8; 32];
+        let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
+
+        // Simulate encoding a p_frame into the encoder buffer.
+        let p_frame = [b'P', 0, 1, 2, 3, 4];
+        let p_frame_start_pos = encoder.pos;
+        encoder.buffer[0..6].copy_from_slice(&p_frame);
+        encoder.pos += p_frame.len();
+        assert_eq!(6, encoder.pos);
+
+        let p_frame_length = encoder.pos - p_frame_start_pos;
+        assert_eq!(b'P', encoder.buffer[p_frame_start_pos]);
+        assert_eq!(0, encoder.buffer[p_frame_start_pos + p_frame_length]);
+        assert_eq!(0, p_frame_start_pos);
+        assert_eq!(6, p_frame_length);
+
+        let result = blackbox.try_convert_p_frame_to_q_frame(&mut encoder, p_frame_start_pos);
+        assert!(result);
+        assert_eq!(5, encoder.pos); // compressed length is 5 bytes, which is less than the original p_frame length of 6 bytes.
+        assert_eq!(b'Q', encoder.buffer[0]);
+        assert_eq!(p_frame_length - 1, encoder.buffer[1] as usize); // uncompressed input length, does not include the 'P' character.
+        assert_eq!(0xD9, encoder.buffer[2]);
+        assert_eq!(0xB8, encoder.buffer[3]);
+        assert_eq!(0x80, encoder.buffer[4]);
+        assert_eq!(4, encoder.buffer[5]); // left over from the original p_frame
+        assert_eq!(0, encoder.buffer[6]);
+        assert_eq!(&[b'Q', 5, 0xD9, 0xB8, 0x80, 4, 0], &encoder.buffer[0..=6]);
+
+        // Now simulate encoding another p_frame.
+        let p_frame_start_pos = encoder.pos;
+        encoder.buffer[5..11].copy_from_slice(&p_frame);
+        encoder.pos += p_frame.len();
+        assert_eq!(11, encoder.pos);
+
+        let p_frame_length = encoder.pos - p_frame_start_pos;
+        assert_eq!(b'P', encoder.buffer[5]);
+        //assert_eq!(0, encoder.buffer[p_frame_start_pos + p_frame_length]);
+        assert_eq!(5, p_frame_start_pos);
+        assert_eq!(6, p_frame_length);
+
+        let _result = blackbox.try_convert_p_frame_to_q_frame(&mut encoder, p_frame_start_pos);
+        assert!(result);
+        assert_eq!(10, encoder.pos); // compressed length is 5 bytes, which is less than the original p_frame length of 6 bytes.
+        assert_eq!(b'Q', encoder.buffer[5]);
+        assert_eq!(p_frame_length - 1, encoder.buffer[6] as usize); // uncompressed input length, does not include the 'P' character.
+        assert_eq!(0xD9, encoder.buffer[7]);
+        assert_eq!(0xB8, encoder.buffer[8]);
+        assert_eq!(0x80, encoder.buffer[9]);
+        assert_eq!(4, encoder.buffer[10]); // left over from the original p_frame
+        assert_eq!(0, encoder.buffer[11]);
+        assert_eq!(&[b'Q', 5, 0xD9, 0xB8, 0x80, 4, 0], &encoder.buffer[5..=11]);
+
+        // Now simulate encoding a p_frame that is larger when compressed.
+        let p_frame_larger_when_compressed = [b'P', 0x80, 0x81, 0x82, 0x83, 0x84];
+        let p_frame_start_pos = encoder.pos;
+        encoder.buffer[10..16].copy_from_slice(&p_frame_larger_when_compressed);
+        encoder.pos += p_frame.len();
+        assert_eq!(16, encoder.pos);
+
+        let p_frame_length = encoder.pos - p_frame_start_pos;
+        assert_eq!(b'P', encoder.buffer[10]);
+        assert_eq!(0, encoder.buffer[p_frame_start_pos + p_frame_length]);
+        assert_eq!(10, p_frame_start_pos);
+        assert_eq!(6, p_frame_length);
+
+        let result = blackbox.try_convert_p_frame_to_q_frame(&mut encoder, p_frame_start_pos);
+        assert!(!result);
+        assert_eq!(16, encoder.pos);
+        assert_eq!(b'P', encoder.buffer[10]);
+        assert_eq!(0x80, encoder.buffer[11]);
+        assert_eq!(0x81, encoder.buffer[12]);
+        assert_eq!(0x82, encoder.buffer[13]);
+        assert_eq!(0x83, encoder.buffer[14]);
+        assert_eq!(0x84, encoder.buffer[15]);
+        assert_eq!(&p_frame_larger_when_compressed, &encoder.buffer[10..=15]);
     }
 }

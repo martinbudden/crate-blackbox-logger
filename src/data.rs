@@ -63,7 +63,7 @@ impl Default for BlackboxSlowData {
 #[allow(missing_docs)]
 #[allow(unused)]
 impl BlackboxSlowData {
-    pub const FLIGHT_MODE_BLACKBOX_ACTIVE: u32 = 1 << 23;
+    pub const FLIGHT_MODE_BLACKBOX_ACTIVE: u32 = 1 << 23; // RcMode::BLACKBOX;
 
     pub const GPS_FIX_HOME: u8 = 0x01;
     pub const GPS_STATE_FIX: u8 = 0x02;
@@ -81,9 +81,19 @@ impl BlackboxSlowData {
         }
     }
 
+    /// Returns true if blackbox is active.
     #[must_use]
     pub fn is_blackbox_active(&self) -> bool {
         self.flight_mode_flags & Self::FLIGHT_MODE_BLACKBOX_ACTIVE != 0
+    }
+
+    /// Sets the blackbox active flag.
+    pub fn set_blackbox_active(&mut self, active: bool) {
+        if active {
+            self.flight_mode_flags |= Self::FLIGHT_MODE_BLACKBOX_ACTIVE;
+        } else {
+            self.flight_mode_flags &= !Self::FLIGHT_MODE_BLACKBOX_ACTIVE;
+        }
     }
 }
 
