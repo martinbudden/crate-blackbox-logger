@@ -9,9 +9,22 @@ that is each release may contain incompatible API changes.
 
 Once the API has stabilized this project will adopt semantic versioning, the first release to do so will be `0.2.0`.
 
-## [0.1.8] - 2026-07-04
+## [0.1.9] - 2026-08-04
 
 ### Added
+
+- Optional support for Huffman encoding of `p_frames`.
+
+### Changed
+
+- Improved handling of feature flags.
+
+### Removed
+
+- Dependency on `vqm` crate.
+- Dependency on `libm`.
+
+## [0.1.8] - 2026-07-04
 
 ### Changed
 
