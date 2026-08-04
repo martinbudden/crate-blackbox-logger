@@ -18,6 +18,7 @@ pub enum LoggerState {
     WriteGpsGFieldsHeader,
     WriteSlowFieldsHeader,
     WriteSysinfo(SysInfoIndex),
+    WriteHuffmanTable,
     HeaderWritten,
     Paused,
     Running,
@@ -94,7 +95,18 @@ impl LoggerState {
             }
             Self::WriteSysinfo(sys_info) => {
                 let next_sys_info = logger.write_sys_info(encoder, sys_info);
-                if next_sys_info == SysInfoIndex::End { Self::HeaderWritten } else { Self::WriteSysinfo(next_sys_info) }
+                if next_sys_info == SysInfoIndex::End {
+                    Self::WriteHuffmanTable
+                } else {
+                    Self::WriteSysinfo(next_sys_info)
+                }
+            }
+            Self::WriteHuffmanTable => {
+                #[cfg(feature = "huffman")]
+                if logger.huffman_compress {
+                    logger.log_t_frame(encoder);
+                }
+                Self::HeaderWritten
             }
             Self::HeaderWritten => Self::Paused,
             Self::Paused => {

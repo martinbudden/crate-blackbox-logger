@@ -6,7 +6,7 @@ use crate::{
 };
 
 #[cfg(feature = "huffman")]
-use crate::huffman_encoder::HuffmanEncoder;
+use crate::{huffman_encoder::HuffmanEncoder, huffman_table::HUFFMAN_TABLE};
 
 #[cfg(feature = "servos")]
 use crate::data::BlackboxMainData;
@@ -638,6 +638,22 @@ impl Logger {
             return true;
         }
         false
+    }
+
+    /// Log Huffman table frame: `t_frame`.
+    /// T followed by 768 bytes of the table, that is 256 3-byte triplets of len u8 and code u16-little-endian.
+    #[cfg(feature = "huffman")]
+    pub fn log_t_frame(&mut self, encoder: &mut SliceEncoder) {
+        encoder.begin_frame(b'T');
+
+        for huffman_code in HUFFMAN_TABLE {
+            #[allow(clippy::cast_possible_truncation)]
+            encoder.write_byte(huffman_code.len as u8);
+            for code in huffman_code.code.to_be_bytes() {
+                encoder.write_byte(code);
+            }
+        }
+        encoder.end_frame();
     }
 }
 
