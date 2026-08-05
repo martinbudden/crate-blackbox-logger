@@ -29,6 +29,7 @@ default = ["dshot_telemetry", "gps", "serde", "huffman", "std", "magnetometer", 
 serde = ["dep:serde", "postcard", "sequential-storage"]
 
 barometer = []
+debug = []
 dshot_telemetry = []
 eight_motors = []
 gps = []

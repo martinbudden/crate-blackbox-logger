@@ -302,15 +302,17 @@ impl Logger {
         assert_i_field_encoding!("amperageLatest", FieldPredictor::Zero, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::BATTERY_CURRENT) {
             // 12bit value directly from ADC
-            encoder.write_signed_vb_16(current.amperage);
+            encoder.write_signed_vb_16(current.battery_current);
         }
 
         assert_i_field_encoding!("BaroAlt", FieldPredictor::Zero, FieldEncoding::SignedVb);
         if self.conditions.test(FieldCondition::BAROMETER) {
-            encoder.write_signed_vb(current.baro_altitude);
+            encoder.write_signed_vb(current.barometer_altitude);
         }
 
+        #[cfg(feature = "rangefinder")]
         assert_i_field_encoding!("surfaceRaw", FieldPredictor::Zero, FieldEncoding::SignedVb);
+        #[cfg(feature = "rangefinder")]
         if self.conditions.test(FieldCondition::RANGEFINDER) {
             encoder.write_signed_vb(current.range_raw);
         }
@@ -320,6 +322,7 @@ impl Logger {
             encoder.write_unsigned_vb_16(current.rssi);
         }
 
+        #[cfg(feature = "magnetometer")]
         assert_i_field_encoding!("magADC", FieldPredictor::Zero, FieldEncoding::SignedVb);
         #[cfg(feature = "magnetometer")]
         if self.conditions.test(FieldCondition::MAGNETOMETER) {
@@ -346,7 +349,9 @@ impl Logger {
             encoder.write_signed_vb_16_array(&current.orientation);
         }
 
+        #[cfg(feature = "debug")]
         assert_i_field_encoding!("debug", FieldPredictor::Zero, FieldEncoding::SignedVb);
+        #[cfg(feature = "debug")]
         if self.conditions.test(FieldCondition::DEBUG) {
             encoder.write_signed_vb_16_array(&current.debug);
         }
@@ -354,19 +359,20 @@ impl Logger {
         assert_i_field_encoding!("motor", FieldPredictor::MinMotor, FieldEncoding::SignedVb);
         if Logger::field_enabled(self.enabled_fields, FieldSelect::MOTOR) {
             // Motors can be below minimum output when disarmed, but that doesn't happen much
-            encoder.write_signed_vb_16(current.motor[0].wrapping_sub(self.min_throttle).cast_signed());
+            encoder.write_signed_vb_16(current.motor[0].wrapping_sub(self.min_throttle.cast_signed()));
 
             // Motors tend to be similar to each other so use the first motor's value as a predicted of the others
             for ii in 1..self.motor_count {
-                encoder.write_signed_vb_16(current.motor[ii].wrapping_sub(current.motor[0]).cast_signed());
+                encoder.write_signed_vb_16(current.motor[ii].wrapping_sub(current.motor[0]));
             }
         }
         #[cfg(feature = "dshot_telemetry")]
         assert_i_field_encoding!("eRPM", FieldPredictor::Zero, FieldEncoding::UnsignedVb);
         #[cfg(feature = "dshot_telemetry")]
         if Logger::field_enabled(self.enabled_fields, FieldSelect::MOTOR_RPM) {
-            for erpm in current.erpm {
-                encoder.write_unsigned_vb_16(erpm);
+            #[allow(clippy::cast_possible_truncation,clippy::cast_sign_loss)]
+            for erpm_d2 in current.erpm_d2 {
+                encoder.write_unsigned_vb_16((erpm_d2 as u16) * 2);
             }
         }
         #[cfg(feature = "servos")]
@@ -495,15 +501,17 @@ impl Logger {
         }
         assert_p_field_encoding!("amperageLatest", FieldPredictor::Previous, FieldEncoding::Tag8_8SVb);
         if self.conditions.test(FieldCondition::BATTERY_CURRENT) {
-            deltas[tag8_field_count] = i32::from(current.amperage.wrapping_sub(previous.amperage));
+            deltas[tag8_field_count] = i32::from(current.battery_current.wrapping_sub(previous.battery_current));
             tag8_field_count += 1;
         }
         assert_p_field_encoding!("BaroAlt", FieldPredictor::Previous, FieldEncoding::Tag8_8SVb);
         if self.conditions.test(FieldCondition::BAROMETER) {
-            deltas[tag8_field_count] = current.baro_altitude.wrapping_sub(previous.baro_altitude);
+            deltas[tag8_field_count] = current.barometer_altitude.wrapping_sub(previous.barometer_altitude);
             tag8_field_count += 1;
         }
+        #[cfg(feature = "rangefinder")]
         assert_p_field_encoding!("surfaceRaw", FieldPredictor::Previous, FieldEncoding::Tag8_8SVb);
+        #[cfg(feature = "rangefinder")]
         if self.conditions.test(FieldCondition::RANGEFINDER) {
             deltas[tag8_field_count] = current.range_raw.wrapping_sub(previous.range_raw);
             tag8_field_count += 1;
@@ -513,6 +521,7 @@ impl Logger {
             deltas[tag8_field_count] = i32::from(current.rssi.wrapping_sub(previous.rssi));
             tag8_field_count += 1;
         }
+        #[cfg(feature = "magnetometer")]
         assert_p_field_encoding!("magADC", FieldPredictor::Previous, FieldEncoding::Tag8_8SVb);
         #[cfg(feature = "magnetometer")]
         if self.conditions.test(FieldCondition::MAGNETOMETER) {
@@ -561,7 +570,9 @@ impl Logger {
             }
         }
 
+        #[cfg(feature = "debug")]
         assert_p_field_encoding!("debug", FieldPredictor::Average2, FieldEncoding::SignedVb);
+        #[cfg(feature = "debug")]
         if self.conditions.test(FieldCondition::DEBUG) {
             for ((&current_debug, &previous_debug), &pre_previous_debug) in
                 current.debug.iter().zip(&previous.debug).zip(&pre_previous.debug)
@@ -577,18 +588,18 @@ impl Logger {
                 .zip(&previous.motor[..self.motor_count])
                 .zip(&pre_previous.motor[..self.motor_count])
             {
-                let predicted = u16::midpoint(previous_motor, pre_previous_motor);
-                encoder.write_signed_vb_16(current_motor.wrapping_sub(predicted).cast_signed());
+                let predicted = i16::midpoint(previous_motor, pre_previous_motor);
+                encoder.write_signed_vb_16(current_motor.wrapping_sub(predicted));
             }
         }
         #[cfg(feature = "dshot_telemetry")]
         assert_p_field_encoding!("eRPM", FieldPredictor::Previous, FieldEncoding::SignedVb);
         #[cfg(feature = "dshot_telemetry")]
         if Logger::field_enabled(self.enabled_fields, FieldSelect::MOTOR_RPM) {
-            for (&current_erpm, &previous_erpm) in
-                current.erpm[..self.motor_count].iter().zip(&previous.erpm[..self.motor_count])
+            for (&current_erpm_d2, &previous_erpm_d2) in
+                current.erpm_d2[..self.motor_count].iter().zip(&previous.erpm_d2[..self.motor_count])
             {
-                encoder.write_signed_vb_16(current_erpm.wrapping_sub(previous_erpm).cast_signed());
+                encoder.write_signed_vb_16(current_erpm_d2.wrapping_sub(previous_erpm_d2) * 2);
             }
         }
 

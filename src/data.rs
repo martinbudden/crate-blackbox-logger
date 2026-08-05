@@ -202,16 +202,17 @@ pub struct BlackboxMainData {
     pub mag: [i16; Self::XYZ_AXIS_COUNT],
     /// only x,y,z from orientation quaternion are stored; w is always positive.
     pub orientation: [i16; Self::XYZ_AXIS_COUNT],
-    pub motor: [u16; Self::MAX_SUPPORTED_MOTOR_COUNT],
+    pub motor: [i16; Self::MAX_SUPPORTED_MOTOR_COUNT],
     #[cfg(feature = "dshot_telemetry")]
-    pub erpm: [u16; Self::MAX_SUPPORTED_MOTOR_COUNT],
+    pub erpm_d2: [i16; Self::MAX_SUPPORTED_MOTOR_COUNT],
+    #[cfg(feature = "debug")]
     pub debug: [i16; Self::DEBUG_COUNT],
     #[cfg(feature = "servos")]
     pub servos: [i16; Self::MAX_SUPPORTED_SERVO_COUNT],
-    pub baro_altitude: i32,
-    pub range_raw: i32,
-    pub amperage: i16,
+    pub barometer_altitude: i32,
+    pub battery_current: i16,
     pub battery_voltage: u16,
+    pub range_raw: i32,
     pub rssi: u16,
 }
 
@@ -225,6 +226,7 @@ impl BlackboxMainData {
     pub const MAX_SUPPORTED_MOTOR_COUNT: usize = 4;
     #[cfg(feature = "servos")]
     pub const MAX_SUPPORTED_SERVO_COUNT: usize = 8;
+    #[cfg(feature = "debug")]
     pub const DEBUG_COUNT: usize = 8;
     pub const SETPOINT_COUNT: usize = 4;
 }
@@ -246,29 +248,29 @@ impl BlackboxMainData {
             pid_d: [0i32; Self::RPY_AXIS_COUNT],
             pid_s: [0i32; Self::RPY_AXIS_COUNT],
             pid_k: [0i32; Self::RPY_AXIS_COUNT],
-            rc_commands: [1500, 1500, 1500, 1000],
-            setpoints: [0i16; Self::SETPOINT_COUNT],
             gyro: [0i16; Self::XYZ_AXIS_COUNT],
             gyro_unfiltered: [0i16; Self::XYZ_AXIS_COUNT],
             acc: [0i16; Self::XYZ_AXIS_COUNT],
+            orientation: [0i16; Self::XYZ_AXIS_COUNT],
+
+            rc_commands: [1500, 1500, 1500, 1000],
+            setpoints: [0i16; Self::SETPOINT_COUNT],
+
             #[cfg(feature = "magnetometer")]
             mag: [0i16; Self::XYZ_AXIS_COUNT],
 
-            orientation: [0i16; Self::XYZ_AXIS_COUNT],
-            #[cfg(feature = "eight_motors")]
-            motor: [1100, 1100, 1100, 1100, 1100, 1100, 1100, 1100],
-            #[cfg(not(feature = "eight_motors"))]
-            motor: [1100, 1100, 1100, 1100],
+            motor: [1100i16; Self::MAX_SUPPORTED_MOTOR_COUNT],
 
             #[cfg(feature = "dshot_telemetry")]
-            erpm: [0u16; Self::MAX_SUPPORTED_MOTOR_COUNT],
+            erpm_d2: [0i16; Self::MAX_SUPPORTED_MOTOR_COUNT],
+            #[cfg(feature = "debug")]
             debug: [0i16; Self::DEBUG_COUNT],
             #[cfg(feature = "servos")]
             servos: [0i16; Self::MAX_SUPPORTED_SERVO_COUNT],
-            baro_altitude: 0,
-            range_raw: 0,
-            amperage: 0,
+            barometer_altitude: 0,
+            battery_current: 0,
             battery_voltage: 0,
+            range_raw: 0,
             rssi: 0,
         }
     }
