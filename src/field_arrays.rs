@@ -105,10 +105,10 @@ pub static BLACKBOX_MAIN_FIELDS: &[MFD] = &[
     MFD { name: "axisS", name_index: 2, is_signed: FS::Signed, i_predict: FP::Zero, i_encode: FE::SignedVb, p_predict: FP::Previous, p_encode: FE::SignedVb, condition: FC::PID_S_YAW },
 
     // rc_commands are encoded together as a group in p_frames:
-    MFD { name: "rcCommand", name_index: 0, is_signed: FS::Signed,   i_predict: FP::Zero, i_encode: FE::SignedVb, p_predict: FP::Previous, p_encode: FE::Tag8_4S16, condition: FC::RC_COMMANDS },
-    MFD { name: "rcCommand", name_index: 1, is_signed: FS::Signed,   i_predict: FP::Zero, i_encode: FE::SignedVb, p_predict: FP::Previous, p_encode: FE::Tag8_4S16, condition: FC::RC_COMMANDS },
-    MFD { name: "rcCommand", name_index: 2, is_signed: FS::Signed,   i_predict: FP::Zero, i_encode: FE::SignedVb, p_predict: FP::Previous, p_encode: FE::Tag8_4S16, condition: FC::RC_COMMANDS },
-    MFD { name: "rcCommand", name_index: 3, is_signed: FS::Unsigned, i_predict: FP::MinThrottle, i_encode: FE::UnsignedVb, p_predict: FP::Previous, p_encode: FE::Tag8_4S16, condition: FC::RC_COMMANDS },
+    MFD { name: "rcCommand", name_index: 0, is_signed: FS::Signed,   i_predict: FP::Zero, i_encode: FE::SignedVb,   p_predict: FP::Previous, p_encode: FE::Tag8_4S16, condition: FC::RC_COMMANDS },
+    MFD { name: "rcCommand", name_index: 1, is_signed: FS::Signed,   i_predict: FP::Zero, i_encode: FE::SignedVb,   p_predict: FP::Previous, p_encode: FE::Tag8_4S16, condition: FC::RC_COMMANDS },
+    MFD { name: "rcCommand", name_index: 2, is_signed: FS::Signed,   i_predict: FP::Zero, i_encode: FE::SignedVb,   p_predict: FP::Previous, p_encode: FE::Tag8_4S16, condition: FC::RC_COMMANDS },
+    MFD { name: "rcCommand", name_index: 3, is_signed: FS::Unsigned, i_predict: FP::Zero, i_encode: FE::UnsignedVb, p_predict: FP::Previous, p_encode: FE::Tag8_4S16, condition: FC::RC_COMMANDS },
     // setpoint
     MFD { name: "setpoint", name_index: 0, is_signed: FS::Signed, i_predict: FP::Zero, i_encode: FE::SignedVb, p_predict: FP::Previous, p_encode: FE::Tag8_4S16, condition: FC::SETPOINT },
     MFD { name: "setpoint", name_index: 1, is_signed: FS::Signed, i_predict: FP::Zero, i_encode: FE::SignedVb, p_predict: FP::Previous, p_encode: FE::Tag8_4S16, condition: FC::SETPOINT },

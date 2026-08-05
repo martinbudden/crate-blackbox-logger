@@ -283,7 +283,7 @@ impl Logger {
 
             // Write the throttle separately from the rest of the RC data as it's UNSIGNED.
             // Throttle lies in range [PWM_RANGE_MIN, PWM_RANGE_MAX], ie [1000, 2000]
-            encoder.write_unsigned_vb(u32::from(current.rc_commands[3].wrapping_sub(self.min_throttle)));
+            encoder.write_unsigned_vb(u32::from(current.rc_commands[3]));
         }
 
         assert_i_field_encoding!("setpoint", FieldPredictor::Zero, FieldEncoding::SignedVb);

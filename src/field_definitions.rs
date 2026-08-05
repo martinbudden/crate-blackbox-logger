@@ -53,6 +53,7 @@ pub enum FieldPredictor {
     Previous = 1,
     StraightLine = 2,
     Average2 = 3,
+    #[allow(unused)]
     MinThrottle = 4,
     Motor0 = 5,
     Inc = 6,
