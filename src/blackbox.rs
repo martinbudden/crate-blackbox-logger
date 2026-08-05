@@ -107,6 +107,12 @@ impl Blackbox {
     }*/
 
     #[inline]
+    #[must_use]
+    pub fn is_active(&self) -> bool {
+        self.logger.slow_data.is_blackbox_active()
+    }
+
+    #[inline]
     pub fn set_main_data(&mut self, main_data: BlackboxMainData) {
         self.logger.set_main_data(main_data);
     }
