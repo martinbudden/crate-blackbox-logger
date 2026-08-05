@@ -45,7 +45,6 @@ pub enum SysInfoIndex {
     S5,
     S6,
     S7,
-    S8,
     End,
 }
 
@@ -325,11 +324,6 @@ impl Logger {
                 SysInfoIndex::S7
             }
             SysInfoIndex::S7 => {
-                encoder.write_h_str_u16_ascii("minthrottle:", self.min_throttle);
-                encoder.write_h_str_u16_ascii("maxthrottle:", self.max_throttle);
-                SysInfoIndex::S8
-            }
-            SysInfoIndex::S8 => {
                 encoder.write_h_str_u16_ascii("vbatscale:", self.sys_info.vbat_scale);
                 encoder.write_h_str("vbatcellvoltage:");
                 encoder.write_u16_ascii(self.sys_info.vbat_min_cell_voltage);

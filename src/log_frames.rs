@@ -359,7 +359,7 @@ impl Logger {
         assert_i_field_encoding!("motor", FieldPredictor::MinMotor, FieldEncoding::SignedVb);
         if Logger::field_enabled(self.enabled_fields, FieldSelect::MOTOR) {
             // Motors can be below minimum output when disarmed, but that doesn't happen much
-            encoder.write_signed_vb_16(current.motor[0].wrapping_sub(self.min_throttle.cast_signed()));
+            encoder.write_signed_vb_16(current.motor[0].wrapping_sub(self.sys_info.motor_output_min.cast_signed()));
 
             // Motors tend to be similar to each other so use the first motor's value as a predicted of the others
             for ii in 1..self.motor_count {
@@ -370,7 +370,7 @@ impl Logger {
         assert_i_field_encoding!("eRPM", FieldPredictor::Zero, FieldEncoding::UnsignedVb);
         #[cfg(feature = "dshot_telemetry")]
         if Logger::field_enabled(self.enabled_fields, FieldSelect::MOTOR_RPM) {
-            #[allow(clippy::cast_possible_truncation,clippy::cast_sign_loss)]
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
             for erpm_d2 in current.erpm_d2 {
                 encoder.write_unsigned_vb_16((erpm_d2 as u16) * 2);
             }

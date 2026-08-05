@@ -83,7 +83,7 @@ impl BlackboxSysInfo {
             gyro_sync_denom: 1,
             pid_process_denom: 1,
             acc_1g: 4096,
-            motor_output_min: 158,
+            motor_output_min: 48,
             motor_output_max: 2047,
             vbat_scale: 0,
             vbat_min_cell_voltage: 330,
@@ -118,8 +118,6 @@ pub struct Logger {
     pub(crate) motor_count: usize,
     pub(crate) servo_count: usize,
     pub(crate) debug_mode: u16,
-    pub(crate) min_throttle: u16,
-    pub(crate) max_throttle: u16,
     pub(crate) vbat_reference: u16,
 
     pub(crate) slow_data: BlackboxSlowData,
@@ -160,8 +158,6 @@ impl Logger {
             motor_count: 4,
             servo_count: 0,
             debug_mode: 0,
-            min_throttle: 1070,
-            max_throttle: 2000,
             vbat_reference: 2466,
             conditions: BitSet64::new(),
 
