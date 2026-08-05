@@ -1,3 +1,5 @@
+use simple_bitset::BitSet64;
+
 use crate::{
     BlackboxEvent, SliceEncoder,
     data::{BlackboxMainData, BlackboxSlowData},
@@ -11,31 +13,89 @@ use crate::data::{BlackboxGpsData, BlackboxGpsPosition};
 #[cfg(feature = "huffman")]
 use crate::huffman_table::HUFFMAN_MAX_ENCODED_BITS;
 
-use simple_bitset::BitSet64;
-
-/// System info.
+#[allow(missing_docs)]
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct SysInfo {
-    pub(crate) looptime: u32,
-    pub motor_output_min: u16,
-    pub motor_output_max: u16,
+pub struct BlackboxDateTime {
+    /// Year.
+    pub year: u16,
+    /// Month: 1-12.
+    pub month: u8,
+    /// Day: 1-31.
+    pub day: u8,
+    /// Hours: 0-23.
+    pub hours: u8,
+    /// Minutes: 0-59.
+    pub minutes: u8,
+    /// Seconds: 0-59.
+    pub seconds: u8,
 }
 
-impl SysInfo {
-    pub const fn new() -> Self {
-        Self {
-            looptime: 125, // 125us = 8kHz gyro/pid loop
-            motor_output_min: 158,
-            motor_output_max: 2047,
-        }
-    }
-}
-impl Default for SysInfo {
+impl Default for BlackboxDateTime {
     fn default() -> Self {
         Self::new()
     }
 }
 
+impl BlackboxDateTime {
+    /// Constructor.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self { year: 2026, month: 1, day: 1, hours: 0, minutes: 0, seconds: 0 }
+    }
+}
+
+/// System info.
+#[allow(missing_docs)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BlackboxSysInfo {
+    pub features: u32,
+    pub gyro_scale: u32,
+    pub looptime: u16,
+    pub gyro_sync_denom: u16,
+    pub pid_process_denom: u16,
+    pub acc_1g: u16,
+    pub motor_output_min: u16,
+    pub motor_output_max: u16,
+    pub vbat_scale: u16,
+    pub vbat_min_cell_voltage: u16,
+    pub vbat_warning_cell_voltage: u16,
+    pub vbat_max_cell_voltage: u16,
+    pub current_sensor_scale: u16,
+    pub current_sensor_offset: u16,
+    pub date_time: BlackboxDateTime,
+    pub motor_pole_count: u8,
+}
+
+impl Default for BlackboxSysInfo {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl BlackboxSysInfo {
+    #[allow(missing_docs)]
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            features: 541_130_760,
+            gyro_scale: 0x3f80_0000,
+            looptime: 125, // 125us = 8kHz gyro/pid loop
+            gyro_sync_denom: 1,
+            pid_process_denom: 1,
+            acc_1g: 4096,
+            motor_output_min: 158,
+            motor_output_max: 2047,
+            vbat_scale: 0,
+            vbat_min_cell_voltage: 330,
+            vbat_warning_cell_voltage: 350,
+            vbat_max_cell_voltage: 430,
+            current_sensor_scale: 0,
+            current_sensor_offset: 250,
+            date_time: BlackboxDateTime::new(),
+            motor_pole_count: 14,
+        }
+    }
+}
 /// Blackbox logger.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Logger {
@@ -68,7 +128,7 @@ pub struct Logger {
     #[cfg(feature = "gps")]
     pub(crate) gps_home: BlackboxGpsPosition,
     #[allow(missing_docs)]
-    pub sys_info: SysInfo,
+    pub sys_info: BlackboxSysInfo,
 
     pub(crate) main_data: [BlackboxMainData; 3],
     pub(crate) main_data_current_idx: usize,
@@ -82,7 +142,7 @@ pub struct Logger {
 
 impl Default for Logger {
     fn default() -> Self {
-        Self::new()
+        Self::new(BlackboxSysInfo::new())
     }
 }
 
@@ -95,7 +155,7 @@ impl Logger {
 
     /// Constructor.
     #[must_use]
-    pub const fn new() -> Self {
+    pub const fn new(sys_info: BlackboxSysInfo) -> Self {
         Self {
             motor_count: 4,
             servo_count: 0,
@@ -125,7 +185,7 @@ impl Logger {
             gps_data: BlackboxGpsData::new(),
             #[cfg(feature = "gps")]
             gps_home: BlackboxGpsPosition::new(),
-            sys_info: SysInfo::new(),
+            sys_info,
 
             main_data: [BlackboxMainData::new(); 3],
             main_data_current_idx: 0,
@@ -506,11 +566,12 @@ mod tests {
     #[test]
     fn normal_types() {
         is_full::<Logger>();
-        is_full::<SysInfo>();
+        is_full::<BlackboxSysInfo>();
     }
     #[test]
     fn new() {
-        let logger = Logger::new();
+        let sys_info = BlackboxSysInfo::new();
+        let logger = Logger::new(sys_info);
         assert_eq!(4, logger.motor_count);
     }
 }

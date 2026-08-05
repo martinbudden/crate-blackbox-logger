@@ -35,6 +35,36 @@ pub trait BlackboxWriter {
         }
     }
 
+    /// Write `n` in 00 format, assumes n < 100.
+    fn write_u8_02_ascii(&mut self, n: u8) {
+        if n < 10 {
+            self.write_char('0');
+        }
+        self.write_u8_ascii(n);
+    }
+
+    /// Minimal `no_std` u32 to ASCII hex helper.
+    fn write_u32_ascii_hex(&mut self, mut n: u32) {
+        self.write_char('0');
+        self.write_char('x');
+        if n == 0 {
+            self.write_char('0');
+            return;
+        }
+        let mut buf = [0u8; 16];
+        let mut i = 0;
+        while n > 0 {
+            let c = (n % 16) as u8;
+            buf[i] = if c < 10 { c + b'0' } else { c - 10 + b'a' };
+            n /= 16;
+            i += 1;
+        }
+        for j in (0..i).rev() {
+            self.write_byte(buf[j]);
+        }
+    }
+
+    /// Minimal `no_std` u32 to ASCII helper.
     fn write_u32_ascii(&mut self, mut n: u32) {
         if n == 0 {
             self.write_char('0');
@@ -42,9 +72,8 @@ pub trait BlackboxWriter {
         }
         let mut buf = [0u8; 16];
         let mut i = 0;
-        #[allow(clippy::cast_possible_truncation)]
         while n > 0 {
-            buf[i] = ((n % 10) + u32::from(b'0')) as u8;
+            buf[i] = (n % 10) as u8 + b'0';
             n /= 10;
             i += 1;
         }
@@ -53,17 +82,29 @@ pub trait BlackboxWriter {
         }
     }
 
-    fn write_i32_ascii(&mut self, mut n: i32) {
-        if n < 0 {
+    fn write_i32_ascii(&mut self, n: i32) {
+        let n = if n < 0 {
             self.write_char('-');
-            n = -n;
-        }
+            -n
+        } else {
+            n
+        };
         self.write_u32_ascii(n.cast_unsigned());
+    }
+
+    fn write_u16_ascii(&mut self, n: u16) {
+        self.write_u32_ascii(u32::from(n));
     }
 
     fn write_h_str_u32_ascii(&mut self, s: &str, n: u32) {
         self.write_h_str(s);
         self.write_u32_ascii(n);
+        self.write_char('\n');
+    }
+
+    fn write_h_str_u32_ascii_hex(&mut self, s: &str, n: u32) {
+        self.write_h_str(s);
+        self.write_u32_ascii_hex(n);
         self.write_char('\n');
     }
 

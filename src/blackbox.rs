@@ -1,7 +1,7 @@
 use crate::{
     SliceEncoder,
     data::{BlackboxMainData, BlackboxSlowData},
-    logger::Logger,
+    logger::{BlackboxSysInfo, Logger},
     logger_state::LoggerState,
 };
 
@@ -105,15 +105,15 @@ pub struct Blackbox {
 
 impl Default for Blackbox {
     fn default() -> Self {
-        Self::new(BlackboxConfig::new())
+        Self::new(BlackboxConfig::new(), BlackboxSysInfo::new())
     }
 }
 
 impl Blackbox {
     /// Constructor.
     #[must_use]
-    pub const fn new(config: BlackboxConfig) -> Self {
-        Self { state: LoggerState::new(), logger: Logger::new(), config }
+    pub const fn new(config: BlackboxConfig, sys_info: BlackboxSysInfo) -> Self {
+        Self { state: LoggerState::new(), logger: Logger::new(sys_info), config }
     }
 }
 

@@ -39,5 +39,5 @@ pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, Black
 pub use data::{BlackboxEvent, BlackboxGpsData, BlackboxGpsPosition, BlackboxMainData, BlackboxSlowData};
 pub use encoding::{BlackboxWriter, SliceEncoder};
 pub use field_definitions::FieldSelect;
-pub use logger::Logger;
+pub use logger::{BlackboxDateTime, BlackboxSysInfo, Logger};
 pub use logger_state::LoggerState;

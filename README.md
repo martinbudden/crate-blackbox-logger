@@ -39,7 +39,7 @@ Early testing indicates that **Q frames** are often less than half the size of t
 
 1. **I frames** are key-frames, that is they are used to reset values if there has been a corruption at some point. So they should not be further encoded.
 2. **H frames**, **S frames**, and **E frames** are small and rare, so the impact of compressing them is very small.
-3. **G frames** are fairly rare, so the impact of compressing them is small.
+3. **G frames** are fairly rare, so the impact of compressing them is small. Also their content is not conducive to Huffman encoding.
 
 ## Earlier implementation
 

@@ -266,49 +266,62 @@ impl Logger {
     /// writing one chunk each iteration so that the encoder buffer does not overflow.
     #[allow(clippy::too_many_lines)]
     pub fn write_sys_info(&mut self, encoder: &mut SliceEncoder, sys_info: SysInfoIndex) -> SysInfoIndex {
+        // possibly consider adding the following: rcRate, yawRate, motor_poles
         match sys_info {
             SysInfoIndex::Start => {
-                encoder.write_h_str("Firmware type:Cleanflight\n");
+                encoder.write_h_str("Firmware type:Betaflight\n");
+                // encoder.write_h_str("Firmware revision:Betaflight 4.2.11\n");
+                // encoder.write_h_str("Firmware date:Mar 9 2021 00:00:00\n");
                 SysInfoIndex::S1
             }
             SysInfoIndex::S1 => {
-                encoder.write_h_str("Firmware revision:Betaflight 4.2.11\n");
-                //encoder.write_h_str("Firmware date:Mar 9 2021 00:00:00\n");
+                // Time in ISO 8601 format: 0000-01-01T00:00:00.000+00:00
+                encoder.write_h_str("Log start datetime:");
+                encoder.write_u16_ascii(self.sys_info.date_time.year);
+                encoder.write_char('-');
+                encoder.write_u8_02_ascii(self.sys_info.date_time.month);
+                encoder.write_char('-');
+                encoder.write_u8_02_ascii(self.sys_info.date_time.day);
+                encoder.write_char('T');
+                encoder.write_u8_02_ascii(self.sys_info.date_time.hours);
+                encoder.write_char(':');
+                encoder.write_u8_02_ascii(self.sys_info.date_time.minutes);
+                encoder.write_char(':');
+                encoder.write_u8_02_ascii(self.sys_info.date_time.seconds);
+                encoder.write_str(".000+00:00\n");
                 SysInfoIndex::S2
             }
             SysInfoIndex::S2 => {
-                //encoder.write_h_str("Board information:\n");
-                encoder.write_h_str("Log start datetime:0000-01-01T00:00:00.000+00:00\n");
-                //encoder.write_h_str("Craft name:\n");
+                encoder.write_h_str_u32_ascii("I interval:", self.i_interval);
+                encoder.write_h_str_u32_ascii("P interval:1/", self.p_interval);
                 SysInfoIndex::S3
             }
             SysInfoIndex::S3 => {
-                encoder.write_h_str_u32_ascii("I interval:", self.i_interval);
-                encoder.write_h_str_u32_ascii("P interval:1/", self.p_interval);
+                encoder.write_h_str_u16_ascii("looptime:", self.sys_info.looptime);
+                encoder.write_h_str_u16_ascii("gyro_sync_denom:", self.sys_info.gyro_sync_denom);
+                encoder.write_h_str_u16_ascii("pid_process_denom:", self.sys_info.pid_process_denom);
+                // "P denom" ignored by blackbox-log-view
+                // encoder.write_h_str("P denom:32\n");
                 SysInfoIndex::S4
             }
             SysInfoIndex::S4 => {
-                encoder.write_h_str_u32_ascii("looptime:", self.sys_info.looptime);
-                encoder.write_h_str_u32_ascii("gyro_sync_denom:", 1);
-                encoder.write_h_str_u32_ascii("pid_process_denom:", 1);
+                encoder.write_h_str_u32_ascii("debug_mode:", self.debug_mode.into());
+                encoder.write_h_str_u32_ascii("features:", self.sys_info.features);
                 SysInfoIndex::S5
             }
             SysInfoIndex::S5 => {
-                // "P denom" ignored by blackbox-log-view
-                encoder.write_h_str("P denom:32\n");
-                encoder.write_h_str_u32_ascii("debug_mode:", self.debug_mode.into());
-                encoder.write_h_str("features:541130760\n");
+                encoder.write_h_str_u32_ascii_hex("gyro_scale:", self.sys_info.gyro_scale);
+                encoder.write_h_str_u16_ascii("acc_1G:", self.sys_info.acc_1g);
                 SysInfoIndex::S6
             }
             SysInfoIndex::S6 => {
-                encoder.write_h_str("gyro_scale:0x3f800000\n");
                 encoder.write_h_str("motorOutput:");
                 encoder.write_u32_ascii(u32::from(self.sys_info.motor_output_min));
                 encoder.write_byte(b',');
                 encoder.write_u32_ascii(u32::from(self.sys_info.motor_output_max));
                 encoder.write_char('\n');
 
-                encoder.write_h_str_u32_ascii("acc_1G:", 4096);
+                encoder.write_h_str_u16_ascii("motor_poles:", u16::from(self.sys_info.motor_pole_count));
                 SysInfoIndex::S7
             }
             SysInfoIndex::S7 => {
@@ -317,80 +330,23 @@ impl Logger {
                 SysInfoIndex::S8
             }
             SysInfoIndex::S8 => {
-                encoder.write_h_str_u32_ascii("vbatscale:", 110);
-                encoder.write_h_str("vbatcellvoltage:330,350,430\n");
+                encoder.write_h_str_u16_ascii("vbatscale:", self.sys_info.vbat_scale);
+                encoder.write_h_str("vbatcellvoltage:");
+                encoder.write_u16_ascii(self.sys_info.vbat_min_cell_voltage);
+                encoder.write_char(',');
+                encoder.write_u16_ascii(self.sys_info.vbat_warning_cell_voltage);
+                encoder.write_char(',');
+                encoder.write_u16_ascii(self.sys_info.vbat_max_cell_voltage);
+                encoder.write_char('\n');
+
                 encoder.write_h_str_u16_ascii("vbatref:", self.vbat_reference);
-                encoder.write_h_str("currentSensor:0,250\n");
+                encoder.write_h_str("currentSensor:");
+                encoder.write_u16_ascii(self.sys_info.current_sensor_offset);
+                encoder.write_char(',');
+                encoder.write_u16_ascii(self.sys_info.current_sensor_scale);
+                encoder.write_char('\n');
                 SysInfoIndex::End
             }
-            /*9 => {
-                encoder.write_h_str("thr_mid:50\n");
-                encoder.write_h_str("thr_expo:0\n");
-                encoder.write_h_str("tpa_rate:65\n");
-                encoder.write_h_str("tpa_breakpoint:1350\n");
-                encoder.write_h_str("rc_rates:70,70,70\n");
-                encoder.write_h_str("rc_expo:0,0,0\n");
-                encoder.write_h_str("rates:75,75,75\n");
-                encoder.write_h_str("rate_limits:1998,1998,1998\n");
-            }
-            10 => {
-                encoder.write_h_str("rollPID:50,102,36\n");
-                encoder.write_h_str("pitchPID:55,108,38\n");
-                encoder.write_h_str("yawPID:54,108,0\n");
-                encoder.write_h_str("levelPID:50,50,75\n");
-                encoder.write_h_str("magPID:40\n");
-                encoder.write_h_str("velPID:55,55,75\n");
-            }
-            11 => {
-                encoder.write_h_str("dterm_filter_type:0\n");
-                encoder.write_h_str("dterm_lpf_hz:100\n");
-                encoder.write_h_str("yaw_lpf_hz:0\n");
-                encoder.write_h_str("dterm_notch_hz:0\n");
-                encoder.write_h_str("dterm_notch_cutoff:160\n");
-                encoder.write_h_str("iterm_windup:50\n");
-                encoder.write_h_str("vbat_pid_gain:0\n");
-                encoder.write_h_str("pidAtMinThrottle:1\n");
-            }
-            12 => {
-                encoder.write_h_str("anti_gravity_threshold:350\n");
-                encoder.write_h_str("anti_gravity_gain:1000\n");
-                encoder.write_h_str("setpoint_relaxation_ratio:50\n");
-                encoder.write_h_str("dterm_setpoint_weight:100\n");
-                encoder.write_h_str("acc_limit_yaw:100\n");
-                encoder.write_h_str("acc_limit:0\n");
-                encoder.write_h_str("pidsum_limit:500\n");
-                encoder.write_h_str("pidsum_limit_yaw:400\n");
-            }
-            13 => {
-                encoder.write_h_str("deadband:0\n");
-                encoder.write_h_str("yaw_deadband:0\n");
-            }
-            14 => {
-                encoder.write_h_str("gyro_lpf:0\n");
-                encoder.write_h_str("gyro_lowpass_type:0\n");
-                encoder.write_h_str("gyro_lowpass_hz:90\n");
-                encoder.write_h_str("gyro_notch_hz:0,0\n");
-                encoder.write_h_str("gyro_notch_cutoff:300,100\n");
-                encoder.write_h_str("acc_lpf_hz:1000\n");
-            }
-            15 => {
-                encoder.write_h_str("acc_hardware:1\n");
-                encoder.write_h_str("baro_hardware:1\n");
-                encoder.write_h_str("mag_hardware:1\n");
-            }
-            16 => {
-                encoder.write_h_str("gyro_cal_on_first_arm:0\n");
-                encoder.write_h_str("rc_interpolation:2\n");
-                encoder.write_h_str("rc_interpolation_interval:19\n");
-                encoder.write_h_str("airmode_activate_throttle:32\n");
-            }
-            17 => {
-                encoder.write_h_str("serialrx_provider:3\n");
-                encoder.write_h_str("use_unsynced_pwm:0\n");
-                encoder.write_h_str("motor_pwm_protocol:6\n");
-                encoder.write_h_str("motor_pwm_rate:480\n");
-                encoder.write_h_str("dshot_idle_value:550\n");
-            }*/
             SysInfoIndex::End => SysInfoIndex::End,
         }
     }
@@ -398,8 +354,8 @@ impl Logger {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
-    use crate::{BlackboxStartParameters, data::BlackboxMainData, logger_state::LoggerState};
+    #![allow(clippy::panic)]
+    use crate::{BlackboxStartParameters, data::BlackboxMainData, logger::BlackboxSysInfo, logger_state::LoggerState};
 
     use super::*;
 
@@ -429,13 +385,17 @@ mod tests {
             Logger::write_file_header(&mut encoder);
 
             // Convert the written portion to a string for validation
-            let result = core::str::from_utf8(&encoder.buffer[..encoder.pos]).unwrap();
+            let Ok(result) = core::str::from_utf8(&encoder.buffer[..encoder.pos]) else {
+                panic!("from_utf8 failed");
+            };
             // Print for manual inspection (if running with `cargo test -- --nocapture`)
             println!("\nHEADER\n{result}\n");
             assert!(result.contains("H Product:Blackbox"));
             encoder.pos
         };
-        let result = core::str::from_utf8(&buffer[..pos]).unwrap();
+        let Ok(result) = core::str::from_utf8(&buffer[..pos]) else {
+            panic!("from_utf8 failed");
+        };
         println!("\nBUFFER\n{result}\n");
 
         //sd_card.write_all(&buffer[..pos]);
@@ -444,7 +404,8 @@ mod tests {
     fn write_main_fields_header() {
         let mut buffer = [0u8; 2048];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
-        let mut logger = Logger::new();
+        let sys_info = BlackboxSysInfo::new();
+        let mut logger = Logger::new(sys_info);
         logger.init(0, 0, false);
 
         let mut field_header: FieldHeaderIndex = FieldHeaderIndex::IName(0);
@@ -456,8 +417,9 @@ mod tests {
         }
 
         // Convert the written portion to a string for validation
-        #[allow(clippy::unwrap_used)]
-        let result = core::str::from_utf8(&encoder.buffer[..encoder.pos]).unwrap();
+        let Ok(result) = core::str::from_utf8(&encoder.buffer[..encoder.pos]) else {
+            panic!("from_utf8 failed");
+        };
         // Print for manual inspection (if running with `cargo test -- --nocapture`)
         println!("\nMAIN FIELDS HEADER\n{result}\n");
     }
@@ -465,14 +427,16 @@ mod tests {
     fn write_slow_fields_header() {
         let mut buffer = [0u8; 2048];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
-        let mut logger = Logger::new();
+        let sys_info = BlackboxSysInfo::new();
+        let mut logger = Logger::new(sys_info);
         logger.init(0, 0, false);
 
         logger.write_slow_fields_header(&mut encoder);
 
         // Convert the written portion to a string for validation
-        #[allow(clippy::unwrap_used)]
-        let result = core::str::from_utf8(&encoder.buffer[..encoder.pos]).unwrap();
+        let Ok(result) = core::str::from_utf8(&encoder.buffer[..encoder.pos]) else {
+            panic!("from_utf8 failed");
+        };
         // Print for manual inspection (if running with `cargo test -- --nocapture`)
         println!("\nSLOW FIELDS HEADER\n{result}\n");
     }
@@ -480,7 +444,8 @@ mod tests {
     fn write_sys_info() {
         let mut buffer = [0u8; 2048];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
-        let mut logger = Logger::new();
+        let sys_info = BlackboxSysInfo::new();
+        let mut logger = Logger::new(sys_info);
 
         let mut sys_info = SysInfoIndex::Start;
         loop {
@@ -491,8 +456,9 @@ mod tests {
         }
 
         // Convert the written portion to a string for validation
-        #[allow(clippy::unwrap_used)]
-        let result = core::str::from_utf8(&encoder.buffer[..encoder.pos]).unwrap();
+        let Ok(result) = core::str::from_utf8(&encoder.buffer[..encoder.pos]) else {
+            panic!("from_utf8 failed");
+        };
         // Print for manual inspection (if running with `cargo test -- --nocapture`)
         println!("\nSYS INFO\n{result}\n");
     }
@@ -500,7 +466,8 @@ mod tests {
     fn state_machine_headers() {
         let mut buffer = [0u8; 4096];
         let mut encoder = SliceEncoder { buffer: &mut buffer, pos: 0 };
-        let mut logger = Logger::new();
+        let sys_info = BlackboxSysInfo::new();
+        let mut logger = Logger::new(sys_info);
         //let mut _sd_card = MockSdCard::new("state_machine_log.bbl");
         logger.init(0, 0, false);
 
@@ -541,8 +508,9 @@ mod tests {
             _ = state.update(&mut logger, &mut encoder, current_time_us);
             if state == LoggerState::HeaderWritten {
                 if encoder.pos != 0 {
-                    #[allow(clippy::unwrap_used)]
-                    let result = core::str::from_utf8(&encoder.buffer[..encoder.pos]).unwrap();
+                    let Ok(result) = core::str::from_utf8(&encoder.buffer[..encoder.pos]) else {
+                        panic!("from_utf8 failed");
+                    };
                     println!("{result}");
                 }
                 break;
@@ -571,8 +539,9 @@ mod tests {
             //println!("state={state_i}");
             if state == StateMachine::Running {
                 if encoder.pos != 0 {
-                    #[allow(clippy::unwrap_used)]
-                    let result = core::str::from_utf8(&encoder.buffer[..encoder.pos]).unwrap();
+                    let Ok(result) = core::str::from_utf8(&encoder.buffer[..encoder.pos]) else {
+                        panic!("from_utf8 failed");
+                    };
                     println!("RR__{result}__RR");
                     run_count += 1;
                 }

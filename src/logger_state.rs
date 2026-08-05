@@ -23,6 +23,10 @@ pub enum LoggerState {
     Paused,
     Running,
     ShuttingDown,
+    // CacheFlush,
+    // StartErase,
+    // Erasing,
+    // Erased,
 }
 
 impl LoggerState {
@@ -93,12 +97,12 @@ impl LoggerState {
                 logger.write_slow_fields_header(encoder);
                 Self::WriteSysinfo(SysInfoIndex::Start)
             }
-            Self::WriteSysinfo(sys_info) => {
-                let next_sys_info = logger.write_sys_info(encoder, sys_info);
-                if next_sys_info == SysInfoIndex::End {
+            Self::WriteSysinfo(sys_info_index) => {
+                let sys_info_index = logger.write_sys_info(encoder, sys_info_index);
+                if sys_info_index == SysInfoIndex::End {
                     Self::WriteHuffmanTable
                 } else {
-                    Self::WriteSysinfo(next_sys_info)
+                    Self::WriteSysinfo(sys_info_index)
                 }
             }
             Self::WriteHuffmanTable => {
