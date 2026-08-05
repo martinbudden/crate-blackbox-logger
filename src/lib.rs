@@ -35,7 +35,7 @@ mod logger;
 mod logger_state;
 mod write_headers;
 
-pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode, BlackboxStartParameters};
+pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode};
 pub use data::{BlackboxEvent, BlackboxGpsData, BlackboxGpsPosition, BlackboxMainData, BlackboxSlowData};
 pub use encoding::{BlackboxWriter, SliceEncoder};
 pub use field_definitions::FieldSelect;

@@ -304,7 +304,7 @@ impl Logger {
                 SysInfoIndex::S4
             }
             SysInfoIndex::S4 => {
-                encoder.write_h_str_u32_ascii("debug_mode:", self.debug_mode.into());
+                encoder.write_h_str_u16_ascii("debug_mode:", self.debug_mode);
                 encoder.write_h_str_u32_ascii("features:", self.sys_info.features);
                 SysInfoIndex::S5
             }
@@ -349,7 +349,7 @@ impl Logger {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::panic)]
-    use crate::{BlackboxStartParameters, data::BlackboxMainData, logger::BlackboxSysInfo, logger_state::LoggerState};
+    use crate::{data::BlackboxMainData, logger::BlackboxSysInfo, logger_state::LoggerState};
 
     use super::*;
 
@@ -465,7 +465,6 @@ mod tests {
         //let mut _sd_card = MockSdCard::new("state_machine_log.bbl");
         logger.init(0, 0, false);
 
-        let start = BlackboxStartParameters::new();
         let mut state = LoggerState::default();
         assert_eq!(LoggerState::Disabled, state);
 
@@ -474,8 +473,8 @@ mod tests {
         logger.set_main_data(main_data);
 
         println!("\nSTATE MACHINE HEADERS\n");
-        state.start(start);
-        assert_eq!(LoggerState::PrepareLogFile, state);
+        state.start(0);
+        assert_eq!(LoggerState::Start(0), state);
 
         current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
         _ = state.update(&mut logger, &mut encoder, current_time_us);
@@ -495,7 +494,7 @@ mod tests {
 
         current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
         _ = state.update(&mut logger, &mut encoder, current_time_us, true);
-        assert_eq!(StateMachine::PrepareLogFile, state);*/
+        assert_eq!(StateMachine::Start, state);*/
 
         loop {
             logger.set_main_data(main_data);
@@ -519,7 +518,6 @@ mod tests {
         let mut logger = Logger::new(0);
         logger.init(0, 0, false);
 
-        let start = BlackboxStartParameters::new();
         let mut state = StateMachine::default();
         let mut current_time_us: u32 = 0;
         let gyro_pid_msg = GyroPidMessage::new();

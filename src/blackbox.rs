@@ -72,28 +72,6 @@ impl BlackboxConfig {
         }
     }
 }
-#[allow(missing_docs)]
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct BlackboxStartParameters {
-    pub debug_mode: u16,
-    pub motor_count: u8,
-    pub servo_count: u8,
-}
-
-impl Default for BlackboxStartParameters {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl BlackboxStartParameters {
-    /// Constructor.
-    #[must_use]
-    pub const fn new() -> Self {
-        Self { debug_mode: 0, motor_count: 4, servo_count: 0 }
-    }
-}
-
 /// Blackbox struct containing the logger, state machine, and config.
 #[derive(Clone, Copy, Debug)]
 pub struct Blackbox {
@@ -145,6 +123,11 @@ impl Blackbox {
     }
 
     #[inline]
+    pub fn start(&mut self, debug_mode: u16) {
+        self.state.start(debug_mode);
+    }
+
+    #[inline]
     pub fn update(&mut self, encoder: &mut SliceEncoder, current_time_us: u32) -> usize {
         self.state.update(&mut self.logger, encoder, current_time_us)
     }
@@ -172,7 +155,6 @@ mod tests {
     #[test]
     fn normal_types() {
         is_normal::<Blackbox>();
-        is_full::<BlackboxStartParameters>();
         is_full::<BlackboxConfig>();
         #[cfg(feature = "serde")]
         is_config::<BlackboxConfig>();

@@ -1,6 +1,6 @@
 use crate::{
     BlackboxEvent::LoggingResume,
-    BlackboxStartParameters, Logger, SliceEncoder,
+    Logger, SliceEncoder,
     write_headers::{FieldHeaderIndex, SysInfoIndex},
 };
 
@@ -11,7 +11,7 @@ pub enum LoggerState {
     #[default]
     Disabled = 0,
     Stopped,
-    PrepareLogFile,
+    Start(u16),
     WriteFileHeader,
     WriteMainFieldsHeader(FieldHeaderIndex),
     WriteGpsHFieldsHeader,
@@ -39,8 +39,8 @@ impl LoggerState {
 
 impl LoggerState {
     /// Start logging.
-    pub fn start(&mut self, _start_params: BlackboxStartParameters) {
-        *self = Self::PrepareLogFile;
+    pub fn start(&mut self, debug_mode: u16) {
+        *self = Self::Start(debug_mode);
     }
 
     /// Finish logging.
@@ -60,8 +60,9 @@ impl LoggerState {
             // Explicitly setting state = State::Disabled defends against a change in the default.
             Self::Disabled => Self::Disabled,
             Self::Stopped | Self::ShuttingDown => Self::Stopped,
-            Self::PrepareLogFile => {
+            Self::Start(debug_mode) => {
                 logger.logged_any_frames = false;
+                logger.debug_mode = debug_mode;
                 Self::WriteFileHeader
             }
             Self::WriteFileHeader => {
