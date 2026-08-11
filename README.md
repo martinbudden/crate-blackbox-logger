@@ -11,7 +11,7 @@ The main changes are:
 
 1. Code is written in Rust.
 2. Dependencies (ie configs, features, sensors etc) have been removed so this library can be used on its own.
-3. Support for compressing P frames using Huffman encoding.
+3. Support for compressing **P frames** using Huffman encoding.
 
 This crate is `no_std`, that it does not link to the standard library and so does not depend on an operating system
 and uses no allocation. This means it is suitable for embedded systems.
@@ -40,6 +40,21 @@ Early testing indicates that **Q frames** are often less than half the size of t
 1. **I frames** are key-frames, that is they are used to reset values if there has been a corruption at some point. So they should not be further encoded.
 2. **H frames**, **S frames**, and **E frames** are small and rare, so the impact of compressing them is very small.
 3. **G frames** are fairly rare, so the impact of compressing them is small. Also their content is not conducive to Huffman encoding.
+
+## Reading a Huffman encoded Blackbox log
+
+The process is very similar to reading an unencoded log:
+
+1. Read the log header.
+2. At the end of the header look for a **T frame**
+3. If there is no **T frame** then the file is not encoded, an just read it as a normal log.
+4. If there is a **T frame**, then use it to build a Huffman decoding tree.
+5. Proceed to read the file normally, process **I**, **P**, **S**, **E**, **G**, and **H** frames normally.
+6. If you encounter a **Q frame**, then that is an encoded **P frame**, so decode it using the Huffman tree.
+   This will produce a **P frame**, which you just treat as a normal **P frame**.
+
+A **T frame** consists of the letter 'T' followed by 768 bytes of binary data, this is 256 triplets,
+each triplet consists of a `u8` encoded length followed by a `u16` of the encoded bits.
 
 ## Earlier implementation
 
