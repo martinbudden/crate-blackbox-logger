@@ -134,8 +134,8 @@ impl Blackbox {
     }
 
     #[inline]
-    pub fn update(&mut self, encoder: &mut SliceEncoder, current_time_us: u32) -> usize {
-        self.state.update(&mut self.logger, encoder, current_time_us)
+    pub fn update(&mut self, encoder: &mut SliceEncoder, current_time_us: u32, force_i_frame: bool) -> usize {
+        self.state.update(&mut self.logger, encoder, current_time_us, force_i_frame)
     }
 
     #[inline]

@@ -477,11 +477,11 @@ mod tests {
         assert_eq!(LoggerState::Start(0), state);
 
         current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
-        _ = state.update(&mut logger, &mut encoder, current_time_us);
+        _ = state.update_header(&mut logger, &mut encoder, current_time_us);
         assert_eq!(LoggerState::WriteFileHeader, state);
 
         current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
-        _ = state.update(&mut logger, &mut encoder, current_time_us);
+        _ = state.update_header(&mut logger, &mut encoder, current_time_us);
         assert_eq!(LoggerState::WriteMainFieldsHeader(FieldHeaderIndex::IName(0)), state);
 
         /*current_time_us = current_time_us.wrapping_add(1000); // use wrapping_add to handle when time rolls over at max u32.
@@ -498,7 +498,7 @@ mod tests {
 
         loop {
             logger.set_main_data(main_data);
-            _ = state.update(&mut logger, &mut encoder, current_time_us);
+            _ = state.update_header(&mut logger, &mut encoder, current_time_us);
             if state == LoggerState::HeaderWritten {
                 if encoder.pos != 0 {
                     let Ok(result) = core::str::from_utf8(&encoder.buffer[..encoder.pos]) else {

@@ -298,8 +298,14 @@ impl Logger {
         self.gps_data = gps_data;
     }
 
-    pub fn update(&mut self, state: &mut LoggerState, encoder: &mut SliceEncoder, current_time_us: u32) -> usize {
-        state.update(self, encoder, current_time_us)
+    pub fn update(
+        &mut self,
+        state: &mut LoggerState,
+        encoder: &mut SliceEncoder,
+        current_time_us: u32,
+        force_i_frame: bool,
+    ) -> usize {
+        state.update(self, encoder, current_time_us, force_i_frame)
     }
 
     /// Called when the flight controller signals it has new data.

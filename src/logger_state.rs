@@ -53,8 +53,19 @@ impl LoggerState {
         *self = state;
     }
 
+    /// Helper function used when writing header.
+    pub fn update_header(&mut self, logger: &mut Logger, encoder: &mut SliceEncoder, current_time_us: u32) -> usize {
+        self.update(logger, encoder, current_time_us, false)
+    }
+
     /// Called each flight loop iteration to perform blackbox logging.
-    pub fn update(&mut self, logger: &mut Logger, encoder: &mut SliceEncoder, current_time_us: u32) -> usize {
+    pub fn update(
+        &mut self,
+        logger: &mut Logger,
+        encoder: &mut SliceEncoder,
+        current_time_us: u32,
+        force_i_frame: bool,
+    ) -> usize {
         *self = match core::mem::take(self) {
             // If we are disabled, we stay disabled until start() is called
             // Explicitly setting state = State::Disabled defends against a change in the default.
@@ -128,6 +139,9 @@ impl LoggerState {
             }
             Self::Running => {
                 if logger.slow_data.is_blackbox_active() {
+                    if force_i_frame {
+                        logger.force_log_i_frame();
+                    }
                     logger.log_iteration(encoder, current_time_us);
                     logger.advance_iteration_indices();
                     Self::Running
