@@ -19,12 +19,12 @@ impl BlackboxEventId {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
 pub enum BlackboxEvent {
-    SyncBeep(u32) = 0,
+    SyncBeep(u64) = 0,
     AutotuneCycleStart = 10,
     AutotuneCycleResult = 11,
     AutotuneCycleTargets = 12,
     InflightAdjustment(i32, f32, u8, bool) = 13,
-    LoggingResume(u32, u32) = 14,
+    LoggingResume(u32, u64) = 14,
     Disarm(u32) = 15,
     FlightMode(u32, u32) = 30,
     LogEnd = 255,
@@ -187,7 +187,7 @@ impl BlackboxGpsData {
 #[allow(missing_docs)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BlackboxMainData {
-    pub time_us: u32,
+    pub time_us: u64,
     pub pid_p: [i32; Self::RPY_AXIS_COUNT],
     pub pid_i: [i32; Self::RPY_AXIS_COUNT],
     pub pid_d: [i32; Self::RPY_AXIS_COUNT],

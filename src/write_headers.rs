@@ -468,7 +468,7 @@ mod tests {
         let mut state = LoggerState::default();
         assert_eq!(LoggerState::Disabled, state);
 
-        let mut current_time_us: u32 = 0;
+        let mut current_time_us: u64 = 0;
         let main_data = BlackboxMainData::new();
         logger.set_main_data(main_data);
 
@@ -519,7 +519,7 @@ mod tests {
         logger.init(0, 0, false);
 
         let mut state = StateMachine::default();
-        let mut current_time_us: u32 = 0;
+        let mut current_time_us: u64 = 0;
         let gyro_pid_msg = GyroPidMessage::new();
         let setpoint_msg = SetpointMessage::new();
         state.start(start);

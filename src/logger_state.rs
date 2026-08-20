@@ -54,7 +54,7 @@ impl LoggerState {
     }
 
     /// Helper function used when writing header.
-    pub fn update_header(&mut self, logger: &mut Logger, encoder: &mut SliceEncoder, current_time_us: u32) -> usize {
+    pub fn update_header(&mut self, logger: &mut Logger, encoder: &mut SliceEncoder, current_time_us: u64) -> usize {
         self.update(logger, encoder, current_time_us, false)
     }
 
@@ -63,7 +63,7 @@ impl LoggerState {
         &mut self,
         logger: &mut Logger,
         encoder: &mut SliceEncoder,
-        current_time_us: u32,
+        current_time_us: u64,
         force_i_frame: bool,
     ) -> usize {
         *self = match core::mem::take(self) {

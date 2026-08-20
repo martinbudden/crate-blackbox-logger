@@ -102,7 +102,7 @@ impl Blackbox {
         self.logger.init(self.config.sample_rate, self.config.fields_disabled_mask, self.config.huffman_compress);
     }
 
-    /*pub fn load_telemetry(&mut self, current_time_us: u32, gyro_pid: GyroPidMessage, setpoint: SetpointMessage) {
+    /*pub fn load_telemetry(&mut self, current_time_us: u64, gyro_pid: GyroPidMessage, setpoint: SetpointMessage) {
         self.logger.load_telemetry(current_time_us, gyro_pid, setpoint);
     }*/
 
@@ -134,7 +134,7 @@ impl Blackbox {
     }
 
     #[inline]
-    pub fn update(&mut self, encoder: &mut SliceEncoder, current_time_us: u32, force_i_frame: bool) -> usize {
+    pub fn update(&mut self, encoder: &mut SliceEncoder, current_time_us: u64, force_i_frame: bool) -> usize {
         self.state.update(&mut self.logger, encoder, current_time_us, force_i_frame)
     }
 

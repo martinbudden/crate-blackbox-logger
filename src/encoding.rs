@@ -223,6 +223,13 @@ impl SliceEncoder<'_> {
         self.write_byte(value as u8);
     }
 
+    /// Write a u64 truncated to a u32. Used for `time_us`.
+    pub fn write_unsigned_vb_u64_as_u32(&mut self, value: u64) {
+        #[allow(clippy::cast_possible_truncation)]
+        let value_u32 = value as u32;
+        self.write_unsigned_vb(value_u32);
+    }
+
     /// Write f32 value in integer form.
     pub fn write_f32(&mut self, value: f32) {
         let bits = value.to_bits().cast_signed();

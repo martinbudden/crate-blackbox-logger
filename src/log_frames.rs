@@ -86,7 +86,7 @@ impl Logger {
         match event {
             BlackboxEvent::SyncBeep(time) => {
                 encoder.write_byte(BlackboxEventId::SYNC_BEEP);
-                encoder.write_unsigned_vb(time);
+                encoder.write_unsigned_vb_u64_as_u32(time);
             }
             BlackboxEvent::InflightAdjustment(new_value, new_value_f32, adjustment, is_float) => {
                 encoder.write_byte(BlackboxEventId::INFLIGHT_ADJUSTMENT);
@@ -107,7 +107,7 @@ impl Logger {
             BlackboxEvent::LoggingResume(iteration, time) => {
                 encoder.write_byte(BlackboxEventId::LOGGING_RESUME);
                 encoder.write_unsigned_vb(iteration);
-                encoder.write_unsigned_vb(time);
+                encoder.write_unsigned_vb_u64_as_u32(time);
             }
             BlackboxEvent::FlightMode(flags, previous_flags) => {
                 encoder.write_byte(BlackboxEventId::FLIGHT_MODE);
@@ -173,7 +173,7 @@ impl Logger {
 
     /// GPS frame: `g_frame`. Written at a frequency of about 10Hz.
     #[cfg(feature = "gps")]
-    pub fn log_g_frame(&mut self, encoder: &mut SliceEncoder, current_time_us: u32) {
+    pub fn log_g_frame(&mut self, encoder: &mut SliceEncoder, current_time_us: u64) {
         self.has_new_gps_data = false;
 
         encoder.begin_frame(b'G');
@@ -184,7 +184,7 @@ impl Logger {
         assert_g_field_encoding!("time", FieldPredictor::LastMainFrameTime, FieldEncoding::UnsignedVb);
         if self.conditions.test(FieldCondition::NOT_LOGGING_EVERY_FRAME) {
             // Predict the time of the last frame in the main log
-            encoder.write_unsigned_vb(current_time_us - self.main_data[0].time_us);
+            encoder.write_unsigned_vb_u64_as_u32(current_time_us - self.main_data[0].time_us);
         }
 
         assert_g_field_encoding!("GPS_numSat", FieldPredictor::Zero, FieldEncoding::UnsignedVb);
@@ -235,7 +235,7 @@ impl Logger {
         encoder.write_unsigned_vb(self.iteration);
 
         assert_i_field_encoding!("time", FieldPredictor::Zero, FieldEncoding::UnsignedVb);
-        encoder.write_unsigned_vb(current.time_us);
+        encoder.write_unsigned_vb_u64_as_u32(current.time_us);
 
         assert_i_field_encoding!("axisP", FieldPredictor::Zero, FieldEncoding::SignedVb);
         assert_i_field_encoding!("axisI", FieldPredictor::Zero, FieldEncoding::SignedVb);
@@ -409,9 +409,13 @@ impl Logger {
         // Since the difference between the difference between successive times will be nearly zero (due to consistent
         // loop time spacing), use second-order differences.
         assert_p_field_encoding!("time", FieldPredictor::StraightLine, FieldEncoding::SignedVb);
-        let time: i64 = i64::from(current.time_us) - 2 * i64::from(previous.time_us) + i64::from(pre_previous.time_us);
-        #[allow(clippy::cast_possible_truncation)]
-        encoder.write_signed_vb(time as i32);
+
+        // Cast time to i64 to calculate delta and then cast back to i32
+        // This is fine, since time delta is in i32 range, and time is in i64 range.
+        #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
+        let time_delta: i32 =
+            ((current.time_us as i64) - 2 * (previous.time_us as i64) + (pre_previous.time_us as i64)) as i32;
+        encoder.write_signed_vb(time_delta);
 
         assert_p_field_encoding!("axisP", FieldPredictor::Previous, FieldEncoding::SignedVb);
         assert_p_field_encoding!("axisI", FieldPredictor::Previous, FieldEncoding::Tag2_3S32);

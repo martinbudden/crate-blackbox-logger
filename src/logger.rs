@@ -102,7 +102,7 @@ pub struct Logger {
     pub(crate) conditions: BitSet64,
     pub(crate) enabled_fields: u32,
 
-    pub(crate) last_arming_beep_time_us: u32,
+    pub(crate) last_arming_beep_time_us: u64,
     pub(crate) last_flight_mode_flags: u32,
     pub(crate) i_interval: u32,
     pub(crate) p_interval: u32,
@@ -302,14 +302,14 @@ impl Logger {
         &mut self,
         state: &mut LoggerState,
         encoder: &mut SliceEncoder,
-        current_time_us: u32,
+        current_time_us: u64,
         force_i_frame: bool,
     ) -> usize {
         state.update(self, encoder, current_time_us, force_i_frame)
     }
 
     /// Called when the flight controller signals it has new data.
-    pub fn log_iteration(&mut self, encoder: &mut SliceEncoder, current_time_us: u32) {
+    pub fn log_iteration(&mut self, encoder: &mut SliceEncoder, current_time_us: u64) {
         self.logged_any_frames = true;
 
         self.main_data[self.main_data_current_idx].time_us = current_time_us;
@@ -393,7 +393,7 @@ impl Logger {
     }
 
     /// If an arming beep has played since it was last logged, write the time of the arming beep to the log as a synchronization point.
-    pub fn log_event_arming_beep_if_needed(&mut self, encoder: &mut SliceEncoder, arming_beep_time_us: u32) {
+    pub fn log_event_arming_beep_if_needed(&mut self, encoder: &mut SliceEncoder, arming_beep_time_us: u64) {
         if arming_beep_time_us != self.last_arming_beep_time_us {
             self.last_arming_beep_time_us = arming_beep_time_us;
             let event = BlackboxEvent::SyncBeep(arming_beep_time_us);
