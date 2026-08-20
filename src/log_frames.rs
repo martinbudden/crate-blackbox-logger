@@ -191,12 +191,12 @@ impl Logger {
         encoder.write_unsigned_vb(u32::from(self.gps_data.satellite_count));
 
         assert_g_field_encoding!("GPS_coord", FieldPredictor::HomeCoord, FieldEncoding::SignedVb);
-        encoder.write_signed_vb(self.gps_data.position.latitude_degrees_x1e7 - self.gps_home.latitude_degrees_x1e7);
-        encoder.write_signed_vb(self.gps_data.position.longitude_degrees_x1e7 - self.gps_home.longitude_degrees_x1e7);
+        encoder.write_signed_vb(self.gps_data.latitude_degrees_x1e7 - self.gps_home.latitude_degrees_x1e7);
+        encoder.write_signed_vb(self.gps_data.longitude_degrees_x1e7 - self.gps_home.longitude_degrees_x1e7);
 
         // log altitude in increments of 0.1m
         assert_g_field_encoding!("GPS_altitude", FieldPredictor::Zero, FieldEncoding::SignedVb);
-        encoder.write_signed_vb(self.gps_data.position.altitude_cm / 10);
+        encoder.write_signed_vb(self.gps_data.altitude_cm / 10);
 
         //if self.config.gps_use_3d_speed {
         //    encoder.write_unsigned_vb(self.gps_data.speed3d_cmps as u32);

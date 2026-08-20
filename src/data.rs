@@ -129,8 +129,12 @@ pub struct BlackboxGpsData {
     pub time_of_week_ms: u32,
     /// Interval between GPS solutions in ms.
     pub interval_ms: u32,
-    /// Current position.
-    pub position: BlackboxGpsPosition,
+    /// longitude in degrees * 1e+7.
+    pub longitude_degrees_x1e7: i32,
+    /// latitude in degrees * 1e+7.
+    pub latitude_degrees_x1e7: i32,
+    /// altitude in cm.
+    pub altitude_cm: i32,
     /// North velocity, cm/s.
     pub velocity_north_cmps: i16,
     /// East velocity, cm/s.
@@ -160,7 +164,9 @@ impl BlackboxGpsData {
         Self {
             time_of_week_ms: 0,
             interval_ms: 0,
-            position: BlackboxGpsPosition::new(),
+            longitude_degrees_x1e7: 0,
+            latitude_degrees_x1e7: 0,
+            altitude_cm: 0,
             velocity_north_cmps: 0,
             velocity_east_cmps: 0,
             velocity_down_cmps: 0,
@@ -178,8 +184,8 @@ impl BlackboxGpsData {
     pub fn state_changed(&self, new_data: Self) -> bool {
         // We could check for velocity changes as well but I doubt it changes independent of position
         new_data.satellite_count != self.satellite_count
-            || new_data.position.latitude_degrees_x1e7 != self.position.latitude_degrees_x1e7
-            || new_data.position.longitude_degrees_x1e7 != self.position.longitude_degrees_x1e7
+            || new_data.latitude_degrees_x1e7 != self.latitude_degrees_x1e7
+            || new_data.longitude_degrees_x1e7 != self.longitude_degrees_x1e7
     }
 }
 
