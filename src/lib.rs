@@ -22,6 +22,7 @@
 #![warn(clippy::doc_paragraphs_missing_punctuation)]
 
 mod blackbox;
+mod blackbox_config;
 mod data;
 mod encoding;
 mod field_arrays;
@@ -35,7 +36,8 @@ mod logger;
 mod logger_state;
 mod write_headers;
 
-pub use blackbox::{Blackbox, BlackboxConfig, BlackboxDevice, BlackboxMode};
+pub use blackbox::Blackbox;
+pub use blackbox_config::{BlackboxConfig, BlackboxDevice, BlackboxMode};
 pub use data::{BlackboxEvent, BlackboxGpsData, BlackboxGpsPosition, BlackboxMainData, BlackboxSlowData};
 pub use encoding::{BlackboxWriter, SliceEncoder};
 pub use field_definitions::FieldSelect;
