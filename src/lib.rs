@@ -21,6 +21,9 @@
 #![warn(clippy::pedantic)]
 #![warn(clippy::doc_paragraphs_missing_punctuation)]
 
+#[macro_use]
+mod macros;
+
 mod blackbox;
 mod blackbox_config;
 mod data;

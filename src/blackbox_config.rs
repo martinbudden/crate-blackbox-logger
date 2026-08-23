@@ -33,7 +33,7 @@ impl BlackboxConfig {
         Self {
             fields_disabled_mask: 0,
             sample_rate: 0,
-            device: BlackboxDevice::None,
+            device: BlackboxDevice::NoDevice,
             mode: BlackboxMode::Normal,
             high_resolution: 0,
             gps_use_3d_speed: false,
@@ -42,12 +42,12 @@ impl BlackboxConfig {
     }
 }
 #[allow(missing_docs)]
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[repr(u8)]
 pub enum BlackboxDevice {
     #[default]
-    None,
+    NoDevice,
     Flash,
     SdCard,
     Serial,
@@ -56,33 +56,24 @@ pub enum BlackboxDevice {
 #[cfg(feature = "serde")]
 impl PostcardValue<'_> for BlackboxDevice {}
 
+impl_try_from_u8!(BlackboxDevice);
+
 #[allow(missing_docs)]
 impl BlackboxDevice {
     #[must_use]
     pub fn from_u8(value: u8) -> Self {
         match value {
-            0 => Self::None,
+            0 => Self::NoDevice,
             1 => Self::Flash,
             2 => Self::SdCard,
             3 => Self::Serial,
             _ => Self::default(),
         }
     }
-
-    #[must_use]
-    pub fn try_from_u8(value: u8) -> Option<Self> {
-        match value {
-            0 => Some(Self::None),
-            1 => Some(Self::Flash),
-            2 => Some(Self::SdCard),
-            3 => Some(Self::Serial),
-            _ => None,
-        }
-    }
 }
 
 #[allow(missing_docs)]
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[repr(u8)]
 pub enum BlackboxMode {
@@ -95,6 +86,8 @@ pub enum BlackboxMode {
 #[cfg(feature = "serde")]
 impl PostcardValue<'_> for BlackboxMode {}
 
+impl_try_from_u8!(BlackboxMode);
+
 #[allow(missing_docs)]
 impl BlackboxMode {
     #[must_use]
@@ -106,16 +99,6 @@ impl BlackboxMode {
             _ => Self::default(),
         }
     }
-
-    #[must_use]
-    pub fn try_from_u8(value: u8) -> Option<Self> {
-        match value {
-            0 => Some(Self::Normal),
-            1 => Some(Self::MotorTest),
-            2 => Some(Self::AlwaysOne),
-            _ => None,
-        }
-    }
 }
 
 #[cfg(test)]
@@ -124,14 +107,15 @@ mod tests {
 
     fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
+    fn is_full_eq<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + Eq + PartialEq>() {}
     #[cfg(feature = "serde")]
     fn is_config<T: Serialize + for<'a> Deserialize<'a> + for<'a> PostcardValue<'a>>() {}
 
     #[test]
     fn normal_types() {
         is_full::<BlackboxConfig>();
-        is_full::<BlackboxDevice>();
-        is_full::<BlackboxMode>();
+        is_full_eq::<BlackboxDevice>();
+        is_full_eq::<BlackboxMode>();
 
         #[cfg(feature = "serde")]
         is_config::<BlackboxConfig>();
