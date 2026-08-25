@@ -42,8 +42,8 @@ servos = []
 std = []
 
 [dependencies]
-serde = { version = "1.0.228", default-features = false, features = ["derive"], optional = true }
-postcard = { version = "1.1.3", default-features = false, features = ["embedded-io"], optional = true }
+serde = { version = "1.0.229", default-features = false, features = ["derive"], optional = true }
+postcard = { version = "1.1.3", default-features = false, features = ["embedded-io", "experimental-derive"], optional = true }
 sequential-storage = { version = "8.0.1", features = ["postcard"], optional = true }
 #simple-bitset = { version = "0.1.5" }
 simple-bitset = { git = "https://github.com/martinbudden/crate-simple-bitset" }

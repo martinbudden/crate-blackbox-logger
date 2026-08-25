@@ -1,12 +1,13 @@
 #[cfg(feature = "serde")]
 use {
+    postcard::experimental::max_size::MaxSize,
     sequential_storage::map::PostcardValue,
     serde::{Deserialize, Serialize},
 };
 
 #[allow(missing_docs)]
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
 pub struct BlackboxConfig {
     pub fields_disabled_mask: u32,
     pub sample_rate: u8,
@@ -43,7 +44,7 @@ impl BlackboxConfig {
 }
 #[allow(missing_docs)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
 #[repr(u8)]
 pub enum BlackboxDevice {
     #[default]
@@ -74,7 +75,7 @@ impl BlackboxDevice {
 
 #[allow(missing_docs)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize, MaxSize))]
 #[repr(u8)]
 pub enum BlackboxMode {
     #[default]
