@@ -285,7 +285,7 @@ pub const HUFFMAN_TABLE: [HuffmanCode; HUFFMAN_TABLE_SIZE] = [
 ];
 
 #[cfg(test)]
-mod tests {
+mod test_traits {
     use super::*;
 
     fn _is_normal<T: Sized + Send + Sync + Unpin>() {}

@@ -1,5 +1,5 @@
 #![cfg(feature = "huffman")]
-use crate::huffman_table::{HUFFMAN_MAX_ENCODED_BITS, HUFFMAN_TABLE};
+use super::huffman_table::{HUFFMAN_MAX_ENCODED_BITS, HUFFMAN_TABLE};
 
 #[derive(Debug, Default, PartialEq)]
 pub struct HuffmanEncoder<'a, const MAX_INPUT_LEN: usize> {
@@ -96,18 +96,21 @@ impl<'a, const MAX_INPUT_LEN: usize> HuffmanEncoder<'a, MAX_INPUT_LEN> {
 }
 
 #[cfg(test)]
-mod tests {
-    #![allow(clippy::panic)]
+mod test_traits {
     use super::*;
 
-    fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
     fn is_partial<T: Sized + Send + Sync + Unpin + Default + PartialEq>() {}
 
     #[test]
     fn normal_types() {
         is_partial::<HuffmanEncoder<16>>();
     }
+}
 
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::panic)]
+    use super::*;
     // 0x0 11
     // 0x1 101
     // 0x2 1001

@@ -1,10 +1,10 @@
-use crate::field_definitions::{
+use super::field_definitions::{
     FieldCondition as FC, FieldEncoding as FE, FieldPredictor as FP, FieldSign as FS, MainFieldDefinition as MFD,
     SimpleFieldDefinition as SFD,
 };
 
 #[cfg(feature = "gps")]
-use crate::field_definitions::ConditionalFieldDefinition as CFD;
+use super::field_definitions::ConditionalFieldDefinition as CFD;
 
 impl SFD {
     pub const SLOW_FIELD_COUNT: usize = 5;

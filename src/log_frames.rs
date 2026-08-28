@@ -1,4 +1,4 @@
-use crate::{
+use super::{
     BlackboxWriter, SliceEncoder,
     data::{BlackboxEvent, BlackboxEventId},
     field_definitions::{FieldCondition, FieldSelect},
@@ -6,19 +6,19 @@ use crate::{
 };
 
 #[cfg(feature = "huffman")]
-use crate::{huffman_encoder::HuffmanEncoder, huffman_table::HUFFMAN_TABLE};
+use super::{huffman_encoder::HuffmanEncoder, huffman_table::HUFFMAN_TABLE};
 
 #[cfg(feature = "servos")]
-use crate::data::BlackboxMainData;
+use super::data::BlackboxMainData;
 
 #[allow(unused)]
-use crate::field_definitions::FieldPredictor; // used in macro_rules, so sometimes not visible to compiler
+use super::field_definitions::FieldPredictor; // used in macro_rules, so sometimes not visible to compiler
 
 #[cfg(test)]
-use crate::field_definitions::{FieldEncoding, MainFieldDefinition, SimpleFieldDefinition};
+use super::field_definitions::{FieldEncoding, MainFieldDefinition, SimpleFieldDefinition};
 
 #[cfg(all(test, feature = "gps"))]
-use crate::field_definitions::ConditionalFieldDefinition;
+use super::field_definitions::ConditionalFieldDefinition;
 
 macro_rules! assert_i_field_encoding {
     ($name:expr, $expected_predict:expr, $expected_encode:expr) => {

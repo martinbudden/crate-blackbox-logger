@@ -118,6 +118,22 @@ pub fn generate_huffman_table(frequencies: &[u32; 256]) -> [HuffmanCode; 256] {
 }
 
 #[cfg(test)]
+mod test_traits {
+    use super::*;
+
+    fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
+    fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
+    fn is_partial<T: Sized + Send + Sync + Unpin + Clone + PartialEq>() {}
+    fn is_partial2<T: Sized + Send + Sync + Unpin + Clone>() {}
+
+    #[test]
+    fn normal_types() {
+        is_full::<HuffmanCode>();
+        is_partial2::<TreeItem>();
+        is_partial::<TreeNode>();
+    }
+}
+#[cfg(test)]
 mod tests {
     use super::*;
 

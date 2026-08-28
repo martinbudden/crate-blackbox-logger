@@ -1,7 +1,7 @@
 #![cfg(feature = "huffman")]
 #![allow(unused)]
 
-use crate::huffman_table::{HUFFMAN_MAX_ENCODED_BITS, HUFFMAN_TABLE, HUFFMAN_TABLE_SIZE};
+use super::huffman_table::{HUFFMAN_MAX_ENCODED_BITS, HUFFMAN_TABLE, HUFFMAN_TABLE_SIZE};
 
 pub const LUT_SIZE: usize = 1 << HUFFMAN_MAX_ENCODED_BITS; // 4096 entries
 
@@ -41,6 +41,7 @@ pub const DECODER_LUT: [DecoderEntry; LUT_SIZE] = {
     lut
 };
 
+#[derive(Debug, Default, PartialEq)]
 pub struct HuffmanDecoder<'a> {
     input: &'a [u8],
     read_idx: usize,
@@ -111,6 +112,20 @@ impl<'a> HuffmanDecoder<'a> {
         }
 
         Ok(write_idx)
+    }
+}
+
+#[cfg(test)]
+mod test_traits {
+    use super::*;
+
+    fn is_partial<T: Sized + Send + Sync + Unpin + PartialEq>() {}
+    fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
+
+    #[test]
+    fn normal_types() {
+        is_full::<DecoderEntry>();
+        is_partial::<HuffmanDecoder>();
     }
 }
 

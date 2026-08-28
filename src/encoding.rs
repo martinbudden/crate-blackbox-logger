@@ -463,15 +463,19 @@ tag8_4s16: Verifies the complex 2-bit-per-value tag and the nibble-packing logic
 tag2_3s32: Confirms the "global" size selector (the highest required size) is applied to all elements in the group.
 */
 #[cfg(test)]
-mod tests {
+mod test_traits {
     use super::*;
-    fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
     fn is_full_no_copy_no_clone<T: Sized + Send + Sync + Unpin + Default + PartialEq>() {}
 
     #[test]
     fn normal_types() {
         is_full_no_copy_no_clone::<SliceEncoder>();
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
     #[test]
     fn write_byte() {
         let mut buf = [0u8; 2];

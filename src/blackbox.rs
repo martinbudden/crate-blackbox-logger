@@ -1,4 +1,4 @@
-use crate::{
+use super::{
     BlackboxConfig, SliceEncoder,
     data::{BlackboxMainData, BlackboxSlowData},
     logger::{BlackboxSysInfo, Logger},
@@ -6,7 +6,7 @@ use crate::{
 };
 
 #[cfg(feature = "gps")]
-use crate::BlackboxGpsData;
+use super::BlackboxGpsData;
 
 /// Blackbox struct containing the logger, state machine, and config.
 #[derive(Clone, Copy, Debug)]
@@ -98,7 +98,7 @@ impl Blackbox {
 }
 
 #[cfg(test)]
-mod tests {
+mod test_traits {
     use super::*;
 
     fn is_normal<T: Sized + Send + Sync + Unpin>() {}
@@ -107,6 +107,12 @@ mod tests {
     fn normal_types() {
         is_normal::<Blackbox>();
     }
+}
+
+mod tests {
+    #[allow(unused)]
+    use super::*;
+
     #[test]
     fn test_new() {
         let blackbox = Blackbox::default();

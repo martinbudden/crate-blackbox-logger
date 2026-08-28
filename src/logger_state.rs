@@ -1,4 +1,4 @@
-use crate::{
+use super::{
     BlackboxEvent::LoggingResume,
     Logger, SliceEncoder,
     write_headers::{FieldHeaderIndex, SysInfoIndex},
@@ -156,16 +156,20 @@ impl LoggerState {
 }
 
 #[cfg(test)]
-mod tests {
+mod test_traits {
     use super::*;
 
-    fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
 
     #[test]
     fn normal_types() {
         is_full::<LoggerState>();
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
     #[test]
     fn test_new() {
         let logger_state = LoggerState::new();

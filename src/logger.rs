@@ -1,6 +1,6 @@
 use simple_bitset::BitSet64;
 
-use crate::{
+use super::{
     BlackboxEvent, SliceEncoder,
     data::{BlackboxMainData, BlackboxSlowData},
     field_definitions::{FieldCondition, FieldSelect},
@@ -8,10 +8,10 @@ use crate::{
 };
 
 #[cfg(feature = "gps")]
-use crate::data::{BlackboxGpsData, BlackboxGpsPosition};
+use super::data::{BlackboxGpsData, BlackboxGpsPosition};
 
 #[cfg(feature = "huffman")]
-use crate::huffman_table::HUFFMAN_MAX_ENCODED_BITS;
+use super::huffman_table::HUFFMAN_MAX_ENCODED_BITS;
 
 #[allow(missing_docs)]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -559,7 +559,7 @@ impl Logger {
 }
 
 #[cfg(test)]
-mod tests {
+mod test_traits {
     use super::*;
 
     fn _is_normal<T: Sized + Send + Sync + Unpin>() {}

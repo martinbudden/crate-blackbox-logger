@@ -1,4 +1,4 @@
-use crate::{
+use super::{
     encoding::{write_field_line, write_field_line_header},
     field_definitions::{MainFieldDefinition, SimpleFieldDefinition},
     logger::Logger,
@@ -6,7 +6,7 @@ use crate::{
 };
 
 #[cfg(feature = "gps")]
-use crate::field_definitions::ConditionalFieldDefinition;
+use super::field_definitions::ConditionalFieldDefinition;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
@@ -347,13 +347,9 @@ impl Logger {
 }
 
 #[cfg(test)]
-mod tests {
-    #![allow(clippy::panic)]
-    use crate::{data::BlackboxMainData, logger::BlackboxSysInfo, logger_state::LoggerState};
-
+mod tests_traits {
     use super::*;
 
-    fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
 
     #[test]
@@ -361,6 +357,14 @@ mod tests {
         is_full::<SysInfoIndex>();
         is_full::<FieldHeaderIndex>();
     }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::panic)]
+    use super::*;
+    use crate::{data::BlackboxMainData, logger::BlackboxSysInfo, logger_state::LoggerState};
+
     #[test]
     fn test_new() {
         let field_header_index = FieldHeaderIndex::new();

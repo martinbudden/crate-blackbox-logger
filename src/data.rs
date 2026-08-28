@@ -283,7 +283,7 @@ impl BlackboxMainData {
 }
 
 #[cfg(test)]
-mod tests {
+mod test_traits {
     use super::*;
 
     fn _is_normal<T: Sized + Send + Sync + Unpin>() {}
@@ -296,6 +296,12 @@ mod tests {
         is_full::<BlackboxGpsPosition>();
         is_full::<BlackboxMainData>();
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
     #[test]
     fn new() {
         let slow_data = BlackboxSlowData::new();
