@@ -9,6 +9,24 @@ that is each release may contain incompatible API changes.
 
 Once the API has stabilized this project will adopt semantic versioning, the first release to do so will be `0.2.0`.
 
+## [0.1.10] - 2026-08-31
+
+### Added
+
+- support for `postcard` `MaxSize`.
+
+### Changed
+
+- updated to `sequential-storage` `8.0.1`.
+- updated to `simple-bitset` `0.1.6`.
+- use `u64` for microsecond time.
+- fixed motor encoding to use `min_motor` rather than `min_throttle`.
+- fixed RC commands throttle encoding.
+- improved writing of system info.
+- added `force_i_frame` parameter to `update` function.
+- added `debug_mode` parameter to `start` function.
+- improved conversion of `enum`s to `u8`s.
+
 ## [0.1.9] - 2026-08-04
 
 ### Added
