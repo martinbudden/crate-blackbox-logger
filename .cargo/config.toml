@@ -1,0 +1,28 @@
+# Note the RP2350 uses thumbv8m and the RP2040 uses thumbv6m.
+# RP2350: thumbv8m.main-none-eabihf (Cortex-M33, ARMv8-M, Hard Float)
+# RP2040: thumbv6m-none-eabi (Cortex-M0+, ARMv6-M, Soft Float)
+
+# Configuration for RP2040 (e.g., original Raspberry Pi Pico)
+[target.thumbv6m-none-eabi]
+runner = "probe-rs run --chip RP2040"
+rustflags = [
+    "-C", "target-cpu=cortex-m0plus",
+    "-C", "link-arg=-Tlink.x", # Ensures the cortex-m-rt linker script is used
+]
+
+# Configuration for RP2350 (e.g., Raspberry Pi Pico 2 ARM Core)
+[target.thumbv8m.main-none-eabihf]
+runner = "probe-rs run --chip RP2350"
+rustflags = [
+    "-C", "target-cpu=cortex-m33",
+    "-C", "link-arg=-Tlink.x", 
+]
+
+[build]
+# Optional: Set a default target so you don't have to pass --target to cargo every time
+# target = "thumbv8m.main-none-eabihf" 
+
+[alias]
+# Run using: 'cargo test-serde'
+test-serde = "test --features serde"
+test-storage = "test --features storage"

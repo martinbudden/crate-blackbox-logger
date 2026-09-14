@@ -1,7 +1,8 @@
+#[cfg(feature = "storage")]
+use sequential_storage::map::PostcardValue;
 #[cfg(feature = "serde")]
 use {
     postcard::experimental::max_size::MaxSize,
-    sequential_storage::map::PostcardValue,
     serde::{Deserialize, Serialize},
 };
 
@@ -18,7 +19,7 @@ pub struct BlackboxConfig {
     pub huffman_compress: bool,
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "storage")]
 impl PostcardValue<'_> for BlackboxConfig {}
 
 impl Default for BlackboxConfig {
@@ -54,7 +55,7 @@ pub enum BlackboxDevice {
     Serial,
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "storage")]
 impl PostcardValue<'_> for BlackboxDevice {}
 
 impl_try_from_u8!(BlackboxDevice);
@@ -84,7 +85,7 @@ pub enum BlackboxMode {
     AlwaysOne,
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "storage")]
 impl PostcardValue<'_> for BlackboxMode {}
 
 impl_try_from_u8!(BlackboxMode);
@@ -110,7 +111,9 @@ mod test_traits {
     fn is_full<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + PartialEq>() {}
     fn is_full_eq<T: Sized + Send + Sync + Unpin + Copy + Clone + Default + Eq + PartialEq>() {}
     #[cfg(feature = "serde")]
-    fn is_config<T: Serialize + for<'a> Deserialize<'a> + for<'a> PostcardValue<'a>>() {}
+    fn is_serde<T: Serialize + MaxSize + for<'a> Deserialize<'a>>() {}
+    #[cfg(feature = "storage")]
+    fn is_storage<T: for<'a> PostcardValue<'a>>() {}
 
     #[test]
     fn normal_types() {
@@ -119,10 +122,16 @@ mod test_traits {
         is_full_eq::<BlackboxMode>();
 
         #[cfg(feature = "serde")]
-        is_config::<BlackboxConfig>();
-        #[cfg(feature = "serde")]
-        is_config::<BlackboxDevice>();
-        #[cfg(feature = "serde")]
-        is_config::<BlackboxMode>();
+        {
+            is_serde::<BlackboxConfig>();
+            is_serde::<BlackboxDevice>();
+            is_serde::<BlackboxMode>();
+        }
+        #[cfg(feature = "storage")]
+        {
+            is_storage::<BlackboxConfig>();
+            is_storage::<BlackboxDevice>();
+            is_storage::<BlackboxMode>();
+        }
     }
 }
