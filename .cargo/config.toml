@@ -26,3 +26,8 @@ rustflags = [
 # Run using: 'cargo test-serde'
 test-serde = "test --features serde"
 test-storage = "test --features storage"
+
+# Continuous Integration
+ci = "run --package xtask --bin xtask"
+# MSRV
+check-msrv = "run --package xtask --bin xtask -- check-msrv"

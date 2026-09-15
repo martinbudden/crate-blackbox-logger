@@ -2,6 +2,7 @@
 name = "blackbox-logger"
 version = "0.1.10"
 edition = "2024"
+rust-version = "1.89"
 authors = ["Martin Budden"]
 license = "GPL-3.0-or-later"
 readme = "README.md"
@@ -94,3 +95,9 @@ rpath = false
 [profile.release-lto]
 inherits = "release"
 lto = true
+
+[workspace]
+members = [
+    ".",
+    "xtask",
+]
