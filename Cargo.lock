@@ -241,9 +241,9 @@ dependencies = [
 
 [[package]]
 name = "simple-bitset"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17c9fa5bb21b915fe823676bb42b92d22226d8ca9b999488b0ed40546dbb5a05"
+checksum = "b1df039917eac7878e112e2eb7c7fd211a116166a9e1f30c4cec56655fa00696"
 dependencies = [
  "rustc_version",
 ]
