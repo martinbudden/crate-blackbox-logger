@@ -21,7 +21,10 @@ fn run_ci_pipeline() {
     let tasks: &[(&str, &[&str])] = &[
         ("fmt", &["--check"]),
         ("clippy", &["--all-targets", "--", "-D", "warnings"]),
+        ("check", &["--no-default-features", "--features", "serde"]),
+        ("check", &["--no-default-features", "--features", "storage"]),
         ("test", &[]),
+        ("test", &["--no-default-features", "--features", "std"]),
         ("doc", &["--no-deps"]),
         ("publish", &["--dry-run"]),
     ];
