@@ -17,6 +17,7 @@
         "codegen",
         "corasick",
         "cordyceps",
+        "dband",
         "deadband",
         "debuginfo",
         "deci",

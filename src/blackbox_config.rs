@@ -62,6 +62,7 @@ impl_try_from_u8!(BlackboxDevice);
 
 #[allow(missing_docs)]
 impl BlackboxDevice {
+    /// Forgiving conversion from u8 to `BlackboxDevice`, converts invalid values to default.
     #[must_use]
     pub fn from_u8(value: u8) -> Self {
         match value {
@@ -92,6 +93,7 @@ impl_try_from_u8!(BlackboxMode);
 
 #[allow(missing_docs)]
 impl BlackboxMode {
+    /// Forgiving conversion from u8 to `BlackboxMode`, converts invalid values to default.
     #[must_use]
     pub fn from_u8(value: u8) -> Self {
         match value {
