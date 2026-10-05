@@ -9,6 +9,13 @@ that is each release may contain incompatible API changes.
 
 Once the API has stabilized this project will adopt semantic versioning, the first release to do so will be `0.2.0`.
 
+## [0.1.12] - 2026-10-05
+
+### Changed
+
+- updated to `simple-bitset` `0.1.8`.
+- updated to `sequential-storage` `8.0.2`.
+
 ## [0.1.11] - 2026-10-02
 
 ### Added
