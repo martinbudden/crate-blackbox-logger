@@ -49,7 +49,6 @@ impl Ord for TreeNode {
 }
 
 /// Generates a left-aligned Huffman code table from an array of 256 byte frequencies.
-/// Generates a left-aligned Huffman code table from an array of 256 byte frequencies.
 pub fn generate_huffman_table(frequencies: &[u32; 256]) -> [HuffmanCode; 256] {
     let mut table = [HuffmanCode::default(); 256];
 
@@ -79,8 +78,7 @@ pub fn generate_huffman_table(frequencies: &[u32; 256]) -> [HuffmanCode; 256] {
         return table;
     }
 
-    // 2. Build the tree recursively using safe pattern matching instead of unwrap
-    // 2. Build the tree recursively using a clean let...else statement
+    // Build the Huffman tree recursively.
     while heap.len() > 1 {
         let (Some(Reverse(left)), Some(Reverse(right))) = (heap.pop(), heap.pop()) else {
             break;
@@ -184,12 +182,12 @@ mod tests {
         let code_c = table[b'C' as usize];
         let code_d = table[b'D' as usize];
 
-        // 1. Verify frequency rule: More frequent characters must have shorter or equal lengths
+        // Verify frequency rule: More frequent characters must have shorter or equal lengths
         assert!(code_a.len <= code_b.len);
         assert!(code_b.len <= code_c.len);
         assert_eq!(code_c.len, code_d.len); // C and D have identical weights, so they should match in depth
 
-        // 2. Verify that they are valid lengths
+        // Verify that they are valid lengths
         assert!(code_a.len > 0);
         assert!(code_b.len > 0);
         assert!(code_c.len > 0);

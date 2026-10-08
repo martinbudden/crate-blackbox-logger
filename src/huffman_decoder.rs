@@ -141,7 +141,7 @@ mod tests {
         let original_input = [0u8, 1u8, 2u8, 3u8, 4u8];
         let mut compressed_buffer = [0u8; 32];
 
-        // 1. Compress
+        // Compress
         let Ok(writer) = HuffmanEncoder::<16>::new(&mut compressed_buffer) else {
             panic!("Could not create HuffmanEncoder");
         };
@@ -149,7 +149,7 @@ mod tests {
             panic!("Compression failed unexpectedly with Err(())");
         };
 
-        // 2. Decompress using the LUT
+        // Decompress using the look up table.
         let mut decompressed_buffer = [0u8; 16];
         let mut reader = HuffmanDecoder::new(&compressed_buffer[..compressed_size]);
         let Ok(decompressed_size) = reader.decompress(&mut decompressed_buffer) else {
