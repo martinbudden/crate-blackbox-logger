@@ -192,3 +192,9 @@ H P ratio:8
 
 I originally implemented this crate as a C++ library:
 [Library-Blackbox](https://github.com/martinbudden/Library-Blackbox).
+
+## License
+
+Licensed under:
+
+GNU General Public License version 3.0, see: [License: GPLv3](https://opensource.org/licenses/gpl-3.0)
